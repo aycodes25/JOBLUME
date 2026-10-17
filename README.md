@@ -5,7 +5,7 @@ Semi-automatic job application platform. Phase 1 is the backend that finds jobs 
 ## Setup
 
 1. Create a Supabase project and run `supabase/migrations/0001_init.sql` (CLI `supabase db push`, or the SQL editor). In Authentication, enable the Email provider. For easy local testing you may turn off "Confirm email".
-2. Copy `.env.example` to `.env` and fill in the server values (Supabase, Gemini, Upstash). `GEMINI_MODEL` must be a model Google currently offers. `WEB_ORIGIN` must equal the web app's address (`http://localhost:3000` in development).
+2. Copy `.env.example` to `.env` and fill in the server values (Supabase, Gemini, Upstash). For email sending also set `GMAIL_CLIENT_ID`, `GMAIL_CLIENT_SECRET`, `GMAIL_REDIRECT_URI` and optionally `HUNTER_API_KEY` and `HUNTER_MONTHLY_LIMIT` (see `.env.example`). `GEMINI_MODEL` must be a model Google currently offers. `WEB_ORIGIN` must equal the web app's address (`http://localhost:3000` in development).
 3. Copy `web/.env.example` to `web/.env.local` and set `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` (public values only) and `NEXT_PUBLIC_API_URL` (`http://localhost:4000`).
 4. From the repo root run `npm install`. This is an npm workspace (`server`, `web`, `packages/shared`); the install also builds the shared package.
 5. Run everything with `npm run dev` (server on port 4000, web on port 3000), or separately with `npm run dev:server` and `npm run dev:web`.
@@ -20,7 +20,17 @@ API endpoints: `GET /profile`, `PUT /profile`, `POST /cv`, `GET /applications`, 
 - **Queue:** AI-prepared applications sorted by match score. Open one to edit the tailored CV and cover letter, then **Approve & Apply**. Nothing is sent for you: the panel gives you the job link, the CV PDF and a copy button for the cover letter; you apply on the employer's site and click **Mark as applied**.
 - **Tracker:** Kanban board (Pending Review, Applied, Interviewing, Rejected, Offer). Drag cards between columns.
 - **Analytics:** totals, response rate (counts cards you moved past Applied until email reply tracking exists) and average match score.
-- **Settings:** replace your CV, edit preferences, and set apply mode, threshold, daily cap and follow-up preferences. Auto mode only stores the preference until sending exists.
+- **Settings:** replace your CV, edit preferences, and set apply mode, threshold, daily cap and follow-up preferences. Auto mode sends eligible applications by email (see below).
+
+## Email sending (Phase 3)
+
+- **Apply the database change:** run `supabase/migrations/0002_email.sql` in the Supabase SQL editor (once).
+- **Gmail:** follow `docs/gmail-setup.md` and set `GMAIL_CLIENT_ID`, `GMAIL_CLIENT_SECRET` and `GMAIL_REDIRECT_URI`. Then use Settings, Connect Gmail.
+- **Finding contacts:** optional `HUNTER_API_KEY` (free tier is about 25 searches a month, capped by `HUNTER_MONTHLY_LIMIT`). Without it, JobLume only offers clearly marked guesses.
+- **Sending:** Approve & Apply now has a Send by email section. You always click Send, except in Auto mode (see Settings for the exact rules). Guessed addresses need an extra confirmation and are never sent by Auto mode.
+- **Follow-ups:** three days after you send, a draft appears in the queue's Follow-ups tab. You edit and send it, or turn on Auto follow-up.
+- **More endpoints:** `POST /gmail/connect`, `GET /gmail/callback`, `GET /gmail/status`, `DELETE /gmail`, `POST /applications/:id/send`, `POST /applications/:id/email/next`, `PUT /applications/:id/email`, `GET /follow-ups`, `PATCH /follow-ups/:id`, `POST /follow-ups/:id/send`, `POST /follow-ups/:id/dismiss`.
+- **Test it:** work through `docs/phase3-manual-checklist.md` using a second email address you own.
 
 ## Getting a test token (API only, without the web app)
 
