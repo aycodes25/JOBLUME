@@ -1,5 +1,6 @@
 import type { ApplicationStatus, ProfileRow } from '../db/types.js';
 import type { Db } from '../lib/supabase.js';
+import type { AnalyticsRow } from '../services/analytics.js';
 import type { ApplicationWithJob, ApplicationsRepo, ProfilePatch, ProfileRepo } from './deps.js';
 
 const APP_SELECT = '*, job:jobs(title, company, location, source, url, company_domain)';
@@ -27,7 +28,7 @@ export function createProfileRepo(db: Db): ProfileRepo {
 export function createApplicationsRepo(db: Db): ApplicationsRepo {
   return {
     async list(userId, status?: ApplicationStatus) {
-      let q = db.from('applications').select(APP_SELECT).eq('user_id', userId).order('match_score', { ascending: false, nullsFirst: false });
+      let q = db.from('applications').select(APP_SELECT).eq('user_id', userId).order('match_score', { ascending: false, nullsFirst: false }).limit(200);
       if (status) q = q.eq('status', status);
       const { data, error } = await q;
       if (error) throw error;
@@ -48,6 +49,11 @@ export function createApplicationsRepo(db: Db): ApplicationsRepo {
         .maybeSingle();
       if (error) throw error;
       return (data as unknown as ApplicationWithJob | null) ?? null;
+    },
+    async listForAnalytics(userId) {
+      const { data, error } = await db.from('applications').select('status, match_score').eq('user_id', userId);
+      if (error) throw error;
+      return (data ?? []) as AnalyticsRow[];
     },
   };
 }

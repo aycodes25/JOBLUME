@@ -5,6 +5,7 @@ import helmet from 'helmet';
 import { requireAuth } from './auth.js';
 import type { AppDeps } from './deps.js';
 import { errorHandler } from './errors.js';
+import { analyticsRoutes } from './routes/analytics.js';
 import { applicationRoutes } from './routes/applications.js';
 import { cvRoutes } from './routes/cv.js';
 import { jobRoutes } from './routes/jobs.js';
@@ -28,6 +29,7 @@ export function createApp(d: AppDeps) {
   app.use('/cv', cvRoutes(d));
   app.use('/applications', applicationRoutes(d));
   app.use('/jobs', jobRoutes(d));
+  app.use('/analytics', analyticsRoutes(d));
 
   app.use(errorHandler);
   return app;

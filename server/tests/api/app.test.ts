@@ -22,6 +22,7 @@ function makeDeps(over: Partial<AppDeps> = {}): AppDeps {
       get: vi.fn().mockResolvedValue(null),
       update: vi.fn().mockResolvedValue(null),
       setStatus: vi.fn(),
+      analytics: vi.fn(),
     },
     jobs: { refresh: vi.fn().mockResolvedValue(undefined), rematch: vi.fn().mockResolvedValue(undefined) },
     ...over,
@@ -172,7 +173,7 @@ describe('applications', () => {
   });
 
   it('PATCH /applications/:id only accepts the two text fields', async () => {
-    const deps = makeDeps({ applications: { list: vi.fn(), get: vi.fn(), update: vi.fn().mockResolvedValue({ id: 'a1' } as never), setStatus: vi.fn() } });
+    const deps = makeDeps({ applications: { list: vi.fn(), get: vi.fn(), update: vi.fn().mockResolvedValue({ id: 'a1' } as never), setStatus: vi.fn(), analytics: vi.fn() } });
     const ok = await authed(createApp(deps)).patch(`/applications/${ID}`).send({ cover_letter_text: 'hi there' });
     expect(ok.status).toBe(200);
     expect(deps.applications.update).toHaveBeenCalledWith('u1', ID, { cover_letter_text: 'hi there' });

@@ -13,6 +13,7 @@ function make(over: Partial<Parameters<typeof createApplicationsService>[0]> = {
     list: vi.fn().mockResolvedValue([app]),
     get: vi.fn().mockResolvedValue(app),
     update: vi.fn().mockResolvedValue({ ...app, tailored_cv_text: 'NEW' }),
+    listForAnalytics: vi.fn(),
   };
   const deps = {
     repo,
@@ -31,7 +32,7 @@ describe('applications service', () => {
   });
 
   it('get() returns null for an unknown application and does not sign', async () => {
-    const { svc, deps } = make({ repo: { list: vi.fn(), get: vi.fn().mockResolvedValue(null), update: vi.fn() } });
+    const { svc, deps } = make({ repo: { list: vi.fn(), get: vi.fn().mockResolvedValue(null), update: vi.fn(), listForAnalytics: vi.fn() } });
     expect(await svc.get('u1', 'nope')).toBeNull();
     expect(deps.signUrl).not.toHaveBeenCalled();
   });
@@ -58,7 +59,7 @@ describe('applications service', () => {
   });
 
   it('update() on an unknown application returns null without writing', async () => {
-    const { svc, repo } = make({ repo: { list: vi.fn(), get: vi.fn().mockResolvedValue(null), update: vi.fn() } });
+    const { svc, repo } = make({ repo: { list: vi.fn(), get: vi.fn().mockResolvedValue(null), update: vi.fn(), listForAnalytics: vi.fn() } });
     expect(await svc.update('u1', 'nope', { cover_letter_text: 'x' })).toBeNull();
     expect(repo.update).not.toHaveBeenCalled();
   });

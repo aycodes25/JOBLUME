@@ -9,7 +9,7 @@ const existing: ApplicationWithJob = {
 };
 
 function make(get = vi.fn().mockResolvedValue(existing)) {
-  const repo = { list: vi.fn(), get, update: vi.fn().mockResolvedValue({ ...existing, status: 'applied' }) };
+  const repo = { list: vi.fn(), get, update: vi.fn().mockResolvedValue({ ...existing, status: 'applied' }), listForAnalytics: vi.fn() };
   const svc = createApplicationsService({
     repo,
     renderPdf: vi.fn(),

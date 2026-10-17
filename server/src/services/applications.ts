@@ -1,6 +1,7 @@
 import type { ApplicationStatus } from '../db/types.js';
 import type { ApplicationsRepo, ApplicationsService } from '../api/deps.js';
 import { planStatusChange } from './application-status.js';
+import { computeAnalytics } from './analytics.js';
 
 export function createApplicationsService(deps: {
   repo: ApplicationsRepo;
@@ -36,6 +37,10 @@ export function createApplicationsService(deps: {
       if (!existing) return null;
       const now = deps.now ? deps.now() : new Date();
       return deps.repo.update(userId, id, planStatusChange(existing, status, now));
+    },
+
+    async analytics(userId) {
+      return computeAnalytics(await deps.repo.listForAnalytics(userId));
     },
   };
 }
