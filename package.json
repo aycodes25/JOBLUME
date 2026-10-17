@@ -1,7 +1,11 @@
 {
   "name": "joblume",
   "private": true,
-  "workspaces": ["packages/*", "server"],
+  "workspaces": [
+    "packages/*",
+    "server",
+    "web"
+  ],
   "scripts": {
     "build:shared": "npm run build -w @joblume/shared",
     "postinstall": "npm run build:shared",
@@ -9,6 +13,10 @@
     "dev:web": "npm run dev -w web",
     "typecheck": "npm run build:shared && npm run typecheck --workspaces --if-present",
     "test": "npm run build:shared && npm test --workspaces --if-present",
-    "build": "npm run build:shared && npm run build -w server"
+    "build": "npm run build:shared && npm run build -w server && npm run build -w web"
+  },
+  "overrides": {
+    "react": "18.3.1",
+    "react-dom": "18.3.1"
   }
 }
