@@ -1,4 +1,4 @@
-import type { ApplicationStatus } from '@joblume/shared';
+import type { ApplicationStatus, EmailCandidate } from '@joblume/shared';
 export type { ApplicationStatus };
 
 export type JobSourceName = 'linkedin' | 'indeed' | 'jobberman' | 'myjobmag' | 'remotive';
@@ -21,6 +21,7 @@ export interface ProfileRow {
   user_id: string;
   base_cv_text: string | null;
   base_cv_url: string | null;
+  base_cv_filename: string | null;
   skills: string[];
   years_experience: number | null;
   desired_roles: string[];
@@ -45,6 +46,8 @@ export interface ApplicationRow {
   missing_keywords: string[];
   hiring_manager_email: string | null;
   email_confidence: number | null;
+  email_source: 'hunter' | 'guess' | 'manual' | null;
+  email_candidates: EmailCandidate[];
   apply_method: 'email' | 'assisted' | 'auto' | null;
   status: ApplicationStatus;
   applied_at: string | null;

@@ -11,7 +11,7 @@ import { keys, useSetStatus } from '@/hooks/api';
 
 const app = (over: Partial<Application> = {}): Application => ({
   id: 'a1', user_id: 'u1', job_id: 'j1', tailored_cv_text: 'cv', tailored_cv_url: null, cover_letter_text: 'l',
-  match_score: 70, missing_keywords: [], hiring_manager_email: null, email_confidence: null, apply_method: null,
+  match_score: 70, missing_keywords: [], hiring_manager_email: null, email_confidence: null, email_source: null, email_candidates: [], apply_method: null,
   status: 'pending_review', applied_at: null, follow_up_at: null, created_at: '2026-10-01T00:00:00.000Z', job: null, ...over,
 });
 
