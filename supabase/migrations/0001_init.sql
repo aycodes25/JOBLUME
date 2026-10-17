@@ -109,7 +109,8 @@ create policy users_select_own on public.users for select to authenticated using
 create policy users_update_own on public.users for update to authenticated using (id = auth.uid());
 
 create policy profiles_select_own on public.profiles for select to authenticated using (user_id = auth.uid());
-create policy profiles_update_own on public.profiles for update to authenticated using (user_id = auth.uid());
+-- profiles are written only by the server API (zod-validated); clients may only read their own row
+revoke update on public.profiles from anon, authenticated;
 
 create policy jobs_select_all on public.jobs for select to authenticated using (true);
 
