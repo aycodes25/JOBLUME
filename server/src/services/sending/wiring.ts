@@ -98,7 +98,10 @@ export function createFollowUpSender(d: Parameters<typeof createSendDeps>[0] & {
     markSent: (followUpId, applicationId, sentAt) => d.repo.markSent(followUpId, applicationId, sentAt),
     markFailed: (followUpId) => d.repo.markFailed(followUpId),
     dismiss: (followUpId) => d.repo.dismiss(followUpId),
+    hasSentFollowUpEmail: (applicationId) => d.repo.hasSentFollowUpEmail(applicationId),
+    autoEnabled: (userId) => d.repo.autoEnabled(userId),
     logEmail: base.logEmail,
+    ...(base.warn ? { warn: base.warn } : {}),
     now: base.now,
     newMessageId: base.newMessageId,
   };

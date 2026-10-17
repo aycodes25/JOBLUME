@@ -42,9 +42,9 @@ export function createFollowUpRepo(db: Db) {
     async updateForUser(userId: string, id: string, patch: Record<string, unknown>): Promise<FollowUp | null> {
       const owned = await this.getForUser(userId, id);
       if (!owned) return null;
-      const { data, error } = await db.from('follow_ups').update(patch).eq('id', id).select('*').single();
+      const { data, error } = await db.from('follow_ups').update(patch).eq('id', id).eq('status', 'pending_review').select('*').maybeSingle();
       if (error) throw error;
-      return data as FollowUp;
+      return (data as FollowUp | null) ?? null;
     },
 
     // ---- worker side ----
@@ -158,6 +158,23 @@ export function createFollowUpRepo(db: Db) {
       return count ?? 0;
     },
 
+    async hasSentFollowUpEmail(applicationId: string): Promise<boolean> {
+      const { count, error } = await db
+        .from('email_logs')
+        .select('id', { count: 'exact', head: true })
+        .eq('application_id', applicationId)
+        .eq('type', 'follow_up')
+        .eq('status', 'sent');
+      if (error) throw error;
+      return (count ?? 0) > 0;
+    },
+
+    async autoEnabled(userId: string): Promise<boolean> {
+      const { data, error } = await db.from('profiles').select('auto_followup').eq('user_id', userId).maybeSingle();
+      if (error) throw error;
+      return Boolean((data as { auto_followup: boolean } | null)?.auto_followup);
+    },
+
     async markSent(followUpId: string, applicationId: string, sentAt: string): Promise<void> {
       const a = await db.from('follow_ups').update({ status: 'sent', sent_at: sentAt }).eq('id', followUpId);
       if (a.error) throw a.error;
@@ -171,7 +188,7 @@ export function createFollowUpRepo(db: Db) {
     },
 
     async dismiss(followUpId: string): Promise<void> {
-      const { error } = await db.from('follow_ups').update({ status: 'dismissed' }).eq('id', followUpId);
+      const { error } = await db.from('follow_ups').update({ status: 'dismissed' }).eq('id', followUpId).eq('status', 'pending_review');
       if (error) throw error;
     },
   };
