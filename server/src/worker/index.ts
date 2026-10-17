@@ -107,18 +107,22 @@ async function main() {
   }
 
   for (const source of SCRAPE_SOURCES) {
+    // upsertJobScheduler enqueues the first run immediately, so no separate boot job is needed
     await queues.scrape.upsertJobScheduler(`scrape-${source}`, { every: SIX_HOURS }, { name: 'scrape', data: { source } });
-    await queues.scrape.add('scrape', { source }, { jobId: `boot-${source}-${Date.now()}` });
   }
   logger.info({ sources: SCRAPE_SOURCES }, 'worker started; scraping every 6 hours');
 
   const shutdown = async (signal: string) => {
     logger.info({ signal }, 'shutting down');
-    await Promise.all([scrapeWorker.close(), matchWorker.close(), tailorWorker.close()]);
+    const closeAll = Promise.allSettled([scrapeWorker.close(), matchWorker.close(), tailorWorker.close()]).then(() =>
+      Promise.allSettled([queues.scrape.close(), queues.match.close(), queues.tailor.close()]),
+    );
+    await Promise.race([closeAll, sleep(25_000)]);
     process.exit(0);
   };
   process.on('SIGINT', () => void shutdown('SIGINT'));
   process.on('SIGTERM', () => void shutdown('SIGTERM'));
+  process.on('unhandledRejection', (err) => logger.error({ err }, 'unhandled rejection'));
 }
 
 main().catch((err) => {
