@@ -78,7 +78,7 @@ export function ProfileForm({ initial, onSubmit, submitLabel, requireRoles = fal
           id="location"
           value={values.location}
           onChange={(e) => set('location', e.target.value as ProfileFormValues['location'])}
-          className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="flex h-9 w-full rounded-lg border border-input bg-white px-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           <option value="">Any location</option>
           {LOCATIONS.map((l) => (
@@ -105,7 +105,7 @@ export function ProfileForm({ initial, onSubmit, submitLabel, requireRoles = fal
         </p>
       )}
       {saved && (
-        <p role="status" className="text-sm text-emerald-400">
+        <p role="status" className="text-sm text-emerald-600">
           Saved.
         </p>
       )}

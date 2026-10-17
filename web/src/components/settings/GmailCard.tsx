@@ -26,7 +26,7 @@ export function GmailCard({ status, connecting, disconnecting, error, returned, 
       </CardHeader>
       <CardContent className="space-y-3">
         {returned?.kind === 'connected' && (
-          <p role="status" className="text-sm text-emerald-400">
+          <p role="status" className="text-sm text-emerald-600">
             Gmail connected.
           </p>
         )}

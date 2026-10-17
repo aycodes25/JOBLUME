@@ -66,7 +66,7 @@ export function AssistedApplyPanel({ app, onMarkApplied, pending = false, locked
           <Button variant="outline" size="sm" onClick={() => void copyLetter()}>
             Copy cover letter
           </Button>
-          {copy === 'copied' && <span role="status" className="text-emerald-400">Copied.</span>}
+          {copy === 'copied' && <span role="status" className="text-emerald-600">Copied.</span>}
           {copy === 'failed' && <span role="alert" className="text-destructive">Could not copy. Select the text in the editor below and copy it yourself.</span>}
         </li>
         <li className="flex flex-wrap items-center gap-3">

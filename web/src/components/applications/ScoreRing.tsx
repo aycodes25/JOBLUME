@@ -2,9 +2,9 @@ import { scoreTone } from '@/lib/applications';
 import { cn } from '@/lib/utils';
 
 const TONE_CLASS = {
-  high: 'text-emerald-400',
-  mid: 'text-amber-400',
-  low: 'text-rose-400',
+  high: 'text-emerald-600',
+  mid: 'text-amber-600',
+  low: 'text-rose-600',
   none: 'text-muted-foreground',
 } as const;
 

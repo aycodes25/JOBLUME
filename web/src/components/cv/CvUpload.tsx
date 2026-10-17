@@ -78,7 +78,7 @@ export function CvUpload({ onUpload, currentName }: CvUploadProps) {
       </label>
       {currentName && <p className="text-sm text-muted-foreground">Current CV: {currentName}</p>}
       {status === 'done' && (
-        <p role="status" className="text-sm text-emerald-400">
+        <p role="status" className="text-sm text-emerald-600">
           CV uploaded.
         </p>
       )}

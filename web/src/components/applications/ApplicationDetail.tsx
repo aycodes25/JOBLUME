@@ -115,7 +115,7 @@ export function ApplicationDetail({ id, onClose }: { id: string | null; onClose(
                   <select
                     value={data.status}
                     onChange={(e) => move(e.target.value as ApplicationStatus)}
-                    className="h-9 rounded-md border border-input bg-background px-2 text-sm"
+                    className="h-9 rounded-lg border border-input bg-white px-2 text-sm"
                   >
                     {MOVE_OPTIONS.map((s) => (
                       <option key={s} value={s}>
@@ -171,7 +171,7 @@ export function ApplicationDetail({ id, onClose }: { id: string | null; onClose(
                 {updateText.isPending ? 'Saving…' : 'Save changes'}
               </Button>
               <p className="text-xs text-muted-foreground">Saving a CV change rebuilds the PDF.</p>
-              {updateText.isSuccess && !text.dirty && <span role="status" className="text-sm text-emerald-400">Saved.</span>}
+              {updateText.isSuccess && !text.dirty && <span role="status" className="text-sm text-emerald-600">Saved.</span>}
             </div>
 
             {mutationError && <p role="alert" className="text-sm text-destructive">{describeApiError(mutationError)}</p>}

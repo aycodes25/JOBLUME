@@ -3,7 +3,7 @@ import { statusSegments } from '@/lib/format';
 import { cn } from '@/lib/utils';
 
 const COLORS: Record<ApplicationStatus, string> = {
-  pending_review: 'bg-slate-500',
+  pending_review: 'bg-slate-400',
   approved: 'bg-sky-500',
   applied: 'bg-primary',
   interviewing: 'bg-amber-500',
