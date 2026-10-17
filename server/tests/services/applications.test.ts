@@ -31,6 +31,14 @@ describe('applications service', () => {
     expect((await svc.get('u1', 'a1'))!.cv_pdf_url).toBe('https://signed/url');
   });
 
+  it('get() returns the application with a null pdf url when signing fails', async () => {
+    const { svc } = make({ signUrl: vi.fn().mockRejectedValue(new Error('storage down')) });
+    const result = await svc.get('u1', 'a1');
+    expect(result).not.toBeNull();
+    expect(result!.cv_pdf_url).toBeNull();
+    expect(result!.id).toBe('a1');
+  });
+
   it('get() returns null for an unknown application and does not sign', async () => {
     const { svc, deps } = make({ repo: { list: vi.fn(), get: vi.fn().mockResolvedValue(null), update: vi.fn(), listForAnalytics: vi.fn() } });
     expect(await svc.get('u1', 'nope')).toBeNull();

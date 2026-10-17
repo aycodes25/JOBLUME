@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { CvUpload, MAX_CV_BYTES, validateCvFile } from '@/components/cv/CvUpload';
@@ -31,6 +31,19 @@ describe('CvUpload', () => {
     const file = pdf();
     await user.upload(input, file);
     expect(onUpload).toHaveBeenCalledWith(file);
+    expect(await screen.findByText(/cv uploaded/i)).toBeInTheDocument();
+  });
+
+  it('ignores a second file while an upload is pending', async () => {
+    let resolve!: () => void;
+    const onUpload = vi.fn().mockReturnValue(new Promise<void>((r) => { resolve = r; }));
+    render(<CvUpload onUpload={onUpload} />);
+    const input = screen.getByLabelText('CV file');
+    fireEvent.change(input, { target: { files: [pdf('one.pdf')] } });
+    await waitFor(() => expect(onUpload).toHaveBeenCalledTimes(1));
+    fireEvent.change(input, { target: { files: [pdf('two.pdf')] } });
+    expect(onUpload).toHaveBeenCalledTimes(1);
+    resolve();
     expect(await screen.findByText(/cv uploaded/i)).toBeInTheDocument();
   });
 

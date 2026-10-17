@@ -11,6 +11,7 @@ Setup: `npm install`, fill `.env` and `web/.env.local`, run `npm run dev`, open 
 - [ ] Create account works (or tells you to confirm your email, depending on your Supabase setting).
 - [ ] Signing in lands you on `/queue` (or `/onboarding` for a brand-new account).
 - [ ] Visiting `/login` while signed in redirects away from it.
+- [ ] Sign out, then sign in as a second user: nothing from the first user appears.
 - [ ] Sign out returns to `/login`, and the browser Back button does not show the app.
 
 ## Onboarding
@@ -28,6 +29,7 @@ Setup: `npm install`, fill `.env` and `web/.env.local`, run `npm run dev`, open 
 - [ ] Editing only the cover letter and saving works; the PDF is unchanged.
 - [ ] Editing the CV and saving rebuilds the PDF (download it and check the change).
 - [ ] A CV shorter than 50 characters or an empty cover letter is blocked with a message.
+- [ ] Edit the cover letter without saving: Approve & Apply is disabled with a hint; after saving, approve, Copy, and the pasted text includes your edit.
 - [ ] **Approve & Apply** moves the card to the "Ready to apply" tab and shows the apply panel.
 - [ ] "Open job link", "Download CV PDF" and "Copy cover letter" (paste it somewhere to check) work.
 - [ ] "Mark as applied" closes the panel and the card appears in Applied on the Tracker.
@@ -39,6 +41,7 @@ Setup: `npm install`, fill `.env` and `web/.env.local`, run `npm run dev`, open 
 - [ ] Columns show Pending Review, Applied, Interviewing, Rejected, Offer with correct counts; ready-to-apply cards sit in Pending Review with a badge.
 - [ ] Dragging a card to another column moves it immediately and it stays after a page refresh.
 - [ ] Stop the server, drag a card: it snaps back and an error message appears. Restart the server afterwards.
+- [ ] Tab to a card title and press Enter: the detail opens.
 - [ ] Clicking a card opens the same detail view; the "Move to" menu changes its column.
 - [ ] Moving a card back to Pending Review clears its applied date.
 

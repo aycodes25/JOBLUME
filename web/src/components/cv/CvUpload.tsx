@@ -25,7 +25,7 @@ export function CvUpload({ onUpload, currentName }: CvUploadProps) {
   const [dragging, setDragging] = useState(false);
 
   async function handleFile(file: File | undefined) {
-    if (!file) return;
+    if (!file || status === 'uploading') return;
     const problem = validateCvFile(file);
     if (problem) {
       setError(problem);

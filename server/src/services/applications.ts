@@ -16,7 +16,15 @@ export function createApplicationsService(deps: {
     async get(userId, id) {
       const app = await deps.repo.get(userId, id);
       if (!app) return null;
-      return { ...app, cv_pdf_url: app.tailored_cv_url ? await deps.signUrl(app.tailored_cv_url) : null };
+      let cv_pdf_url: string | null = null;
+      if (app.tailored_cv_url) {
+        try {
+          cv_pdf_url = await deps.signUrl(app.tailored_cv_url);
+        } catch {
+          cv_pdf_url = null;
+        }
+      }
+      return { ...app, cv_pdf_url };
     },
 
     async update(userId, id, patch) {

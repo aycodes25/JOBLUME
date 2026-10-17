@@ -13,7 +13,7 @@ Semi-automatic job application platform. Phase 1 is the backend that finds jobs 
 
 Useful commands from the repo root: `npm test`, `npm run typecheck`, `npm run build`.
 
-API endpoints: `GET /profile`, `PUT /profile`, `POST /cv`, `GET /applications`, `GET /applications/:id`, `PATCH /applications/:id`, `POST /jobs/refresh`, and `GET /health`. Every endpoint except `/health` needs a Supabase access token sent as `Authorization: Bearer <token>`.
+API endpoints: `GET /profile`, `PUT /profile`, `POST /cv`, `GET /applications`, `GET /applications/:id`, `PATCH /applications/:id`, `PATCH /applications/:id/status`, `GET /analytics`, `POST /jobs/refresh`, and `GET /health`. Every endpoint except `/health` needs a Supabase access token sent as `Authorization: Bearer <token>`.
 
 ## Web dashboard
 
