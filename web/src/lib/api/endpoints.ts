@@ -4,6 +4,9 @@ import type {
   ApplicationDetail,
   ApplicationStatus,
   CvUploadResult,
+  FollowUp,
+  FollowUpWithJob,
+  GmailStatus,
   Profile,
   ProfilePatch,
 } from '@joblume/shared';
@@ -27,6 +30,21 @@ export function createApi(request: ApiClient) {
       request<Application>(`/applications/${encodeURIComponent(id)}/status`, { method: 'PATCH', json: { status } }),
     getAnalytics: () => request<Analytics>('/analytics'),
     refreshJobs: () => request<{ queued: boolean }>('/jobs/refresh', { method: 'POST' }),
+    getGmailStatus: () => request<GmailStatus>('/gmail/status'),
+    startGmailConnect: () => request<{ url: string }>('/gmail/connect', { method: 'POST' }),
+    disconnectGmail: () => request<{ connected: false }>('/gmail', { method: 'DELETE' }),
+    sendApplication: (id: string, body: { to?: string; confirmGuess?: boolean }) =>
+      request<Application>(`/applications/${encodeURIComponent(id)}/send`, { method: 'POST', json: body }),
+    nextEmail: (id: string) =>
+      request<{ exhausted: boolean; application: Application }>(`/applications/${encodeURIComponent(id)}/email/next`, { method: 'POST' }),
+    setEmail: (id: string, email: string) =>
+      request<Application>(`/applications/${encodeURIComponent(id)}/email`, { method: 'PUT', json: { email } }),
+    listFollowUps: (status?: FollowUp['status']) =>
+      request<FollowUpWithJob[]>(status ? `/follow-ups?status=${encodeURIComponent(status)}` : '/follow-ups'),
+    updateFollowUp: (id: string, patch: { subject?: string; body?: string }) =>
+      request<FollowUp>(`/follow-ups/${encodeURIComponent(id)}`, { method: 'PATCH', json: patch }),
+    sendFollowUp: (id: string) => request<FollowUp>(`/follow-ups/${encodeURIComponent(id)}/send`, { method: 'POST' }),
+    dismissFollowUp: (id: string) => request<FollowUp>(`/follow-ups/${encodeURIComponent(id)}/dismiss`, { method: 'POST' }),
   };
 }
 
