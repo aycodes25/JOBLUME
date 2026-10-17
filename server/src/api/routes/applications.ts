@@ -21,7 +21,7 @@ const sendBodySchema = z
 
 const emailBodySchema = z.object({ email: z.string().trim().toLowerCase().email().max(254) }).strict();
 
-const idSchema =z.string().uuid();
+const idSchema = z.string().uuid();
 const parseId = (raw: unknown): string => {
   const r = idSchema.safeParse(raw);
   if (!r.success) throw new ApiError(404, 'application_not_found');
