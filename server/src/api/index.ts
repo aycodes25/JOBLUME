@@ -1,0 +1,54 @@
+import { getEnv } from '../lib/env.js';
+import { logger } from '../lib/logger.js';
+import { createRedis } from '../lib/redis.js';
+import { createSupabaseAdmin } from '../lib/supabase.js';
+import { createQueues } from '../queues.js';
+import { SCRAPE_SOURCES } from '../scrapers/index.js';
+import { createApplicationsService } from '../services/applications.js';
+import { renderCvPdf } from '../services/cv/pdf.js';
+import { createCvService } from '../services/cv/upload.js';
+import { createSignedUrl, uploadFile } from '../services/storage.js';
+import { createApp } from './app.js';
+import { createApplicationsRepo, createProfileRepo, setCv } from './repos.js';
+
+const env = getEnv();
+const db = createSupabaseAdmin(env);
+const queues = createQueues(createRedis(env.UPSTASH_REDIS_URL));
+
+const hourBucket = () => Math.floor(Date.now() / 3_600_000);
+const fiveMinBucket = () => Math.floor(Date.now() / 300_000);
+
+const jobs = {
+  async rematch(userId: string) {
+    await queues.match.add('match', { kind: 'user', userId }, { jobId: `rematch-${userId}-${fiveMinBucket()}` });
+  },
+  async refresh(userId: string) {
+    for (const source of SCRAPE_SOURCES) {
+      await queues.scrape.add('scrape', { source }, { jobId: `refresh-${source}-${hourBucket()}` });
+    }
+    await jobs.rematch(userId);
+  },
+};
+
+const app = createApp({
+  webOrigin: env.WEB_ORIGIN,
+  getUser: async (token) => {
+    const { data, error } = await db.auth.getUser(token);
+    if (error || !data.user) return null;
+    return { id: data.user.id, email: data.user.email ?? null };
+  },
+  profiles: createProfileRepo(db),
+  cv: createCvService({
+    upload: (path, bytes, contentType) => uploadFile(db, path, bytes, contentType),
+    setCv: (userId, v) => setCv(db, userId, v),
+  }),
+  applications: createApplicationsService({
+    repo: createApplicationsRepo(db),
+    renderPdf: renderCvPdf,
+    uploadPdf: (path, bytes) => uploadFile(db, path, bytes, 'application/pdf'),
+    signUrl: (path) => createSignedUrl(db, path),
+  }),
+  jobs,
+});
+
+app.listen(env.PORT, () => logger.info({ port: env.PORT }, 'api listening'));
