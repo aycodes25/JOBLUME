@@ -11,21 +11,39 @@ export type TailorJobData = { userId: string; jobId: string };
 /** BullMQ forbids ":" in custom job ids. Deterministic id = one tailor job per (user, job). */
 export const tailorJobId = (userId: string, jobId: string) => `tailor-${userId}-${jobId}`;
 
+const BASE_JOB_OPTIONS = {
+  attempts: 3,
+  backoff: { type: 'exponential' as const, delay: 30_000 },
+  removeOnComplete: { age: 86_400, count: 1000 },
+  removeOnFail: { age: 604_800 },
+};
+
+// Tailor jobs depend on an external AI provider: give outages hours (not ~90s) to clear, and let failed ids expire after a day.
+const TAILOR_JOB_OPTIONS = {
+  ...BASE_JOB_OPTIONS,
+  attempts: 6,
+  backoff: { type: 'exponential' as const, delay: 300_000 },
+  removeOnFail: { age: 86_400 },
+};
+
 export function createQueues(connection: Redis) {
-  const opts = {
-    connection,
-    defaultJobOptions: {
-      attempts: 3,
-      backoff: { type: 'exponential' as const, delay: 30_000 },
-      removeOnComplete: { age: 86_400, count: 1000 },
-      removeOnFail: { age: 604_800 },
-    },
-  };
   return {
-    scrape: new Queue<ScrapeJobData>(QUEUES.scrape, opts),
-    match: new Queue<MatchJobData>(QUEUES.match, opts),
-    tailor: new Queue<TailorJobData>(QUEUES.tailor, opts),
+    scrape: new Queue<ScrapeJobData>(QUEUES.scrape, { connection, defaultJobOptions: BASE_JOB_OPTIONS }),
+    match: new Queue<MatchJobData>(QUEUES.match, { connection, defaultJobOptions: BASE_JOB_OPTIONS }),
+    tailor: new Queue<TailorJobData>(QUEUES.tailor, { connection, defaultJobOptions: TAILOR_JOB_OPTIONS }),
   };
+}
+
+/** Add a tailor job; a previously failed job with the same deterministic id is removed first so it can be retried. */
+export async function enqueueTailor(
+  queue: Pick<Queue<TailorJobData>, 'getJob' | 'add'>,
+  userId: string,
+  jobId: string,
+): Promise<void> {
+  const id = tailorJobId(userId, jobId);
+  const existing = await queue.getJob(id);
+  if (existing && (await existing.isFailed())) await existing.remove();
+  await queue.add('tailor', { userId, jobId }, { jobId: id });
 }
 
 export type Queues = ReturnType<typeof createQueues>;

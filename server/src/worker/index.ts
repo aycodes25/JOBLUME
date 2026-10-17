@@ -5,7 +5,7 @@ import { logger } from '../lib/logger.js';
 import { createRedis } from '../lib/redis.js';
 import { createSupabaseAdmin } from '../lib/supabase.js';
 import {
-  QUEUES, createQueues, tailorJobId,
+  QUEUES, createQueues, enqueueTailor as enqueueTailorJob,
   type MatchJobData, type ScrapeJobData, type TailorJobData,
 } from '../queues.js';
 import { SCRAPE_LIMITS, SCRAPE_SOURCES, createScrapers } from '../scrapers/index.js';
@@ -44,9 +44,7 @@ async function main() {
     : undefined;
   const tailor = createTailor({ primary, fallback });
 
-  const enqueueTailor = async (userId: string, jobId: string) => {
-    await queues.tailor.add('tailor', { userId, jobId }, { jobId: tailorJobId(userId, jobId) });
-  };
+  const enqueueTailor = (userId: string, jobId: string) => enqueueTailorJob(queues.tailor, userId, jobId);
   const matchDeps = { ...repos, enqueueTailor };
 
   const scrapeWorker = new Worker<ScrapeJobData>(
