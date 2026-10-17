@@ -28,6 +28,14 @@ describe('POST /applications/:id/send', () => {
     expect(deps.sending.send).toHaveBeenCalledWith('u1', ID, {});
   });
 
+  it('accepts a request with no body at all', async () => {
+    const deps = makeDeps();
+    deps.sending.send = vi.fn().mockResolvedValue({ id: ID });
+    const res = await post(createApp(deps), `/applications/${ID}/send`);
+    expect(res.status).toBe(200);
+    expect(deps.sending.send).toHaveBeenCalledWith('u1', ID, {});
+  });
+
   it.each([
     ['a bad address', { to: 'nope' }],
     ['an extra field', { to: 'a@b.co', status: 'applied' }],

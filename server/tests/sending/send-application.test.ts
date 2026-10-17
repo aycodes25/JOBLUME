@@ -25,7 +25,7 @@ function make(over: Partial<SendDeps> = {}): SendDeps {
     getAccessToken: vi.fn().mockResolvedValue({ accessToken: 'TOK', email: 'me@gmail.com' }),
     downloadPdf: vi.fn().mockResolvedValue(new Uint8Array([0x25, 0x50, 0x44, 0x46])),
     sendMessage: vi.fn().mockResolvedValue({ id: 'gm1', threadId: 'th1' }),
-    lock: { acquire: vi.fn().mockResolvedValue(true), release: vi.fn().mockResolvedValue(undefined) },
+    lock: { acquire: vi.fn().mockResolvedValue('tok-1'), release: vi.fn().mockResolvedValue(undefined) },
     saveSent: vi.fn(async (_u: string, _id: string, changes: Record<string, unknown>) => ({ ...app(), ...changes }) as ApplicationWithJob),
     logEmail: vi.fn().mockResolvedValue(undefined),
     now: () => NOW,
@@ -44,7 +44,7 @@ describe('sendApplication: success', () => {
     const result = await send(d);
 
     expect(d.lock.acquire).toHaveBeenCalledWith('send-lock-a1', 60);
-    expect(d.lock.release).toHaveBeenCalledWith('send-lock-a1');
+    expect(d.lock.release).toHaveBeenCalledWith('send-lock-a1', 'tok-1');
 
     const args = vi.mocked(d.sendMessage).mock.calls[0]![0];
     expect(args.accessToken).toBe('TOK');
@@ -137,7 +137,7 @@ describe('sendApplication: checks, in order', () => {
   });
 
   it('409 already_sent when the lock is held, without releasing a lock it never took', async () => {
-    const d = make({ lock: { acquire: vi.fn().mockResolvedValue(false), release: vi.fn() } });
+    const d = make({ lock: { acquire: vi.fn().mockResolvedValue(null), release: vi.fn() } });
     expect(await rejection(send(d))).toMatchObject({ status: 409, code: 'already_sent' });
     expect(d.lock.release).not.toHaveBeenCalled();
     expect(d.sendMessage).not.toHaveBeenCalled();
@@ -147,7 +147,7 @@ describe('sendApplication: checks, in order', () => {
     const d = make({ loadApplication: vi.fn().mockResolvedValueOnce(app()).mockResolvedValueOnce(app({ status: 'applied' })) });
     expect(await rejection(send(d))).toMatchObject({ code: 'already_sent' });
     expect(d.sendMessage).not.toHaveBeenCalled();
-    expect(d.lock.release).toHaveBeenCalledWith('send-lock-a1');
+    expect(d.lock.release).toHaveBeenCalledWith('send-lock-a1', 'tok-1');
   });
 });
 
@@ -216,7 +216,7 @@ describe('sendApplication: content and failures', () => {
     expect(await rejection(send(d))).toMatchObject({ status, code });
     expect(d.saveSent).not.toHaveBeenCalled();
     expect(d.logEmail).toHaveBeenCalledWith(expect.objectContaining({ application_id: 'a1', type: 'application', status: 'failed', error: kind, gmail_message_id: null }));
-    expect(d.lock.release).toHaveBeenCalledWith('send-lock-a1');
+    expect(d.lock.release).toHaveBeenCalledWith('send-lock-a1', 'tok-1');
   });
 
   it('answers 404 if the application disappears after the email went out (the sent log remains)', async () => {
@@ -226,7 +226,71 @@ describe('sendApplication: content and failures', () => {
   });
 });
 
+describe('sendApplication: lost writes, expired locks and re-checks', () => {
+  const sentRow = expect.objectContaining({ status: 'sent' });
+  const logRejectingForSent = () =>
+    vi.fn(async (row: { status: string }) => {
+      if (row.status === 'sent') throw new Error('db down');
+    });
+
+  it('still saves the application, warns and releases the lock when the sent log cannot be written', async () => {
+    const warn = vi.fn();
+    const d = make({ logEmail: logRejectingForSent(), warn });
+    const result = await send(d);
+    expect(d.logEmail).toHaveBeenCalledWith(sentRow);
+    expect(d.saveSent).toHaveBeenCalled();
+    expect(result.status).toBe('applied');
+    expect(warn).toHaveBeenCalledWith('sent log could not be written', { applicationId: 'a1' });
+    expect(d.lock.release).toHaveBeenCalledWith('send-lock-a1', 'tok-1');
+  });
+
+  it('propagates a saveSent failure and keeps the lock so a quick second click cannot resend', async () => {
+    const d = make({ saveSent: vi.fn().mockRejectedValue(new Error('db down')) });
+    expect(await rejection(send(d))).toMatchObject({ message: 'db down' });
+    expect(d.sendMessage).toHaveBeenCalledTimes(1);
+    expect(d.lock.release).not.toHaveBeenCalled();
+  });
+
+  it('propagates a saveSent failure and keeps the lock when the sent log also failed', async () => {
+    const d = make({ logEmail: logRejectingForSent(), saveSent: vi.fn().mockRejectedValue(new Error('db down')), warn: vi.fn() });
+    expect(await rejection(send(d))).toMatchObject({ message: 'db down' });
+    expect(d.lock.release).not.toHaveBeenCalled();
+  });
+
+  it('still maps the Gmail error when the failed log cannot be written either', async () => {
+    const d = make({
+      sendMessage: vi.fn().mockRejectedValue(new GmailSendError('rate_limited')),
+      logEmail: vi.fn().mockRejectedValue(new Error('db down')),
+      warn: vi.fn(),
+    });
+    expect(await rejection(send(d))).toMatchObject({ status: 429, code: 'rate_limited' });
+    expect(d.warn).toHaveBeenCalled();
+    expect(d.lock.release).toHaveBeenCalledWith('send-lock-a1', 'tok-1');
+  });
+
+  it('does not send when the lock is nearly expired', async () => {
+    let calls = 0;
+    const d = make({ now: () => new Date(NOW.getTime() + (calls++ === 0 ? 0 : 40_000)) });
+    expect(await rejection(send(d))).toMatchObject({ status: 502, code: 'send_failed' });
+    expect(d.sendMessage).not.toHaveBeenCalled();
+    expect(d.lock.release).toHaveBeenCalledWith('send-lock-a1', 'tok-1');
+  });
+
+  it('resolves the recipient again from the re-checked application', async () => {
+    const guess = app({ hiring_manager_email: 'careers@acme.com', email_source: 'guess', email_confidence: 30 });
+    const d = make({ loadApplication: vi.fn().mockResolvedValueOnce(app()).mockResolvedValueOnce(guess) });
+    expect(await rejection(send(d))).toMatchObject({ status: 409, code: 'guess_not_confirmed' });
+    expect(d.sendMessage).not.toHaveBeenCalled();
+    expect(d.lock.release).toHaveBeenCalledWith('send-lock-a1', 'tok-1');
+  });
+});
+
 describe('sendApplication: auto method', () => {
+  it('accepts a Hunter address with confidence exactly 80', async () => {
+    const d = make({ loadApplication: vi.fn().mockResolvedValue(app({ email_confidence: 80 })) });
+    await expect(send(d, { method: 'auto' })).resolves.toMatchObject({ status: 'applied' });
+  });
+
   it('records apply_method auto for a Hunter address with confidence 80 or more', async () => {
     const d = make();
     await send(d, { method: 'auto' });
