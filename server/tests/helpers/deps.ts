@@ -10,6 +10,7 @@ export function makeDeps(over: Partial<AppDeps> = {}): AppDeps {
     cv: { upload: vi.fn() },
     applications: { list: vi.fn(), get: vi.fn(), update: vi.fn(), setStatus: vi.fn(), analytics: vi.fn() },
     jobs: { refresh: vi.fn(), rematch: vi.fn() },
+    sending: { send: vi.fn() },
     gmail: { startConnect: vi.fn(), finishConnect: vi.fn(), status: vi.fn(), disconnect: vi.fn() },
     ...over,
   };

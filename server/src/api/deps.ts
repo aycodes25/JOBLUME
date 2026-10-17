@@ -43,6 +43,10 @@ export interface GmailService {
   disconnect(userId: string): Promise<void>;
 }
 
+export interface SendingService {
+  send(userId: string, id: string, input: { to?: string; confirmGuess?: boolean }): Promise<ApplicationWithJob>;
+}
+
 export interface AppDeps {
   webOrigin: string;
   getUser: GetUser;
@@ -51,4 +55,5 @@ export interface AppDeps {
   applications: ApplicationsService;
   jobs: JobsService;
   gmail: GmailService;
+  sending: SendingService;
 }

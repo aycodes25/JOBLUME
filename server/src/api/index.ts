@@ -10,16 +10,21 @@ import { gmailConfig } from '../services/gmail/config.js';
 import { createGmailService } from '../services/gmail/service.js';
 import { createGmailTokens } from '../services/gmail/tokens.js';
 import { createJobsService } from '../services/jobs/service.js';
+import { createSendingService } from '../services/sending/wiring.js';
 import { createSignedUrl, uploadFile } from '../services/storage.js';
 import { createApp } from './app.js';
 import { createApplicationsRepo, createGmailTokenStore, createProfileRepo, setCv } from './repos.js';
 
 const env = getEnv();
 const db = createSupabaseAdmin(env);
-const queues = createQueues(createRedis(env.UPSTASH_REDIS_URL));
+const redis = createRedis(env.UPSTASH_REDIS_URL);
+const queues = createQueues(redis);
+const applicationsRepo = createApplicationsRepo(db);
 const gmailCfg = gmailConfig(env);
 const gmailTokens = createGmailTokens({ store: createGmailTokenStore(db), cfg: gmailCfg, encryptionKey: env.ENCRYPTION_KEY });
 const gmail = createGmailService({ cfg: gmailCfg, tokens: gmailTokens, encryptionKey: env.ENCRYPTION_KEY });
+
+const sending = createSendingService({ db, redis, tokens: gmailTokens, applicationsRepo });
 
 const app = createApp({
   webOrigin: env.WEB_ORIGIN,
@@ -34,13 +39,14 @@ const app = createApp({
     setCv: (userId, v) => setCv(db, userId, v),
   }),
   applications: createApplicationsService({
-    repo: createApplicationsRepo(db),
+    repo: applicationsRepo,
     renderPdf: renderCvPdf,
     uploadPdf: (path, bytes) => uploadFile(db, path, bytes, 'application/pdf'),
     signUrl: (path) => createSignedUrl(db, path),
   }),
   jobs: createJobsService(queues),
   gmail,
+  sending,
 });
 
 app.listen(env.PORT, () => logger.info({ port: env.PORT }, 'api listening'));
