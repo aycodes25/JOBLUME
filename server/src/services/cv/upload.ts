@@ -18,7 +18,12 @@ export function createCvService(deps: CvUploadDeps) {
     async upload(userId: string, file: { buffer: Buffer }): Promise<{ characters: number }> {
       const type = detectCvType(file.buffer);
       if (!type) throw new ApiError(400, 'unsupported_file_type', 'Upload a PDF or DOCX file');
-      const text = await extractCvText(file.buffer, type);
+      let text: string;
+      try {
+        text = await extractCvText(file.buffer, type);
+      } catch {
+        throw new ApiError(422, 'unreadable_file', 'Could not read this file. Re-export it as a PDF or DOCX and try again.');
+      }
       if (text.length < MIN_CV_CHARS) {
         throw new ApiError(422, 'cv_text_too_short', 'Could not read enough text from this file. Scanned images are not supported.');
       }

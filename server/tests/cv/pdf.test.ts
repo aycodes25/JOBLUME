@@ -18,6 +18,9 @@ Acme Ltd, Backend Engineer (2021-2024)
 `;
 
 describe('sanitize', () => {
+  it('replaces non-breaking spaces with spaces', () => {
+    expect(sanitize('a b')).toBe('a b');
+  });
   it('maps naira and smart punctuation and strips unsupported glyphs', () => {
     expect(sanitize('Earned ₦500 – “great” 🚀')).toBe('Earned N500 - "great" ');
   });
@@ -44,6 +47,9 @@ describe('parseSections', () => {
 });
 
 describe('wrapText', () => {
+  it('terminates and emits one char per line when every char exceeds maxWidth', () => {
+    expect(wrapText('abc', (s) => s.length * 10, 5)).toEqual(['a', 'b', 'c']);
+  });
   const measure = (s: string) => s.length;
   it('wraps on word boundaries', () => {
     expect(wrapText('aaa bbb ccc ddd', measure, 7)).toEqual(['aaa bbb', 'ccc ddd']);

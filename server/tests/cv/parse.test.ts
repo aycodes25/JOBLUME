@@ -25,4 +25,12 @@ describe('extractCvText', () => {
     const text = await extractCvText(await makePdf('Senior Backend Engineer in Lagos'), 'pdf');
     expect(text).toContain('Senior Backend Engineer in Lagos');
   });
+  it('extracts text from a PDF held in a Buffer view with a non-zero byteOffset', async () => {
+    const bytes = await makePdf('Senior Backend Engineer in Lagos');
+    const ab = new ArrayBuffer(bytes.length + 20);
+    new Uint8Array(ab).set(bytes, 7);
+    const view = Buffer.from(ab, 7, bytes.length);
+    expect(view.byteOffset).toBe(7);
+    expect(await extractCvText(view, 'pdf')).toContain('Senior Backend Engineer in Lagos');
+  });
 });

@@ -15,7 +15,7 @@ export function sanitize(text: string): string {
     .replace(/[“”]/g, '"')
     .replace(/[–—]/g, '-')
     .replace(/…/g, '...')
-    .replace(/ /g, ' ')
+    .replace(/\u00a0/g, ' ')
     .replace(/[^\x09\x0A\x0D\x20-\x7E\xA1-\xFF•]/g, '');
 }
 
@@ -42,7 +42,7 @@ export function wrapText(text: string, measure: (s: string) => number, maxWidth:
   for (const word of text.split(/\s+/).filter(Boolean)) {
     let w = word;
     while (measure(w) > maxWidth) {
-      let cut = w.length - 1;
+      let cut = Math.max(1, w.length - 1); // always cut at least 1 char so the loop makes progress
       while (cut > 1 && measure(w.slice(0, cut)) > maxWidth) cut--;
       push();
       lines.push(w.slice(0, cut));

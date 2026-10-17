@@ -25,13 +25,27 @@ describe('createCvService', () => {
     expect(result.characters).toBeGreaterThan(200);
   });
 
-  it('rejects unsupported files with 400', async () => {
-    const svc = createCvService({ upload: vi.fn(), setCv: vi.fn() });
+  it('rejects unsupported files with 400 and stores nothing', async () => {
+    const deps = { upload: vi.fn(), setCv: vi.fn() };
+    const svc = createCvService(deps);
     await expect(svc.upload('u', { buffer: Buffer.from('not a cv') })).rejects.toMatchObject({ status: 400, code: 'unsupported_file_type' });
+    expect(deps.upload).not.toHaveBeenCalled();
+    expect(deps.setCv).not.toHaveBeenCalled();
   });
 
-  it('rejects a CV with too little extractable text with 422', async () => {
-    const svc = createCvService({ upload: vi.fn(), setCv: vi.fn() });
+  it('rejects a CV with too little extractable text with 422 and stores nothing', async () => {
+    const deps = { upload: vi.fn(), setCv: vi.fn() };
+    const svc = createCvService(deps);
     await expect(svc.upload('u', { buffer: await makePdf('hi') })).rejects.toMatchObject({ status: 422, code: 'cv_text_too_short' });
+    expect(deps.upload).not.toHaveBeenCalled();
+    expect(deps.setCv).not.toHaveBeenCalled();
+  });
+
+  it('maps unreadable files to 422 and stores nothing', async () => {
+    const deps = { upload: vi.fn(), setCv: vi.fn() };
+    const svc = createCvService(deps);
+    await expect(svc.upload('u', { buffer: Buffer.from('%PDF-1.7 garbage that is not a pdf') })).rejects.toMatchObject({ status: 422, code: 'unreadable_file' });
+    expect(deps.upload).not.toHaveBeenCalled();
+    expect(deps.setCv).not.toHaveBeenCalled();
   });
 });
