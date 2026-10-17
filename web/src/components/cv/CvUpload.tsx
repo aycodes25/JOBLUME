@@ -1,5 +1,6 @@
 'use client';
 
+import { UploadCloud } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { describeApiError } from '@/lib/api/errors';
 import { cn } from '@/lib/utils';
@@ -47,8 +48,8 @@ export function CvUpload({ onUpload, currentName }: CvUploadProps) {
     <div className="space-y-3">
       <label
         className={cn(
-          'flex cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-border p-8 text-center text-sm transition-colors hover:bg-accent/50',
-          dragging && 'border-primary bg-accent/50',
+          'flex cursor-pointer flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed border-border bg-white p-8 text-center text-sm transition-colors hover:bg-blue-50/60',
+          dragging && 'border-primary bg-blue-50',
         )}
         onDragOver={(e) => {
           e.preventDefault();
@@ -61,6 +62,9 @@ export function CvUpload({ onUpload, currentName }: CvUploadProps) {
           void handleFile(e.dataTransfer.files[0]);
         }}
       >
+        <span className="mb-2 flex h-14 w-14 items-center justify-center rounded-full bg-blue-50 text-primary" aria-hidden="true">
+          <UploadCloud className="h-6 w-6" />
+        </span>
         <span className="font-medium">{status === 'uploading' ? 'Uploading…' : 'Drop your CV here or click to choose'}</span>
         <span className="text-muted-foreground">PDF or DOCX, up to 5 MB, with selectable text</span>
         <input
