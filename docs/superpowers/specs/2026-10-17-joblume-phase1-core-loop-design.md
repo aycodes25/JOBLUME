@@ -69,7 +69,7 @@ Base tables as specified, with these changes.
 - **Remotive:** public JSON API.
 - **MyJobMag, Jobberman:** axios + Cheerio, list page then detail page, 1–2 s delay between requests, rotating user agent. Selectors are verified against the live sites at build time. Each scraper has a saved-HTML fixture test so a markup change fails loudly.
 - Errors are logged and retried by BullMQ with backoff. One failing source never blocks the others.
-- `company_domain` is derived from the apply URL or company website when available, otherwise null (resolved by the Phase 3 email finder).
+- `company_domain` is left null in Phase 1 (these boards expose no company website); the Phase 3 email finder resolves it.
 
 ## 7. AI tailoring
 
@@ -114,5 +114,7 @@ Gmail, email finding, follow-ups, analytics, tracker, mobile app, any apply acti
 
 ## 14. Environment variables
 
-Phase 1: `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_JWT_SECRET`, `GEMINI_API_KEY`, `GEMINI_MODEL`, `OPENAI_API_KEY` (fallback), `UPSTASH_REDIS_URL`, `ENCRYPTION_KEY`, `WEB_ORIGIN`.
+Phase 1: `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `GEMINI_API_KEY`, `GEMINI_MODEL`, `OPENAI_API_KEY` (fallback), `UPSTASH_REDIS_URL`, `ENCRYPTION_KEY`, `WEB_ORIGIN`.
+
+Auth is verified through `supabase.auth.getUser(token)`. `GEMINI_MODEL` is required with no code default; `.env.example` suggests `gemini-2.5-flash`.
 Later phases: `HUNTER_API_KEY`, `APOLLO_API_KEY`, `JSEARCH_API_KEY`, `GMAIL_CLIENT_ID`, `GMAIL_CLIENT_SECRET`, `RESEND_API_KEY`.
