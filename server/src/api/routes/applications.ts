@@ -19,7 +19,9 @@ const sendBodySchema = z
   .object({ to: z.string().trim().toLowerCase().email().max(254).optional(), confirmGuess: z.boolean().optional() })
   .strict();
 
-const idSchema = z.string().uuid();
+const emailBodySchema = z.object({ email: z.string().trim().toLowerCase().email().max(254) }).strict();
+
+const idSchema =z.string().uuid();
 const parseId = (raw: unknown): string => {
   const r = idSchema.safeParse(raw);
   if (!r.success) throw new ApiError(404, 'application_not_found');
@@ -69,6 +71,21 @@ export function applicationRoutes(d: Pick<AppDeps, 'applications' | 'sending'>) 
     const id = parseId(req.params.id);
     const input = sendBodySchema.parse(req.body ?? {});
     res.json(await d.sending.send(req.user!.id, id, input));
+  }));
+
+  router.post('/:id/email/next', asyncHandler(async (req, res) => {
+    const id = parseId(req.params.id);
+    const result = await d.applications.nextEmail(req.user!.id, id);
+    if (!result) throw new ApiError(404, 'application_not_found');
+    res.json(result);
+  }));
+
+  router.put('/:id/email', asyncHandler(async (req, res) => {
+    const id = parseId(req.params.id);
+    const { email } = emailBodySchema.parse(req.body);
+    const app = await d.applications.setEmail(req.user!.id, id, email);
+    if (!app) throw new ApiError(404, 'application_not_found');
+    res.json(app);
   }));
 
   return router;

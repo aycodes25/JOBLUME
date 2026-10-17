@@ -2,6 +2,10 @@ import type { ApplicationStatus } from '../db/types.js';
 import type { ApplicationsRepo, ApplicationsService } from '../api/deps.js';
 import { planStatusChange } from './application-status.js';
 import { computeAnalytics } from './analytics.js';
+import { ApiError } from '../lib/errors.js';
+import { manualEmailChanges, nextCandidateChanges } from './email/choose.js';
+
+const EMAIL_EDITABLE = new Set(['pending_review', 'approved']);
 
 export function createApplicationsService(deps: {
   repo: ApplicationsRepo;
@@ -45,6 +49,23 @@ export function createApplicationsService(deps: {
       if (!existing) return null;
       const now = deps.now ? deps.now() : new Date();
       return deps.repo.update(userId, id, planStatusChange(existing, status, now));
+    },
+
+    async nextEmail(userId, id) {
+      const existing = await deps.repo.get(userId, id);
+      if (!existing) return null;
+      if (!EMAIL_EDITABLE.has(existing.status)) throw new ApiError(409, 'already_sent', 'This application is no longer pending');
+      const plan = nextCandidateChanges(existing);
+      if (plan.exhausted) return { exhausted: true, application: existing };
+      const application = await deps.repo.update(userId, id, plan.changes);
+      return application ? { exhausted: false, application } : null;
+    },
+
+    async setEmail(userId, id, email) {
+      const existing = await deps.repo.get(userId, id);
+      if (!existing) return null;
+      if (!EMAIL_EDITABLE.has(existing.status)) throw new ApiError(409, 'already_sent', 'This application is no longer pending');
+      return deps.repo.update(userId, id, manualEmailChanges(email));
     },
 
     async analytics(userId) {

@@ -29,6 +29,8 @@ export interface ApplicationsService {
   update(userId: string, id: string, patch: { tailored_cv_text?: string; cover_letter_text?: string }): Promise<ApplicationWithJob | null>;
   setStatus(userId: string, id: string, status: ApplicationStatus): Promise<ApplicationWithJob | null>;
   analytics(userId: string): Promise<Analytics>;
+  nextEmail(userId: string, id: string): Promise<{ exhausted: boolean; application: ApplicationWithJob } | null>;
+  setEmail(userId: string, id: string, email: string): Promise<ApplicationWithJob | null>;
 }
 
 export interface JobsService {
