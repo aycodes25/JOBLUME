@@ -84,4 +84,14 @@ describe('runScrape', () => {
     expect(await runScrape(deps)).toEqual({ listed: 3, fetched: 0, inserted: 0 });
     expect(deps.enqueueMatch).not.toHaveBeenCalled();
   });
+
+  it('keeps enqueueing matches when one enqueue fails', async () => {
+    const enqueueMatch = vi.fn(async (id: string) => {
+      if (id === 'id-https://x/1') throw new Error('redis down');
+    });
+    const deps = makeDeps({ stubs: [stub(1), stub(2)], enqueueMatch });
+    await expect(runScrape(deps)).resolves.toEqual({ listed: 2, fetched: 2, inserted: 2 });
+    expect(enqueueMatch).toHaveBeenCalledWith('id-https://x/2');
+    expect(log.warn).toHaveBeenCalledWith(expect.objectContaining({ jobId: 'id-https://x/1' }), 'enqueue match failed');
+  });
 });

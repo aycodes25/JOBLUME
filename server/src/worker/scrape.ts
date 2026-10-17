@@ -30,7 +30,13 @@ export async function runScrape(d: ScrapeDeps): Promise<{ listed: number; fetche
   }
 
   const ids = await d.insertJobs(dedupeJobs(jobs));
-  for (const id of ids) await d.enqueueMatch(id);
+  for (const id of ids) {
+    try {
+      await d.enqueueMatch(id);
+    } catch (err) {
+      d.log.warn({ err, jobId: id }, 'enqueue match failed');
+    }
+  }
   d.log.info({ source: d.scraper.source, listed: stubs.length, fetched: jobs.length, inserted: ids.length }, 'scrape finished');
   return { listed: stubs.length, fetched: jobs.length, inserted: ids.length };
 }
