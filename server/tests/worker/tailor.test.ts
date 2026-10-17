@@ -8,7 +8,7 @@ const job: JobRow = {
   url: 'https://x/1', company_domain: null, dedupe_key: 'k', created_at: '',
 };
 const profile: ProfileRow = {
-  user_id: 'u1', base_cv_text: 'My CV text', base_cv_url: 'u1/base-cv.pdf', skills: ['Node.js'], years_experience: 4,
+  user_id: 'u1', base_cv_text: 'My CV text', base_cv_url: 'u1/base-cv.pdf', base_cv_filename: null, skills: ['Node.js'], years_experience: 4,
   desired_roles: ['backend engineer'], location: 'Lagos', salary_min: null, salary_max: null, apply_mode: 'manual',
   auto_threshold: 80, daily_cap: 20, auto_followup: false, updated_at: '',
 };
@@ -71,5 +71,21 @@ describe('runTailor', () => {
     const d = deps({ tailor: vi.fn().mockRejectedValue(new Error('ai down')) });
     await expect(runTailor({ userId: 'u1', jobId: 'j1' }, d)).rejects.toThrow('ai down');
     expect(d.insertApplication).not.toHaveBeenCalled();
+  });
+});
+
+describe('runTailor onCreated', () => {
+  it('calls onCreated with the new application id', async () => {
+    const onCreated = vi.fn().mockResolvedValue(undefined);
+    const d = deps({ insertApplication: vi.fn().mockResolvedValue('new-app-id'), onCreated });
+    await runTailor({ userId: 'u1', jobId: 'j1' }, d);
+    expect(onCreated).toHaveBeenCalledWith('new-app-id');
+  });
+
+  it('does not call onCreated when the insert reported a duplicate (null) or returned nothing', async () => {
+    const onCreated = vi.fn();
+    await runTailor({ userId: 'u1', jobId: 'j1' }, deps({ insertApplication: vi.fn().mockResolvedValue(null), onCreated }));
+    await runTailor({ userId: 'u1', jobId: 'j1' }, deps({ insertApplication: vi.fn().mockResolvedValue(undefined), onCreated }));
+    expect(onCreated).not.toHaveBeenCalled();
   });
 });

@@ -30,7 +30,7 @@ export function AssistedApplyPanel({ app, onMarkApplied, pending = false, locked
   if (lockedReason) {
     return (
       <section aria-label="Apply" className="space-y-3 rounded-lg border border-primary/40 bg-primary/5 p-4">
-        <h3 className="font-semibold">Apply on the employer's site</h3>
+        <h3 className="font-semibold">Or apply on the employer's site</h3>
         <p role="alert" className="text-sm text-destructive">{lockedReason}</p>
       </section>
     );
@@ -38,8 +38,8 @@ export function AssistedApplyPanel({ app, onMarkApplied, pending = false, locked
 
   return (
     <section aria-label="Apply" className="space-y-3 rounded-lg border border-primary/40 bg-primary/5 p-4">
-      <h3 className="font-semibold">Apply on the employer's site</h3>
-      <p className="text-sm text-muted-foreground">Nothing is sent for you. Open the job, upload your tailored CV, paste the cover letter, then mark it as applied here.</p>
+      <h3 className="font-semibold">Or apply on the employer's site</h3>
+      <p className="text-sm text-muted-foreground">This path sends nothing for you. Open the job, upload your tailored CV, paste the cover letter, then mark it as applied here.</p>
       <ol className="space-y-3 text-sm">
         <li className="flex flex-wrap items-center gap-3">
           <span className="w-5 text-muted-foreground">1.</span>

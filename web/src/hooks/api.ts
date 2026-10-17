@@ -10,6 +10,8 @@ export const keys = {
   applications: ['applications'] as const,
   application: (id: string) => ['application', id] as const,
   analytics: ['analytics'] as const,
+  gmail: ['gmail'] as const,
+  followUps: ['follow-ups'] as const,
 };
 
 export function useProfile() {
@@ -100,6 +102,103 @@ export function useRefreshJobs() {
     mutationFn: () => getApi().refreshJobs(),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: keys.applications });
+    },
+  });
+}
+
+export function useGmailStatus() {
+  return useQuery({ queryKey: keys.gmail, queryFn: () => getApi().getGmailStatus() });
+}
+
+export function useConnectGmail() {
+  return useMutation({
+    mutationFn: () => getApi().startGmailConnect(),
+    onSuccess: ({ url }) => {
+      window.location.assign(url);
+    },
+  });
+}
+
+export function useDisconnectGmail() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => getApi().disconnectGmail(),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: keys.gmail });
+    },
+  });
+}
+
+export function useSendApplication() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, body }: { id: string; body: { to?: string; confirmGuess?: boolean } }) => getApi().sendApplication(id, body),
+    onSuccess: (_data, { id }) => {
+      void qc.invalidateQueries({ queryKey: keys.applications });
+      void qc.invalidateQueries({ queryKey: keys.application(id) });
+      void qc.invalidateQueries({ queryKey: keys.analytics });
+    },
+  });
+}
+
+export function useNextEmail() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => getApi().nextEmail(id),
+    onSuccess: (_data, id) => {
+      void qc.invalidateQueries({ queryKey: keys.application(id) });
+      void qc.invalidateQueries({ queryKey: keys.applications });
+    },
+  });
+}
+
+export function useSetEmail() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, email }: { id: string; email: string }) => getApi().setEmail(id, email),
+    onSuccess: (_data, { id }) => {
+      void qc.invalidateQueries({ queryKey: keys.application(id) });
+      void qc.invalidateQueries({ queryKey: keys.applications });
+    },
+  });
+}
+
+export function useFollowUps(status: 'pending_review' | 'sent' | 'dismissed' | 'failed' = 'pending_review') {
+  return useQuery({
+    queryKey: [...keys.followUps, status],
+    queryFn: () => getApi().listFollowUps(status),
+    refetchInterval: 60_000,
+    refetchOnWindowFocus: true,
+  });
+}
+
+export function useUpdateFollowUp() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, patch }: { id: string; patch: { subject?: string; body?: string } }) => getApi().updateFollowUp(id, patch),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: keys.followUps });
+    },
+  });
+}
+
+export function useSendFollowUp() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => getApi().sendFollowUp(id),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: keys.followUps });
+      void qc.invalidateQueries({ queryKey: keys.applications });
+    },
+  });
+}
+
+export function useDismissFollowUp() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => getApi().dismissFollowUp(id),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: keys.followUps });
     },
   });
 }

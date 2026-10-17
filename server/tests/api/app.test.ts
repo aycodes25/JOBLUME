@@ -2,6 +2,7 @@ import request from 'supertest';
 import { describe, expect, it, vi } from 'vitest';
 import { createApp } from '../../src/api/app.js';
 import type { AppDeps } from '../../src/api/deps.js';
+import { makeDeps as baseDeps } from '../helpers/deps.js';
 import { ApiError } from '../../src/lib/errors.js';
 
 const ID = '3f2b8c1e-9a4d-4e7b-8c55-1a2b3c4d5e6f';
@@ -12,21 +13,19 @@ const profile = {
 };
 
 function makeDeps(over: Partial<AppDeps> = {}): AppDeps {
-  return {
-    webOrigin: 'http://localhost:3000',
-    getUser: vi.fn(async (t: string) => (t === 'good' ? { id: 'u1', email: 'a@b.c' } : null)),
+  return baseDeps({
     profiles: { get: vi.fn().mockResolvedValue(profile), update: vi.fn(async (_id, patch) => ({ ...profile, ...patch })) },
     cv: { upload: vi.fn().mockResolvedValue({ characters: 1234 }) },
     applications: {
       list: vi.fn().mockResolvedValue([]),
       get: vi.fn().mockResolvedValue(null),
       update: vi.fn().mockResolvedValue(null),
-      setStatus: vi.fn(),
+      setStatus: vi.fn(), nextEmail: vi.fn(), setEmail: vi.fn(),
       analytics: vi.fn(),
     },
     jobs: { refresh: vi.fn().mockResolvedValue(undefined), rematch: vi.fn().mockResolvedValue(undefined) },
     ...over,
-  };
+  });
 }
 const authed = (app: ReturnType<typeof createApp>) => ({
   get: (u: string) => request(app).get(u).set('authorization', 'Bearer good'),
@@ -121,7 +120,7 @@ describe('cv upload', () => {
     const res = await authed(createApp(deps)).post('/cv').attach('file', Buffer.from('%PDF-1.7 hello'), 'cv.pdf');
     expect(res.status).toBe(200);
     expect(res.body).toEqual({ characters: 1234 });
-    expect(deps.cv.upload).toHaveBeenCalledWith('u1', { buffer: expect.any(Buffer) });
+    expect(deps.cv.upload).toHaveBeenCalledWith('u1', { buffer: expect.any(Buffer), originalname: 'cv.pdf' });
     expect(deps.jobs.rematch).toHaveBeenCalledWith('u1');
   });
 
@@ -173,7 +172,7 @@ describe('applications', () => {
   });
 
   it('PATCH /applications/:id only accepts the two text fields', async () => {
-    const deps = makeDeps({ applications: { list: vi.fn(), get: vi.fn(), update: vi.fn().mockResolvedValue({ id: 'a1' } as never), setStatus: vi.fn(), analytics: vi.fn() } });
+    const deps = makeDeps({ applications: { list: vi.fn(), get: vi.fn(), update: vi.fn().mockResolvedValue({ id: 'a1' } as never), setStatus: vi.fn(), analytics: vi.fn(), nextEmail: vi.fn(), setEmail: vi.fn() } });
     const ok = await authed(createApp(deps)).patch(`/applications/${ID}`).send({ cover_letter_text: 'hi there' });
     expect(ok.status).toBe(200);
     expect(deps.applications.update).toHaveBeenCalledWith('u1', ID, { cover_letter_text: 'hi there' });

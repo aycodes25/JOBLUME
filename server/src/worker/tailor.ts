@@ -20,7 +20,8 @@ export interface TailorDeps {
   tailor(input: TailorInput): Promise<TailorResult>;
   renderPdf(text: string): Promise<Uint8Array>;
   uploadPdf(path: string, bytes: Uint8Array): Promise<string>;
-  insertApplication(row: NewApplication): Promise<void>;
+  insertApplication(row: NewApplication): Promise<string | null>;
+  onCreated?(applicationId: string): Promise<void>;
 }
 
 export async function runTailor({ userId, jobId }: TailorJobData, d: TailorDeps): Promise<'created' | 'skipped'> {
@@ -37,7 +38,7 @@ export async function runTailor({ userId, jobId }: TailorJobData, d: TailorDeps)
   const pdf = await d.renderPdf(result.tailored_cv_text);
   const path = await d.uploadPdf(`${userId}/tailored/${jobId}.pdf`, pdf);
 
-  await d.insertApplication({
+  const createdId = await d.insertApplication({
     user_id: userId,
     job_id: jobId,
     tailored_cv_text: result.tailored_cv_text,
@@ -47,5 +48,6 @@ export async function runTailor({ userId, jobId }: TailorJobData, d: TailorDeps)
     missing_keywords: result.missing_keywords,
     status: 'pending_review',
   });
+  if (createdId && d.onCreated) await d.onCreated(createdId);
   return 'created';
 }

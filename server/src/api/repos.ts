@@ -1,6 +1,7 @@
 import type { ApplicationStatus, ProfileRow } from '../db/types.js';
 import type { Db } from '../lib/supabase.js';
 import type { AnalyticsRow } from '../services/analytics.js';
+export { createGmailTokenStore } from '../services/gmail/store.js';
 import type { ApplicationWithJob, ApplicationsRepo, ProfilePatch, ProfileRepo } from './deps.js';
 
 const APP_SELECT = '*, job:jobs(title, company, location, source, url, company_domain)';
@@ -58,10 +59,10 @@ export function createApplicationsRepo(db: Db): ApplicationsRepo {
   };
 }
 
-export async function setCv(db: Db, userId: string, v: { text: string; path: string }): Promise<void> {
+export async function setCv(db: Db, userId: string, v: { text: string; path: string; filename: string }): Promise<void> {
   const { error } = await db
     .from('profiles')
-    .update({ base_cv_text: v.text, base_cv_url: v.path, updated_at: new Date().toISOString() })
+    .update({ base_cv_text: v.text, base_cv_url: v.path, base_cv_filename: v.filename, updated_at: new Date().toISOString() })
     .eq('user_id', userId);
   if (error) throw error;
 }

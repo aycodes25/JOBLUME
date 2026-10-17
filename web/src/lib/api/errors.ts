@@ -30,6 +30,34 @@ export function describeApiError(err: unknown): string {
       return 'That application no longer exists.';
     case 'invalid_request':
       return 'Some fields are invalid. Check the form and try again.';
+    case 'gmail_not_connected':
+      return 'Connect Gmail in Settings first.';
+    case 'gmail_not_configured':
+      return 'Gmail is not set up on this server yet. Follow the Gmail setup guide, then restart the server.';
+    case 'gmail_reauth_required':
+      return 'Google needs you to reconnect Gmail. Open Settings and connect it again.';
+    case 'guess_not_confirmed':
+      return 'Tick the box to confirm you want to send to a guessed address.';
+    case 'daily_cap_reached':
+      return 'You have reached today\'s limit. Try again tomorrow, or change the limit in Settings (maximum 20).';
+    case 'already_sent':
+      return 'This was already sent or is no longer pending.';
+    case 'no_recipient':
+      return 'Add a contact email first.';
+    case 'send_failed':
+      return 'Gmail could not send that email. Please try again.';
+    case 'not_applicable':
+      return 'That is no longer applicable because the application has moved on.';
+    case 'empty_message':
+      return 'The cover letter is empty. Write it before sending.';
+    case 'cv_not_ready':
+      return 'The tailored CV is not ready yet. Try again in a moment.';
+    case 'follow_up_not_found':
+      return 'That follow-up no longer exists.';
+    case 'auto_disabled':
+      return 'Automatic follow-ups are turned off. Turn them on in Settings first.';
+    case 'not_auto_eligible':
+      return 'Automatic sending no longer applies to this application. Review it and send it yourself.';
   }
   if (err.status === 413) return 'That request is too large.';
   if (err.status === 429) return 'You are doing that too often. Try again later.';

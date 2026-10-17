@@ -7,7 +7,7 @@ import { AssistedApplyPanel } from '@/components/applications/AssistedApplyPanel
 const detail = (over: Partial<ApplicationDetail> = {}): ApplicationDetail => ({
   id: 'a1', user_id: 'u1', job_id: 'j1', tailored_cv_text: 'cv', tailored_cv_url: 'u1/tailored/j1.pdf',
   cover_letter_text: 'Dear team, hello.', match_score: 80, missing_keywords: [], hiring_manager_email: null,
-  email_confidence: null, apply_method: null, status: 'approved', applied_at: null, follow_up_at: null,
+  email_confidence: null, email_source: null, email_candidates: [], apply_method: null, status: 'approved', applied_at: null, follow_up_at: null,
   created_at: '2026-10-01T00:00:00.000Z', cv_pdf_url: 'https://files.example.com/cv.pdf',
   job: { title: 'Data Analyst', company: 'Acme', location: 'Lagos', source: 'myjobmag', url: 'https://example.com/job/1', company_domain: null },
   ...over,

@@ -6,7 +6,7 @@ import { KanbanBoard } from '@/components/tracker/KanbanBoard';
 
 const app = (id: string, status: Application['status'], over: Partial<Application> = {}): Application => ({
   id, user_id: 'u1', job_id: `j-${id}`, tailored_cv_text: 'cv', tailored_cv_url: null, cover_letter_text: 'l',
-  match_score: 70, missing_keywords: [], hiring_manager_email: null, email_confidence: null, apply_method: null,
+  match_score: 70, missing_keywords: [], hiring_manager_email: null, email_confidence: null, email_source: null, email_candidates: [], apply_method: null,
   status, applied_at: status === 'pending_review' || status === 'approved' || status === 'skipped' ? null : '2026-10-20T10:00:00.000Z',
   follow_up_at: null, created_at: '2026-10-01T00:00:00.000Z',
   job: { title: `Role ${id}`, company: `Company ${id}`, location: 'Lagos', source: 'myjobmag', url: 'https://example.com', company_domain: null },

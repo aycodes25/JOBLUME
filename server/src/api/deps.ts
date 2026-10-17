@@ -1,5 +1,5 @@
 import { profilePatchSchema, type ProfilePatch } from '@joblume/shared';
-import type { Analytics } from '@joblume/shared';
+import type { Analytics, FollowUp, FollowUpWithJob, GmailStatus } from '@joblume/shared';
 import type { ApplicationRow, ApplicationStatus, ProfileRow } from '../db/types.js';
 import type { AnalyticsRow } from '../services/analytics.js';
 import type { GetUser } from './auth.js';
@@ -29,6 +29,8 @@ export interface ApplicationsService {
   update(userId: string, id: string, patch: { tailored_cv_text?: string; cover_letter_text?: string }): Promise<ApplicationWithJob | null>;
   setStatus(userId: string, id: string, status: ApplicationStatus): Promise<ApplicationWithJob | null>;
   analytics(userId: string): Promise<Analytics>;
+  nextEmail(userId: string, id: string): Promise<{ exhausted: boolean; application: ApplicationWithJob } | null>;
+  setEmail(userId: string, id: string, email: string): Promise<ApplicationWithJob | null>;
 }
 
 export interface JobsService {
@@ -36,11 +38,32 @@ export interface JobsService {
   rematch(userId: string): Promise<void>;
 }
 
+export interface GmailService {
+  startConnect(userId: string): Promise<string>;
+  finishConnect(input: { code?: string; state?: string; error?: string }): Promise<{ ok: true } | { ok: false; reason: string }>;
+  status(userId: string): Promise<GmailStatus>;
+  disconnect(userId: string): Promise<void>;
+}
+
+export interface SendingService {
+  send(userId: string, id: string, input: { to?: string; confirmGuess?: boolean }): Promise<ApplicationWithJob>;
+}
+
+export interface FollowUpsService {
+  list(userId: string, status?: FollowUp['status']): Promise<FollowUpWithJob[]>;
+  update(userId: string, id: string, patch: { subject?: string; body?: string }): Promise<FollowUp | null>;
+  send(userId: string, id: string): Promise<FollowUp>;
+  dismiss(userId: string, id: string): Promise<FollowUp | null>;
+}
+
 export interface AppDeps {
   webOrigin: string;
   getUser: GetUser;
   profiles: ProfileRepo;
-  cv: { upload(userId: string, file: { buffer: Buffer }): Promise<{ characters: number }> };
+  cv: { upload(userId: string, file: { buffer: Buffer; originalname?: string }): Promise<{ characters: number }> };
   applications: ApplicationsService;
   jobs: JobsService;
+  gmail: GmailService;
+  sending: SendingService;
+  followUps: FollowUpsService;
 }

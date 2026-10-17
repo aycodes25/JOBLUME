@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import rateLimit from 'express-rate-limit';
 import { APPLICATION_STATUSES } from '@joblume/shared';
 import { z } from 'zod';
 import { ApiError } from '../../lib/errors.js';
@@ -14,6 +15,12 @@ const patchSchema = z
 
 const statusBodySchema = z.object({ status: statusSchema }).strict();
 
+const sendBodySchema = z
+  .object({ to: z.string().trim().toLowerCase().email().max(254).optional(), confirmGuess: z.boolean().optional() })
+  .strict();
+
+const emailBodySchema = z.object({ email: z.string().trim().toLowerCase().email().max(254) }).strict();
+
 const idSchema = z.string().uuid();
 const parseId = (raw: unknown): string => {
   const r = idSchema.safeParse(raw);
@@ -21,7 +28,7 @@ const parseId = (raw: unknown): string => {
   return r.data;
 };
 
-export function applicationRoutes(d: Pick<AppDeps, 'applications'>) {
+export function applicationRoutes(d: Pick<AppDeps, 'applications' | 'sending'>) {
   const router = Router();
 
   router.get('/', asyncHandler(async (req, res) => {
@@ -47,6 +54,36 @@ export function applicationRoutes(d: Pick<AppDeps, 'applications'>) {
     const id = parseId(req.params.id);
     const { status } = statusBodySchema.parse(req.body);
     const app = await d.applications.setStatus(req.user!.id, id, status);
+    if (!app) throw new ApiError(404, 'application_not_found');
+    res.json(app);
+  }));
+
+  const sendLimiter = rateLimit({
+    windowMs: 60_000,
+    limit: 10,
+    keyGenerator: (req) => req.user!.id,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'rate_limited' },
+  });
+
+  router.post('/:id/send', sendLimiter, asyncHandler(async (req, res) => {
+    const id = parseId(req.params.id);
+    const input = sendBodySchema.parse(req.body ?? {});
+    res.json(await d.sending.send(req.user!.id, id, input));
+  }));
+
+  router.post('/:id/email/next', asyncHandler(async (req, res) => {
+    const id = parseId(req.params.id);
+    const result = await d.applications.nextEmail(req.user!.id, id);
+    if (!result) throw new ApiError(404, 'application_not_found');
+    res.json(result);
+  }));
+
+  router.put('/:id/email', asyncHandler(async (req, res) => {
+    const id = parseId(req.params.id);
+    const { email } = emailBodySchema.parse(req.body);
+    const app = await d.applications.setEmail(req.user!.id, id, email);
     if (!app) throw new ApiError(404, 'application_not_found');
     res.json(app);
   }));

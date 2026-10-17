@@ -18,7 +18,7 @@ describe('SettingsForm', () => {
     expect(screen.getByLabelText('Manual')).toBeChecked();
     expect(screen.getByLabelText('Auto-apply threshold')).toHaveValue(80);
     expect(screen.getByLabelText('Daily application cap')).toHaveValue(20);
-    expect(screen.getByText(/only saves your preference/i)).toBeInTheDocument();
+    expect(screen.getByText(/sends an application by email without a click/i)).toBeInTheDocument();
   });
 
   it('submits changed settings', async () => {

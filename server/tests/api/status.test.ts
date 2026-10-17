@@ -2,18 +2,14 @@ import request from 'supertest';
 import { describe, expect, it, vi } from 'vitest';
 import { createApp } from '../../src/api/app.js';
 import type { AppDeps } from '../../src/api/deps.js';
+import { makeDeps as baseDeps } from '../helpers/deps.js';
 
 const ID = '3f2b8c1e-5d4a-4b7e-9c11-2a6f0d9e8b77';
 
 function makeDeps(setStatus = vi.fn().mockResolvedValue({ id: ID, status: 'applied' })): AppDeps {
-  return {
-    webOrigin: 'http://localhost:3000',
-    getUser: vi.fn(async (t: string) => (t === 'good' ? { id: 'u1', email: 'a@b.c' } : null)),
-    profiles: { get: vi.fn(), update: vi.fn() },
-    cv: { upload: vi.fn() },
+  return baseDeps({
     applications: { list: vi.fn(), get: vi.fn(), update: vi.fn(), setStatus, analytics: vi.fn() } as never,
-    jobs: { refresh: vi.fn(), rematch: vi.fn() },
-  };
+  });
 }
 const patch = (app: ReturnType<typeof createApp>, path: string) =>
   request(app).patch(path).set('authorization', 'Bearer good');

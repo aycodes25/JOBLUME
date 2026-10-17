@@ -13,3 +13,9 @@ export async function createSignedUrl(db: Db, path: string, expiresInSeconds = 3
   if (error || !data) throw error ?? new Error('Could not sign URL');
   return data.signedUrl;
 }
+
+export async function downloadFile(db: Db, path: string): Promise<Uint8Array> {
+  const { data, error } = await db.storage.from(BUCKET).download(path);
+  if (error || !data) throw error ?? new Error('Download failed');
+  return new Uint8Array(await data.arrayBuffer());
+}

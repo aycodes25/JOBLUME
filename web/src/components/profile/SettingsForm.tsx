@@ -60,7 +60,7 @@ export function SettingsForm({ initial, onSubmit }: SettingsFormProps) {
             Auto
           </label>
         </div>
-        <p className="text-xs text-muted-foreground">Auto mode only saves your preference for now. Sending arrives in a later update, and nothing is applied without your action today.</p>
+        <p className="text-xs text-muted-foreground">Auto mode sends an application by email without a click only when all of these are true: Gmail is connected, the job is from Remotive, MyJobMag or Jobberman, the contact email was found by Hunter (not guessed or pasted) with confidence 80 or more, the match score meets your threshold, and today&apos;s limit is not reached. Applications already in your queue are not sent.</p>
       </fieldset>
 
       <div className="grid gap-4 sm:grid-cols-2">
@@ -80,6 +80,7 @@ export function SettingsForm({ initial, onSubmit }: SettingsFormProps) {
         <input type="checkbox" checked={values.autoFollowup} onChange={(e) => set('autoFollowup', e.target.checked)} />
         Auto follow-up
       </label>
+      <p className="text-xs text-muted-foreground">With this on, follow-up drafts are sent automatically three days after you apply instead of waiting for you.</p>
 
       {serverError && (
         <p role="alert" className="text-sm text-destructive">

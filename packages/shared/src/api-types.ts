@@ -4,6 +4,7 @@ export interface Profile {
   user_id: string;
   base_cv_text: string | null;
   base_cv_url: string | null;
+  base_cv_filename: string | null;
   skills: string[];
   years_experience: number | null;
   desired_roles: string[];
@@ -37,6 +38,8 @@ export interface Application {
   missing_keywords: string[];
   hiring_manager_email: string | null;
   email_confidence: number | null;
+  email_source: 'hunter' | 'guess' | 'manual' | null;
+  email_candidates: EmailCandidate[];
   apply_method: 'email' | 'assisted' | 'auto' | null;
   status: ApplicationStatus;
   applied_at: string | null;
@@ -60,4 +63,33 @@ export interface Analytics {
 
 export interface CvUploadResult {
   characters: number;
+}
+
+export interface EmailCandidate {
+  email: string;
+  confidence: number;
+  source: 'hunter' | 'guess';
+  label: string;
+  name?: string;
+  position?: string;
+}
+
+export interface GmailStatus {
+  configured: boolean;
+  connected: boolean;
+  email: string | null;
+}
+
+export interface FollowUp {
+  id: string;
+  application_id: string;
+  subject: string;
+  body: string;
+  status: 'pending_review' | 'sent' | 'dismissed' | 'failed';
+  created_at: string;
+  sent_at: string | null;
+}
+
+export interface FollowUpWithJob extends FollowUp {
+  job: { title: string; company: string } | null;
 }

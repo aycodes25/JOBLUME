@@ -17,6 +17,11 @@ const schema = z.object({
   UPSTASH_REDIS_URL: z.string().regex(/^rediss?:\/\//, 'must start with redis:// or rediss://'),
   ENCRYPTION_KEY: z.string().regex(/^[0-9a-fA-F]{64}$/, 'must be 64 hex characters (32 bytes)'),
   WEB_ORIGIN: z.string().url(),
+  GMAIL_CLIENT_ID: optionalString,
+  GMAIL_CLIENT_SECRET: optionalString,
+  GMAIL_REDIRECT_URI: z.preprocess(blankToUndefined, z.string().url().optional()),
+  HUNTER_API_KEY: optionalString,
+  HUNTER_MONTHLY_LIMIT: z.preprocess(blankToUndefined, z.coerce.number().int().positive().default(25)),
 });
 
 export type Env = z.infer<typeof schema>;
