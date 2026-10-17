@@ -4,6 +4,7 @@ import { createApp } from '../../src/api/app.js';
 import type { AppDeps } from '../../src/api/deps.js';
 import { ApiError } from '../../src/lib/errors.js';
 
+const ID = '3f2b8c1e-9a4d-4e7b-8c55-1a2b3c4d5e6f';
 const profile = {
   user_id: 'u1', base_cv_text: null, base_cv_url: null, skills: [], years_experience: null, desired_roles: [],
   location: null, salary_min: null, salary_max: null, apply_mode: 'manual', auto_threshold: 80, daily_cap: 20,
@@ -75,6 +76,39 @@ describe('profile', () => {
   });
 });
 
+describe('profile body validation', () => {
+  it('rejects an empty body with 400 and does not update', async () => {
+    const deps = makeDeps();
+    const res = await authed(createApp(deps)).put('/profile').send({});
+    expect(res.status).toBe(400);
+    expect(deps.profiles.update).not.toHaveBeenCalled();
+  });
+
+  it('rejects salary_min above salary_max', async () => {
+    const deps = makeDeps();
+    const res = await authed(createApp(deps)).put('/profile').send({ salary_min: 500000, salary_max: 100000 });
+    expect(res.status).toBe(400);
+    expect(deps.profiles.update).not.toHaveBeenCalled();
+  });
+
+  it('accepts equal salary_min and salary_max', async () => {
+    const res = await authed(createApp(makeDeps())).put('/profile').send({ salary_min: 100000, salary_max: 100000 });
+    expect(res.status).toBe(200);
+  });
+
+  it('malformed JSON gives 400 invalid_json', async () => {
+    const res = await authed(createApp(makeDeps())).put('/profile').set('content-type', 'application/json').send('{bad json');
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('invalid_json');
+  });
+
+  it('JSON body over 1 MB gives 413 payload_too_large', async () => {
+    const res = await authed(createApp(makeDeps())).put('/profile').send({ skills: ['x'.repeat(1024 * 1024 + 10)] });
+    expect(res.status).toBe(413);
+    expect(res.body.error).toBe('payload_too_large');
+  });
+});
+
 describe('cv upload', () => {
   it('400 when no file is attached', async () => {
     expect((await authed(createApp(makeDeps())).post('/cv')).status).toBe(400);
@@ -114,16 +148,35 @@ describe('applications', () => {
   });
 
   it('GET /applications/:id returns 404 when not found', async () => {
-    expect((await authed(createApp(makeDeps())).get('/applications/abc')).status).toBe(404);
+    expect((await authed(createApp(makeDeps())).get(`/applications/${ID}`)).status).toBe(404);
+  });
+
+  it('non-UUID ids give 404 application_not_found without calling the service', async () => {
+    const deps = makeDeps();
+    const g = await authed(createApp(deps)).get('/applications/abc');
+    expect(g.status).toBe(404);
+    expect(g.body.error).toBe('application_not_found');
+    const p = await authed(createApp(deps)).patch('/applications/abc').send({ cover_letter_text: 'hi there' });
+    expect(p.status).toBe(404);
+    expect(p.body.error).toBe('application_not_found');
+    expect(deps.applications.get).not.toHaveBeenCalled();
+    expect(deps.applications.update).not.toHaveBeenCalled();
+  });
+
+  it('PATCH rejects a whitespace-only cover letter with 400', async () => {
+    const deps = makeDeps();
+    const res = await authed(createApp(deps)).patch(`/applications/${ID}`).send({ cover_letter_text: '   ' });
+    expect(res.status).toBe(400);
+    expect(deps.applications.update).not.toHaveBeenCalled();
   });
 
   it('PATCH /applications/:id only accepts the two text fields', async () => {
     const deps = makeDeps({ applications: { list: vi.fn(), get: vi.fn(), update: vi.fn().mockResolvedValue({ id: 'a1' } as never) } });
-    const ok = await authed(createApp(deps)).patch('/applications/a1').send({ cover_letter_text: 'hi there' });
+    const ok = await authed(createApp(deps)).patch(`/applications/${ID}`).send({ cover_letter_text: 'hi there' });
     expect(ok.status).toBe(200);
-    expect(deps.applications.update).toHaveBeenCalledWith('u1', 'a1', { cover_letter_text: 'hi there' });
-    expect((await authed(createApp(deps)).patch('/applications/a1').send({ status: 'applied' })).status).toBe(400);
-    expect((await authed(createApp(deps)).patch('/applications/a1').send({})).status).toBe(400);
+    expect(deps.applications.update).toHaveBeenCalledWith('u1', ID, { cover_letter_text: 'hi there' });
+    expect((await authed(createApp(deps)).patch(`/applications/${ID}`).send({ status: 'applied' })).status).toBe(400);
+    expect((await authed(createApp(deps)).patch(`/applications/${ID}`).send({})).status).toBe(400);
   });
 });
 

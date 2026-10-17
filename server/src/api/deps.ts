@@ -16,7 +16,12 @@ export const profilePatchSchema = z
     auto_followup: z.boolean(),
   })
   .partial()
-  .strict();
+  .strict()
+  .refine((v) => Object.keys(v).length > 0, 'Provide at least one field to update')
+  .refine(
+    (v) => v.salary_min == null || v.salary_max == null || v.salary_min <= v.salary_max,
+    { message: 'salary_min must not exceed salary_max', path: ['salary_min'] },
+  );
 export type ProfilePatch = z.infer<typeof profilePatchSchema>;
 
 export interface ProfileRepo {

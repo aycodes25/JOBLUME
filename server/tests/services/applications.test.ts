@@ -51,6 +51,12 @@ describe('applications service', () => {
     expect(repo.update).toHaveBeenCalledWith('u1', 'a1', { cover_letter_text: 'NEW LETTER' });
   });
 
+  it('update() whitelists fields and ignores extra keys', async () => {
+    const { svc, repo } = make();
+    await svc.update('u1', 'a1', { cover_letter_text: 'x', status: 'applied' } as any);
+    expect(repo.update).toHaveBeenCalledWith('u1', 'a1', { cover_letter_text: 'x' });
+  });
+
   it('update() on an unknown application returns null without writing', async () => {
     const { svc, repo } = make({ repo: { list: vi.fn(), get: vi.fn().mockResolvedValue(null), update: vi.fn() } });
     expect(await svc.update('u1', 'nope', { cover_letter_text: 'x' })).toBeNull();

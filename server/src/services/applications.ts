@@ -19,7 +19,9 @@ export function createApplicationsService(deps: {
     async update(userId, id, patch) {
       const existing = await deps.repo.get(userId, id);
       if (!existing) return null;
-      const changes: Record<string, unknown> = { ...patch };
+      const changes: Record<string, unknown> = {};
+      if (patch.tailored_cv_text !== undefined) changes.tailored_cv_text = patch.tailored_cv_text;
+      if (patch.cover_letter_text !== undefined) changes.cover_letter_text = patch.cover_letter_text;
       if (patch.tailored_cv_text !== undefined && patch.tailored_cv_text !== existing.tailored_cv_text) {
         const pdf = await deps.renderPdf(patch.tailored_cv_text);
         changes.tailored_cv_url = await deps.uploadPdf(`${userId}/tailored/${existing.job_id}.pdf`, pdf);
