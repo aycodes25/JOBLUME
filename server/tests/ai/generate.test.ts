@@ -61,4 +61,12 @@ describe('generateJson', () => {
     const fallback: ProviderFn = vi.fn().mockRejectedValue(new ProviderError('500', true, 500));
     await expect(generateJson({ ...base, primary, fallback })).rejects.toBeInstanceOf(ProviderError);
   });
+
+  it('keeps the primary quota error as the cause when the fallback also fails', async () => {
+    const primary: ProviderFn = vi.fn().mockRejectedValue(new QuotaExhaustedError());
+    const fallback: ProviderFn = vi.fn().mockRejectedValue(new ProviderError('500', true, 500));
+    const err = await generateJson({ ...base, primary, fallback }).catch((e) => e);
+    expect(err).toBeInstanceOf(ProviderError);
+    expect((err as Error).cause).toBeInstanceOf(QuotaExhaustedError);
+  });
 });

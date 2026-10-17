@@ -53,6 +53,13 @@ export async function generateJson<T>(opts: {
     return { data: await attempt(opts.primary, opts.system, opts.user, opts.schema), provider: 'primary' };
   } catch (err) {
     if (!opts.fallback) throw err;
-    return { data: await attempt(opts.fallback, opts.system, opts.user, opts.schema), provider: 'fallback' };
+    try {
+      return { data: await attempt(opts.fallback, opts.system, opts.user, opts.schema), provider: 'fallback' };
+    } catch (fallbackErr) {
+      if (err instanceof QuotaExhaustedError && fallbackErr instanceof Error && fallbackErr.cause === undefined) {
+        fallbackErr.cause = err;
+      }
+      throw fallbackErr;
+    }
   }
 }

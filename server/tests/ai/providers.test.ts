@@ -33,6 +33,22 @@ describe('geminiProvider', () => {
   });
 });
 
+describe('network failures', () => {
+  it('wraps a gemini network error in a retryable ProviderError', async () => {
+    const p = geminiProvider({ apiKey: 'K', model: 'm' }, vi.fn().mockRejectedValue(new Error('network down')) as unknown as typeof fetch);
+    const err = await p(prompt).catch((e) => e);
+    expect(err).toBeInstanceOf(ProviderError);
+    expect(err).toMatchObject({ retryable: true });
+  });
+
+  it('wraps an openai network error in a retryable ProviderError', async () => {
+    const p = openaiProvider({ apiKey: 'S', model: 'm' }, vi.fn().mockRejectedValue(new Error('network down')) as unknown as typeof fetch);
+    const err = await p(prompt).catch((e) => e);
+    expect(err).toBeInstanceOf(ProviderError);
+    expect(err).toMatchObject({ retryable: true });
+  });
+});
+
 describe('openaiProvider', () => {
   it('posts a json_object chat completion and returns the message content', async () => {
     const fetchImpl = vi.fn().mockResolvedValue(json({ choices: [{ message: { content: '{"b":2}' } }] }));
