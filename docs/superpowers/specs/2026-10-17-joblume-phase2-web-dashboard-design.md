@@ -53,7 +53,7 @@ All follow the Phase 1 pattern: user id from the verified token, every query sco
 ### `PATCH /applications/:id/status`
 Body `{ "status": <one of the 7 existing statuses> }`. Side effects, applied server-side:
 
-- To **applied**: set `applied_at = now`, `follow_up_at = now + 3 days`, `apply_method = 'assisted'`.
+- To **applied**: set `applied_at = now`, `follow_up_at = now + 3 days`, `apply_method = 'assisted'` (only when it is empty).
 - To **interviewing / rejected / offer**: if `applied_at` is empty, set it (with `follow_up_at` and `apply_method`) as for applied, since an application cannot reach those states without being applied.
 - To **pending_review / approved / skipped**: clear `applied_at` and `follow_up_at`.
 - Re-moving an already-applied application between applied / interviewing / rejected / offer keeps its original `applied_at`.

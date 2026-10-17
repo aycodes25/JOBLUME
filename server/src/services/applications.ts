@@ -1,11 +1,13 @@
 import type { ApplicationStatus } from '../db/types.js';
 import type { ApplicationsRepo, ApplicationsService } from '../api/deps.js';
+import { planStatusChange } from './application-status.js';
 
 export function createApplicationsService(deps: {
   repo: ApplicationsRepo;
   renderPdf(text: string): Promise<Uint8Array>;
   uploadPdf(path: string, bytes: Uint8Array): Promise<string>;
   signUrl(path: string): Promise<string>;
+  now?: () => Date;
 }): ApplicationsService {
   return {
     list: (userId: string, status?: ApplicationStatus) => deps.repo.list(userId, status),
@@ -27,6 +29,13 @@ export function createApplicationsService(deps: {
         changes.tailored_cv_url = await deps.uploadPdf(`${userId}/tailored/${existing.job_id}.pdf`, pdf);
       }
       return deps.repo.update(userId, id, changes);
+    },
+
+    async setStatus(userId, id, status) {
+      const existing = await deps.repo.get(userId, id);
+      if (!existing) return null;
+      const now = deps.now ? deps.now() : new Date();
+      return deps.repo.update(userId, id, planStatusChange(existing, status, now));
     },
   };
 }

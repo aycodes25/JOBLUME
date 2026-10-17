@@ -12,6 +12,8 @@ const patchSchema = z
   .strict()
   .refine((v) => Object.keys(v).length > 0, 'Provide tailored_cv_text and/or cover_letter_text');
 
+const statusBodySchema = z.object({ status: statusSchema }).strict();
+
 const idSchema = z.string().uuid();
 const parseId = (raw: unknown): string => {
   const r = idSchema.safeParse(raw);
@@ -37,6 +39,14 @@ export function applicationRoutes(d: Pick<AppDeps, 'applications'>) {
     const id = parseId(req.params.id);
     const patch = patchSchema.parse(req.body);
     const app = await d.applications.update(req.user!.id, id, patch);
+    if (!app) throw new ApiError(404, 'application_not_found');
+    res.json(app);
+  }));
+
+  router.patch('/:id/status', asyncHandler(async (req, res) => {
+    const id = parseId(req.params.id);
+    const { status } = statusBodySchema.parse(req.body);
+    const app = await d.applications.setStatus(req.user!.id, id, status);
     if (!app) throw new ApiError(404, 'application_not_found');
     res.json(app);
   }));

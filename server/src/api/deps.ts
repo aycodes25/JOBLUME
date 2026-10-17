@@ -24,6 +24,7 @@ export interface ApplicationsService {
   list(userId: string, status?: ApplicationStatus): Promise<ApplicationWithJob[]>;
   get(userId: string, id: string): Promise<(ApplicationWithJob & { cv_pdf_url: string | null }) | null>;
   update(userId: string, id: string, patch: { tailored_cv_text?: string; cover_letter_text?: string }): Promise<ApplicationWithJob | null>;
+  setStatus(userId: string, id: string, status: ApplicationStatus): Promise<ApplicationWithJob | null>;
 }
 
 export interface JobsService {
