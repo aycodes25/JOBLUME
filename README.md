@@ -10,6 +10,21 @@ Semi-automatic job application platform. Phase 1 (this repo state): backend that
 
 API endpoints: `GET /profile`, `PUT /profile`, `POST /cv`, `GET /applications`, `GET /applications/:id`, `PATCH /applications/:id`, `POST /jobs/refresh`, and `GET /health`. Every endpoint except `/health` needs a Supabase access token sent as `Authorization: Bearer <token>`.
 
+## Getting a test token (no frontend yet)
+
+1. In the Supabase dashboard open Authentication > Users and create a user (email and password).
+2. Request a session:
+
+```bash
+curl -s -X POST "$SUPABASE_URL/auth/v1/token?grant_type=password"   -H "apikey: $SUPABASE_ANON_KEY"   -H "content-type: application/json"   -d '{"email":"you@example.com","password":"..."}'
+```
+
+3. Send the `access_token` from the response as `Authorization: Bearer <token>`.
+
+Users created BEFORE the migration ran have no profile row, because the signup trigger only fires for new users. Create those users after applying the migration, or insert their profile row by hand.
+
+After the first run, the worker's scheduler keeps running every 6 hours. Deleting the Redis keys resets it.
+
 ## Deploying
 
 - API: Render (free) with start command `npm run start:api` after `npm run build`.

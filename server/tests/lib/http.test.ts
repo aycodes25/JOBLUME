@@ -48,3 +48,13 @@ describe('fetchText', () => {
     expect(fn).toHaveBeenCalledTimes(3);
   });
 });
+
+describe('fetchText body cleanup', () => {
+  it('cancels the response body on a non-OK status', async () => {
+    const cancel = vi.fn();
+    const body = new ReadableStream({ start() {}, cancel });
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(body, { status: 404 })));
+    await expect(fetchText('https://example.com', { backoffMs: 1 })).rejects.toMatchObject({ status: 404 });
+    expect(cancel).toHaveBeenCalled();
+  });
+});

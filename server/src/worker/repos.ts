@@ -1,5 +1,6 @@
 import type { JobRow, ProfileRow } from '../db/types.js';
 import type { Db } from '../lib/supabase.js';
+import type { MatchCandidate } from './match.js';
 import type { NewApplication } from './tailor.js';
 
 export function createWorkerRepos(db: Db) {
@@ -16,14 +17,13 @@ export function createWorkerRepos(db: Db) {
       return (data as ProfileRow | null) ?? null;
     },
 
-    async loadCandidates(): Promise<ProfileRow[]> {
+    async loadCandidates(): Promise<MatchCandidate[]> {
       const { data, error } = await db
         .from('profiles')
-        .select('*')
-        .not('base_cv_text', 'is', null)
-        .not('desired_roles', 'eq', '{}');
+        .select('user_id, desired_roles, location')
+        .not('base_cv_text', 'is', null);
       if (error) throw error;
-      return (data ?? []) as ProfileRow[];
+      return ((data ?? []) as MatchCandidate[]).filter((p) => p.desired_roles.length > 0);
     },
 
     async loadRecentJobs(days: number, limit: number): Promise<JobRow[]> {

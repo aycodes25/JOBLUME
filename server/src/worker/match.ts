@@ -1,10 +1,12 @@
 import type { JobRow, ProfileRow } from '../db/types.js';
 import { matchesProfile } from '../domain/prefilter.js';
 
+export type MatchCandidate = Pick<ProfileRow, 'user_id' | 'desired_roles' | 'location'>;
+
 export interface MatchDeps {
   loadJob(id: string): Promise<JobRow | null>;
   /** Profiles that have a base CV and at least one desired role. */
-  loadCandidates(): Promise<ProfileRow[]>;
+  loadCandidates(): Promise<MatchCandidate[]>;
   loadProfile(userId: string): Promise<ProfileRow | null>;
   loadRecentJobs(days: number, limit: number): Promise<JobRow[]>;
   existingJobIds(userId: string, jobIds: string[]): Promise<Set<string>>;

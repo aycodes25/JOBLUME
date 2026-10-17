@@ -42,6 +42,11 @@ export async function fetchText(url: string, opts: FetchOptions = {}): Promise<s
         signal: AbortSignal.timeout(timeoutMs),
       });
       if (res.ok) return await res.text();
+      try {
+        await res.body?.cancel();
+      } catch {
+        /* ignore cancel failures */
+      }
       lastError = new HttpError(res.status, url);
       if (!retryable(res.status)) throw lastError;
     } catch (err) {

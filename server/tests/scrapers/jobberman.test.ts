@@ -89,3 +89,16 @@ describe('createScrapers', () => {
     }
   });
 });
+
+describe('jobberman hardening', () => {
+  it('parses a top-level JSON-LD array', () => {
+    const html = `<script type="application/ld+json">${JSON.stringify([{ '@type': 'JobPosting', description: '<p>Array form</p>' }])}</script>`;
+    expect(parseJobbermanDetail(html).description).toContain('Array form');
+  });
+
+  it('skips cards whose url is not on www.jobberman.com', () => {
+    const card = (href: string) => `<div data-cy="listing-cards-components"><div><a href="${href}" data-cy="listing-title-link" title="T"></a></div><p>Co</p></div>`;
+    const stubs = parseJobbermanList(card('https://evil.example.com/x') + card('/listings/ok') + card('https://www.jobberman.com.evil.io/y'));
+    expect(stubs.map((s) => s.url)).toEqual(['https://www.jobberman.com/listings/ok']);
+  });
+});

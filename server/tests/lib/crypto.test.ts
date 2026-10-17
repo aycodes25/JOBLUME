@@ -24,3 +24,11 @@ describe('crypto', () => {
     expect(() => decrypt([iv, tag, flipped.toString('base64')].join('.'), key)).toThrow();
   });
 });
+
+describe('crypto auth tag length', () => {
+  it('rejects a payload with a truncated tag', () => {
+    const [iv, tag, data] = encrypt('secret', key).split('.');
+    const short = Buffer.from(tag!, 'base64').subarray(0, 8).toString('base64');
+    expect(() => decrypt([iv, short, data].join('.'), key)).toThrow();
+  });
+});

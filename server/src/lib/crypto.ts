@@ -13,7 +13,8 @@ export function encrypt(plain: string, keyHex: string): string {
 export function decrypt(payload: string, keyHex: string): string {
   const [iv, tag, data] = payload.split('.').map((p) => Buffer.from(p, 'base64'));
   if (!iv || !tag || !data) throw new Error('Malformed encrypted payload');
-  const decipher = createDecipheriv(ALGO, Buffer.from(keyHex, 'hex'), iv);
+  if (tag.length !== 16) throw new Error('Malformed encrypted payload');
+  const decipher = createDecipheriv(ALGO, Buffer.from(keyHex, 'hex'), iv, { authTagLength: 16 });
   decipher.setAuthTag(tag);
   return Buffer.concat([decipher.update(data), decipher.final()]).toString('utf8');
 }

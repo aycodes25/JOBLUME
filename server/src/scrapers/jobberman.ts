@@ -15,11 +15,13 @@ export function parseJobbermanList(html: string): JobStub[] {
     const title = (a.attr('title') || a.text()).replace(/\s+/g, ' ').trim();
     const company = a.closest('div').next('p').text().replace(/\s+/g, ' ').trim();
     if (!href || !title || !company) return;
+    const url = new URL(href, 'https://www.jobberman.com');
+    if (url.host !== 'www.jobberman.com') return;
     stubs.push({
       title,
       company,
       location: $(card).find('span.rounded').first().text().replace(/\s+/g, ' ').trim(),
-      url: new URL(href, 'https://www.jobberman.com').toString(),
+      url: url.toString(),
       source: 'jobberman',
     });
   });
@@ -32,8 +34,8 @@ export function parseJobbermanDetail(html: string): { description: string } {
   $('script[type="application/ld+json"]').each((_, el) => {
     if (description) return;
     try {
-      const json = JSON.parse($(el).contents().text()) as { '@graph'?: unknown[]; '@type'?: string; description?: string };
-      const nodes = (json['@graph'] ?? [json]) as Array<{ '@type'?: string; description?: string }>;
+      const json = JSON.parse($(el).contents().text()) as { '@graph'?: unknown[] } | unknown[];
+      const nodes = (Array.isArray(json) ? json : (json['@graph'] ?? [json])) as Array<{ '@type'?: string; description?: string }>;
       const posting = nodes.find((n) => n['@type'] === 'JobPosting' && n.description);
       if (posting?.description) description = htmlToText(posting.description);
     } catch {

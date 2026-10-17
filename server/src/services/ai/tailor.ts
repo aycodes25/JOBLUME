@@ -31,16 +31,28 @@ Rules:
 Reply with ONLY a JSON object, no other text:
 { "tailored_cv_text": string, "cover_letter_text": string, "match_score_0_to_100": number, "missing_keywords": string[] }`;
 
+const DELIMITERS = /<<<JOB_DESCRIPTION|JOB_DESCRIPTION>>>|<<<BASE_CV|BASE_CV>>>/g;
+
+/** Remove delimiter tokens so scraped or uploaded text cannot close its data block early. */
+function stripDelimiters(text: string): string {
+  let out = text;
+  for (let prev = ''; prev !== out; ) {
+    prev = out;
+    out = out.replace(DELIMITERS, '');
+  }
+  return out;
+}
+
 export function buildTailorPrompt({ cvText, job, profile }: TailorInput): Prompt {
   const user = [
     `JOB TITLE: ${job.title}`,
     `COMPANY: ${job.company}`,
     `LOCATION: ${job.location || 'Not stated'}`,
-    `JOB DESCRIPTION:\n<<<JOB_DESCRIPTION\n${job.description.slice(0, 6000)}\nJOB_DESCRIPTION>>>`,
+    `JOB DESCRIPTION:\n<<<JOB_DESCRIPTION\n${stripDelimiters(job.description).slice(0, 6000)}\nJOB_DESCRIPTION>>>`,
     '',
     `CANDIDATE PROFILE (context only; do not add skills listed here to the CV unless the base CV supports them): ${profile.yearsExperience ?? 'unknown'} years of experience; preferred location ${profile.location ?? 'not stated'}; listed skills: ${profile.skills.join(', ') || 'none listed'}.`,
     '',
-    `BASE CV:\n<<<BASE_CV\n${cvText.slice(0, 12000)}\nBASE_CV>>>`,
+    `BASE CV:\n<<<BASE_CV\n${stripDelimiters(cvText).slice(0, 12000)}\nBASE_CV>>>`,
   ].join('\n');
   return { system: SYSTEM, user };
 }
