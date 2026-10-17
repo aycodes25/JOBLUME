@@ -32,9 +32,9 @@ export function createSendDeps(d: {
   return {
     loadApplication: (userId, id) => d.applicationsRepo.get(userId, id),
     async loadProfile(userId) {
-      const { data, error } = await db.from('profiles').select('daily_cap').eq('user_id', userId).maybeSingle();
+      const { data, error } = await db.from('profiles').select('daily_cap, apply_mode, auto_threshold').eq('user_id', userId).maybeSingle();
       if (error) throw error;
-      return (data as { daily_cap: number } | null) ?? null;
+      return (data as Awaited<ReturnType<SendDeps['loadProfile']>>) ?? null;
     },
     async appliedToday(userId) {
       const { data, error } = await db.rpc('applications_applied_today', { uid: userId });

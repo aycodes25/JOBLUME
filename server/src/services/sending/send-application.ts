@@ -4,6 +4,7 @@ import { ApiError } from '../../lib/errors.js';
 import { planStatusChange } from '../application-status.js';
 import { buildRawMessage, cvAttachmentName } from '../gmail/mime.js';
 import { GmailSendError } from '../gmail/send.js';
+import { AUTO_MIN_CONFIDENCE, AUTO_SOURCES } from './auto-apply.js';
 
 export interface EmailLogRow {
   application_id: string;
@@ -25,7 +26,7 @@ export interface SendInput {
 
 export interface SendDeps {
   loadApplication(userId: string, id: string): Promise<ApplicationWithJob | null>;
-  loadProfile(userId: string): Promise<{ daily_cap: number } | null>;
+  loadProfile(userId: string): Promise<{ daily_cap: number; apply_mode: 'manual' | 'auto'; auto_threshold: number } | null>;
   appliedToday(userId: string): Promise<number>;
   hasSentApplicationEmail(applicationId: string): Promise<boolean>;
   isGmailConnected(userId: string): Promise<boolean>;
@@ -42,7 +43,6 @@ export interface SendDeps {
 
 const SENDABLE = new Set(['pending_review', 'approved']);
 const DEFAULT_DAILY_CAP = 20;
-const AUTO_MIN_CONFIDENCE = 80;
 const LOCK_TTL_SECONDS = 60;
 const MAX_LOCK_AGE_MS = 25_000;
 const emailSchema = z.string().trim().toLowerCase().email().max(254);
@@ -79,6 +79,16 @@ function checkedRecipient(app: ApplicationWithJob, input: SendInput): Recipient 
   return recipient;
 }
 
+/** Auto mode re-checks the rules at send time: the profile or the application may have changed since it was queued. */
+function checkAutoRules(app: ApplicationWithJob, profile: Awaited<ReturnType<SendDeps['loadProfile']>>): void {
+  const ok =
+    profile?.apply_mode === 'auto' &&
+    (AUTO_SOURCES as readonly string[]).includes(app.job?.source ?? '') &&
+    app.match_score !== null &&
+    app.match_score >= profile.auto_threshold;
+  if (!ok) throw new ApiError(409, 'not_auto_eligible', 'Auto mode is off or this application no longer qualifies');
+}
+
 const alreadySent = () => new ApiError(409, 'already_sent', 'This application was already sent or is no longer pending');
 
 export async function sendApplication(userId: string, id: string, input: SendInput, d: SendDeps): Promise<ApplicationWithJob> {
@@ -90,6 +100,7 @@ export async function sendApplication(userId: string, id: string, input: SendInp
   checkedRecipient(app, input);
 
   const profile = await d.loadProfile(userId);
+  if (input.method === 'auto') checkAutoRules(app, profile);
   if ((await d.appliedToday(userId)) >= (profile?.daily_cap ?? DEFAULT_DAILY_CAP)) {
     throw new ApiError(429, 'daily_cap_reached', 'You have reached today\'s application limit');
   }
@@ -103,6 +114,7 @@ export async function sendApplication(userId: string, id: string, input: SendInp
     const fresh = await d.loadApplication(userId, id);
     if (!fresh || !SENDABLE.has(fresh.status) || (await d.hasSentApplicationEmail(fresh.id))) throw alreadySent();
     const recipient = checkedRecipient(fresh, input);
+    if (input.method === 'auto') checkAutoRules(fresh, profile);
     if (!fresh.cover_letter_text?.trim()) throw new ApiError(422, 'empty_message', 'The cover letter is empty');
     if (!fresh.tailored_cv_url) throw new ApiError(409, 'cv_not_ready', 'The tailored CV is not ready yet');
 

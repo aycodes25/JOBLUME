@@ -18,7 +18,7 @@ const app = (over: Partial<ApplicationWithJob> = {}): ApplicationWithJob => ({
 function make(over: Partial<SendDeps> = {}): SendDeps {
   return {
     loadApplication: vi.fn().mockResolvedValue(app()),
-    loadProfile: vi.fn().mockResolvedValue({ daily_cap: 20 }),
+    loadProfile: vi.fn().mockResolvedValue({ daily_cap: 20, apply_mode: 'auto', auto_threshold: 80 }),
     appliedToday: vi.fn().mockResolvedValue(0),
     hasSentApplicationEmail: vi.fn().mockResolvedValue(false),
     isGmailConnected: vi.fn().mockResolvedValue(true),
@@ -132,7 +132,7 @@ describe('sendApplication: checks, in order', () => {
   });
 
   it('uses the profile daily cap', async () => {
-    const d = make({ loadProfile: vi.fn().mockResolvedValue({ daily_cap: 3 }), appliedToday: vi.fn().mockResolvedValue(3) });
+    const d = make({ loadProfile: vi.fn().mockResolvedValue({ daily_cap: 3, apply_mode: 'auto', auto_threshold: 80 }), appliedToday: vi.fn().mockResolvedValue(3) });
     expect(await rejection(send(d))).toMatchObject({ code: 'daily_cap_reached' });
   });
 
@@ -305,5 +305,32 @@ describe('sendApplication: auto method', () => {
     const d = make({ loadApplication: vi.fn().mockResolvedValue(app(over)) });
     expect(await rejection(send(d, { method: 'auto', confirmGuess: true }))).toMatchObject({ status: 409, code: 'not_auto_eligible' });
     expect(d.sendMessage).not.toHaveBeenCalled();
+  });
+});
+
+describe('sendApplication: auto method re-checks the eligibility rules at send time', () => {
+  const profile = (over: Record<string, unknown> = {}) => vi.fn().mockResolvedValue({ daily_cap: 20, apply_mode: 'auto', auto_threshold: 80, ...over });
+  const job = (source: string) => ({ title: 'Data Analyst', company: 'Acme', location: 'Lagos', source, url: 'https://example.com/j', company_domain: null });
+
+  it.each([
+    ['the user switched back to manual mode', { loadProfile: profile({ apply_mode: 'manual' }) }],
+    ['the score is below the threshold', { loadProfile: profile({ auto_threshold: 90 }) }],
+    ['the score is missing', { loadApplication: vi.fn().mockResolvedValue(app({ match_score: null })) }],
+    ['the job is from LinkedIn', { loadApplication: vi.fn().mockResolvedValue(app({ job: job('linkedin') })) }],
+    ['there is no profile', { loadProfile: vi.fn().mockResolvedValue(null) }],
+  ])('refuses when %s', async (_n, over) => {
+    const d = make(over as Partial<SendDeps>);
+    expect(await rejection(send(d, { method: 'auto' }))).toMatchObject({ status: 409, code: 'not_auto_eligible' });
+    expect(d.sendMessage).not.toHaveBeenCalled();
+  });
+
+  it('does not apply those rules to a manual email send', async () => {
+    const d = make({ loadProfile: profile({ apply_mode: 'manual', auto_threshold: 99 }) });
+    await expect(send(d)).resolves.toMatchObject({ status: 'applied' });
+  });
+
+  it('refuses an explicit recipient in auto mode that is not the stored Hunter address', async () => {
+    const d = make();
+    expect(await rejection(send(d, { method: 'auto', to: 'other@acme.com' }))).toMatchObject({ code: 'not_auto_eligible' });
   });
 });

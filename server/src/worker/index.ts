@@ -20,6 +20,8 @@ import { createFollowUpRepo } from '../services/followups/repo.js';
 import { gmailConfig } from '../services/gmail/config.js';
 import { createGmailTokens } from '../services/gmail/tokens.js';
 import { createFollowUpSender, createSendingService } from '../services/sending/wiring.js';
+import { runAutoApplyCheck } from '../services/sending/auto-apply.js';
+import { createAutoApplyLoader } from '../services/sending/auto-repo.js';
 import { createFinder } from '../services/email/finder.js';
 import { createHunterClient } from '../services/email/hunter.js';
 import { createMonthlyQuota } from '../services/email/quota.js';
@@ -73,6 +75,7 @@ async function main() {
   const sending = createSendingService(sendingBase);
   const followUpRepo = createFollowUpRepo(db);
   const followUpSender = createFollowUpSender({ ...sendingBase, repo: followUpRepo });
+  const loadAutoContext = createAutoApplyLoader(db, (userId) => gmailTokens.isConnected(userId));
   const writeFollowUp = createFollowUpWriter({ primary, fallback });
 
   const enqueueTailor = (userId: string, jobId: string) => enqueueTailorJob(queues.tailor, userId, jobId);
@@ -145,6 +148,19 @@ async function main() {
         loadApplication: repos.loadApplicationForEmail,
         find: finder.find,
         saveCandidates: repos.saveApplicationFields,
+        // Failures are logged, never thrown: a retry would skip the lookup and lose the check.
+        afterFound: async (applicationId) => {
+          try {
+            const outcome = await runAutoApplyCheck(applicationId, {
+              load: loadAutoContext,
+              enqueueSend: ({ userId, applicationId: id, delayMs }) => enqueueSend(queues.send, { kind: 'application', userId, applicationId: id }, delayMs),
+              randomDelay: () => randomBetween(5_000, 15_000),
+            });
+            logger.info({ applicationId, outcome }, 'auto-apply check');
+          } catch (err) {
+            logger.error({ err, applicationId }, 'auto-apply check failed');
+          }
+        },
       }),
     {
       connection: createRedis(env.UPSTASH_REDIS_URL),
