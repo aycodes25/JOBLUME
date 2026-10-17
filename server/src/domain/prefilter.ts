@@ -23,8 +23,15 @@ function titleMatches(job: MatchJob, roles: string[]): boolean {
   });
 }
 
+const REMOTIVE_OPEN = /worldwide|anywhere|global|africa|emea|nigeria|^remote$/i;
+
 function locationMatches(job: MatchJob, preference: MatchProfile['location']): boolean {
   if (preference === null) return true;
+  if (job.source === 'remotive') {
+    // Remotive lists a candidate_required_location; skip region-locked jobs (e.g. "USA Only") before spending AI calls.
+    const loc = job.location.trim();
+    return loc === '' || REMOTIVE_OPEN.test(loc);
+  }
   if (isRemote(job)) return true;
   if (preference === 'Remote') return false;
   if (job.location.trim() === '') return true;

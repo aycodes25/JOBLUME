@@ -40,3 +40,28 @@ describe('matchesProfile', () => {
     expect(matchesProfile({ title: 'Backend Engineer', location: 'Kano', source: 'myjobmag' }, { ...profile, location: null })).toBe(true);
   });
 });
+
+describe('Remotive eligibility', () => {
+  const rem = (location: string) => ({ title: 'Backend Engineer', location, source: 'remotive' as const });
+  const lagos = { desired_roles: ['backend engineer'], location: 'Lagos' as const };
+  const remote = { desired_roles: ['backend engineer'], location: 'Remote' as const };
+
+  it('rejects region-locked Remotive jobs for Lagos and Remote users', () => {
+    for (const loc of ['USA Only', 'Europe']) {
+      expect(matchesProfile(rem(loc), lagos)).toBe(false);
+      expect(matchesProfile(rem(loc), remote)).toBe(false);
+    }
+  });
+
+  it('accepts open or Africa-friendly Remotive jobs', () => {
+    for (const loc of ['Worldwide', 'Africa', 'Remote', 'EMEA', '']) {
+      expect(matchesProfile(rem(loc), lagos)).toBe(true);
+      expect(matchesProfile(rem(loc), remote)).toBe(true);
+    }
+  });
+
+  it('a null location preference passes any Remotive location', () => {
+    expect(matchesProfile(rem('USA Only'), { desired_roles: ['backend engineer'], location: null })).toBe(true);
+  });
+});
+
