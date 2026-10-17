@@ -2,6 +2,7 @@ import request from 'supertest';
 import { describe, expect, it, vi } from 'vitest';
 import { createApp } from '../../src/api/app.js';
 import type { AppDeps } from '../../src/api/deps.js';
+import { makeDeps as baseDeps } from '../helpers/deps.js';
 import { ApiError } from '../../src/lib/errors.js';
 
 const ID = '3f2b8c1e-9a4d-4e7b-8c55-1a2b3c4d5e6f';
@@ -12,9 +13,7 @@ const profile = {
 };
 
 function makeDeps(over: Partial<AppDeps> = {}): AppDeps {
-  return {
-    webOrigin: 'http://localhost:3000',
-    getUser: vi.fn(async (t: string) => (t === 'good' ? { id: 'u1', email: 'a@b.c' } : null)),
+  return baseDeps({
     profiles: { get: vi.fn().mockResolvedValue(profile), update: vi.fn(async (_id, patch) => ({ ...profile, ...patch })) },
     cv: { upload: vi.fn().mockResolvedValue({ characters: 1234 }) },
     applications: {
@@ -26,7 +25,7 @@ function makeDeps(over: Partial<AppDeps> = {}): AppDeps {
     },
     jobs: { refresh: vi.fn().mockResolvedValue(undefined), rematch: vi.fn().mockResolvedValue(undefined) },
     ...over,
-  };
+  });
 }
 const authed = (app: ReturnType<typeof createApp>) => ({
   get: (u: string) => request(app).get(u).set('authorization', 'Bearer good'),

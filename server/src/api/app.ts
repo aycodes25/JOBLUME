@@ -8,6 +8,7 @@ import { errorHandler } from './errors.js';
 import { analyticsRoutes } from './routes/analytics.js';
 import { applicationRoutes } from './routes/applications.js';
 import { cvRoutes } from './routes/cv.js';
+import { gmailCallbackRoutes, gmailRoutes } from './routes/gmail.js';
 import { jobRoutes } from './routes/jobs.js';
 import { profileRoutes } from './routes/profile.js';
 
@@ -22,6 +23,8 @@ export function createApp(d: AppDeps) {
     res.json({ ok: true });
   });
 
+  app.use('/gmail', gmailCallbackRoutes(d));
+
   app.use(requireAuth(d.getUser));
   app.use(rateLimit({ windowMs: 60_000, limit: 120, keyGenerator: (req) => req.user!.id, standardHeaders: true, legacyHeaders: false }));
 
@@ -30,6 +33,7 @@ export function createApp(d: AppDeps) {
   app.use('/applications', applicationRoutes(d));
   app.use('/jobs', jobRoutes(d));
   app.use('/analytics', analyticsRoutes(d));
+  app.use('/gmail', gmailRoutes(d));
 
   app.use(errorHandler);
   return app;

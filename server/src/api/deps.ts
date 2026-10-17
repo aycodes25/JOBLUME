@@ -1,5 +1,5 @@
 import { profilePatchSchema, type ProfilePatch } from '@joblume/shared';
-import type { Analytics } from '@joblume/shared';
+import type { Analytics, GmailStatus } from '@joblume/shared';
 import type { ApplicationRow, ApplicationStatus, ProfileRow } from '../db/types.js';
 import type { AnalyticsRow } from '../services/analytics.js';
 import type { GetUser } from './auth.js';
@@ -36,6 +36,13 @@ export interface JobsService {
   rematch(userId: string): Promise<void>;
 }
 
+export interface GmailService {
+  startConnect(userId: string): string;
+  finishConnect(input: { code?: string; state?: string; error?: string }): Promise<{ ok: true } | { ok: false; reason: string }>;
+  status(userId: string): Promise<GmailStatus>;
+  disconnect(userId: string): Promise<void>;
+}
+
 export interface AppDeps {
   webOrigin: string;
   getUser: GetUser;
@@ -43,4 +50,5 @@ export interface AppDeps {
   cv: { upload(userId: string, file: { buffer: Buffer; originalname?: string }): Promise<{ characters: number }> };
   applications: ApplicationsService;
   jobs: JobsService;
+  gmail: GmailService;
 }
