@@ -1,4 +1,4 @@
-import type { Application } from '@joblume/shared';
+import type { Application, ApplicationDetail } from '@joblume/shared';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import type { ReactNode } from 'react';
@@ -47,5 +47,52 @@ describe('useSetStatus', () => {
     act(() => { result.current.mutate({ id: 'a1', status: 'applied' }); });
     await waitFor(() => expect(result.current.isError).toBe(true));
     expect(statusOf(qc)).toBe('pending_review');
+  });
+
+  const detailOf = (): ApplicationDetail => ({ ...app(), cv_pdf_url: null });
+  const detailStatus = (qc: QueryClient) => (qc.getQueryData(keys.application('a1')) as ApplicationDetail).status;
+
+  it('updates the cached detail before the server answers', async () => {
+    let resolve!: (v: unknown) => void;
+    setApplicationStatus.mockReturnValue(new Promise((r) => { resolve = r; }));
+    const { qc, wrapper } = setup([app()]);
+    qc.setQueryData(keys.application('a1'), detailOf());
+    const { result } = renderHook(() => useSetStatus(), { wrapper });
+
+    act(() => { result.current.mutate({ id: 'a1', status: 'applied' }); });
+    await waitFor(() => expect(detailStatus(qc)).toBe('applied'));
+    resolve({});
+  });
+
+  it('rolls the detail back when the server refuses', async () => {
+    setApplicationStatus.mockRejectedValue(new Error('refused'));
+    const { qc, wrapper } = setup([app()]);
+    qc.setQueryData(keys.application('a1'), detailOf());
+    const { result } = renderHook(() => useSetStatus(), { wrapper });
+
+    act(() => { result.current.mutate({ id: 'a1', status: 'applied' }); });
+    await waitFor(() => expect(result.current.isError).toBe(true));
+    expect(detailStatus(qc)).toBe('pending_review');
+  });
+
+  it('works with an empty list cache', async () => {
+    setApplicationStatus.mockResolvedValue({});
+    const { qc, wrapper } = setup([app()]);
+    qc.removeQueries({ queryKey: keys.applications });
+    const { result } = renderHook(() => useSetStatus(), { wrapper });
+
+    act(() => { result.current.mutate({ id: 'a1', status: 'applied' }); });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(setApplicationStatus).toHaveBeenCalledWith('a1', 'applied');
+  });
+
+  it('cancels an in-flight detail fetch when mutating', async () => {
+    setApplicationStatus.mockResolvedValue({});
+    const { qc, wrapper } = setup([app()]);
+    const cancel = vi.spyOn(qc, 'cancelQueries');
+    const { result } = renderHook(() => useSetStatus(), { wrapper });
+    act(() => { result.current.mutate({ id: 'a1', status: 'applied' }); });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(cancel).toHaveBeenCalledWith({ queryKey: keys.application('a1') });
   });
 });

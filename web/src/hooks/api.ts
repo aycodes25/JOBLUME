@@ -71,6 +71,7 @@ export function useSetStatus() {
     mutationFn: ({ id, status }: { id: string; status: ApplicationStatus }) => getApi().setApplicationStatus(id, status),
     onMutate: async ({ id, status }) => {
       await qc.cancelQueries({ queryKey: keys.applications });
+      await qc.cancelQueries({ queryKey: keys.application(id) });
       const previous = qc.getQueryData<Application[]>(keys.applications);
       const previousDetail = qc.getQueryData<ApplicationDetail>(keys.application(id));
       if (previous) qc.setQueryData(keys.applications, applyStatusLocal(previous, id, status));

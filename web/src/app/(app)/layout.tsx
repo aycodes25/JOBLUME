@@ -1,5 +1,6 @@
 'use client';
 
+import { useQueryClient } from '@tanstack/react-query';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState, type ReactNode } from 'react';
 import { ErrorState } from '@/components/common/ErrorState';
@@ -13,6 +14,7 @@ import { createBrowserSupabase } from '@/lib/supabase/client';
 export default function AppLayout({ children }: { children: ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
+  const queryClient = useQueryClient();
   const profile = useProfile();
   const [email, setEmail] = useState<string | null>(null);
 
@@ -28,6 +30,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
 
   async function signOut() {
     await createBrowserSupabase().auth.signOut();
+    queryClient.clear();
     router.replace('/login');
     router.refresh();
   }

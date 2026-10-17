@@ -1,15 +1,18 @@
 'use client';
 
+import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { AuthForm } from '@/components/auth/AuthForm';
 import { createBrowserSupabase } from '@/lib/supabase/client';
 
 export default function LoginPage() {
   const router = useRouter();
+  const queryClient = useQueryClient();
 
   async function onSignIn(email: string, password: string) {
     const { error } = await createBrowserSupabase().auth.signInWithPassword({ email, password });
     if (error) throw new Error(error.message);
+    queryClient.clear();
     router.replace('/queue');
     router.refresh();
   }
@@ -18,6 +21,7 @@ export default function LoginPage() {
     const { data, error } = await createBrowserSupabase().auth.signUp({ email, password });
     if (error) throw new Error(error.message);
     if (data.session) {
+      queryClient.clear();
       router.replace('/onboarding');
       router.refresh();
       return { needsConfirmation: false };
