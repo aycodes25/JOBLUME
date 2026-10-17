@@ -2,17 +2,25 @@ import { Queue } from 'bullmq';
 import type { Redis } from 'ioredis';
 import type { ScrapeSource } from './scrapers/index.js';
 
-export const QUEUES = { scrape: 'scrape', match: 'match', tailor: 'tailor', findEmail: 'find-email' } as const;
+export const QUEUES = { scrape: 'scrape', match: 'match', tailor: 'tailor', findEmail: 'find-email', followups: 'followups', send: 'send' } as const;
 
 export type ScrapeJobData = { source: ScrapeSource };
 export type MatchJobData = { kind: 'job'; jobId: string } | { kind: 'user'; userId: string };
 export type TailorJobData = { userId: string; jobId: string };
 export type FindEmailJobData = { applicationId: string };
+export type FollowUpsJobData = { kind: 'scan' } | { kind: 'draft'; applicationId: string };
+export type SendJobData =
+  | { kind: 'application'; userId: string; applicationId: string }
+  | { kind: 'followup'; userId: string; followUpId: string };
 
 /** BullMQ forbids ":" in custom job ids. Deterministic id = one tailor job per (user, job). */
 export const tailorJobId = (userId: string, jobId: string) => `tailor-${userId}-${jobId}`;
 
 export const findEmailJobId = (applicationId: string) => `find-email-${applicationId}`;
+
+export const followUpDraftJobId = (applicationId: string) => `followup-draft-${applicationId}`;
+export const sendJobId = (data: SendJobData) =>
+  data.kind === 'application' ? `auto-send-${data.applicationId}` : `auto-followup-${data.followUpId}`;
 
 const BASE_JOB_OPTIONS = {
   attempts: 3,
@@ -38,6 +46,8 @@ export function createQueues(connection: Redis) {
       connection,
       defaultJobOptions: { ...BASE_JOB_OPTIONS, attempts: 3, backoff: { type: 'exponential' as const, delay: 60_000 }, removeOnFail: { age: 86_400 } },
     }),
+    followups: new Queue<FollowUpsJobData>(QUEUES.followups, { connection, defaultJobOptions: TAILOR_JOB_OPTIONS }),
+    send: new Queue<SendJobData>(QUEUES.send, { connection, defaultJobOptions: { ...BASE_JOB_OPTIONS, attempts: 1 } }),
   };
 }
 
@@ -61,6 +71,15 @@ export async function enqueueFindEmail(
   const existing = await queue.getJob(id);
   if (existing && (await existing.isFailed())) await existing.remove();
   await queue.add('find-email', { applicationId }, { jobId: id });
+}
+
+export async function enqueueFollowUpDraft(queue: Pick<Queue<FollowUpsJobData>, 'add'>, applicationId: string): Promise<void> {
+  await queue.add('draft', { kind: 'draft', applicationId }, { jobId: followUpDraftJobId(applicationId) });
+}
+
+/** Queue an automatic send. The deterministic id means a send is never queued twice for the same item. */
+export async function enqueueSend(queue: Pick<Queue<SendJobData>, 'add'>, data: SendJobData, delayMs: number): Promise<void> {
+  await queue.add('send', data, { jobId: sendJobId(data), delay: delayMs });
 }
 
 export type Queues = ReturnType<typeof createQueues>;

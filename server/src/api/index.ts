@@ -7,10 +7,12 @@ import { createApplicationsService } from '../services/applications.js';
 import { renderCvPdf } from '../services/cv/pdf.js';
 import { createCvService } from '../services/cv/upload.js';
 import { gmailConfig } from '../services/gmail/config.js';
+import { createFollowUpRepo } from '../services/followups/repo.js';
+import { createFollowUpsService } from '../services/followups/service.js';
 import { createGmailService } from '../services/gmail/service.js';
 import { createGmailTokens } from '../services/gmail/tokens.js';
 import { createJobsService } from '../services/jobs/service.js';
-import { createSendingService } from '../services/sending/wiring.js';
+import { createFollowUpSender, createSendingService } from '../services/sending/wiring.js';
 import { createSignedUrl, uploadFile } from '../services/storage.js';
 import { createApp } from './app.js';
 import { createApplicationsRepo, createGmailTokenStore, createProfileRepo, setCv } from './repos.js';
@@ -25,6 +27,10 @@ const gmailTokens = createGmailTokens({ store: createGmailTokenStore(db), cfg: g
 const gmail = createGmailService({ cfg: gmailCfg, tokens: gmailTokens, encryptionKey: env.ENCRYPTION_KEY });
 
 const sending = createSendingService({ db, redis, tokens: gmailTokens, applicationsRepo });
+
+const followUpRepo = createFollowUpRepo(db);
+const followUpSender = createFollowUpSender({ db, redis, tokens: gmailTokens, applicationsRepo, repo: followUpRepo });
+const followUps = createFollowUpsService({ repo: followUpRepo, send: followUpSender.send });
 
 const app = createApp({
   webOrigin: env.WEB_ORIGIN,
@@ -47,6 +53,7 @@ const app = createApp({
   jobs: createJobsService(queues),
   gmail,
   sending,
+  followUps,
 });
 
 app.listen(env.PORT, () => logger.info({ port: env.PORT }, 'api listening'));

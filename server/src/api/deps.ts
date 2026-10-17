@@ -1,5 +1,5 @@
 import { profilePatchSchema, type ProfilePatch } from '@joblume/shared';
-import type { Analytics, GmailStatus } from '@joblume/shared';
+import type { Analytics, FollowUp, FollowUpWithJob, GmailStatus } from '@joblume/shared';
 import type { ApplicationRow, ApplicationStatus, ProfileRow } from '../db/types.js';
 import type { AnalyticsRow } from '../services/analytics.js';
 import type { GetUser } from './auth.js';
@@ -49,6 +49,13 @@ export interface SendingService {
   send(userId: string, id: string, input: { to?: string; confirmGuess?: boolean }): Promise<ApplicationWithJob>;
 }
 
+export interface FollowUpsService {
+  list(userId: string, status?: FollowUp['status']): Promise<FollowUpWithJob[]>;
+  update(userId: string, id: string, patch: { subject?: string; body?: string }): Promise<FollowUp | null>;
+  send(userId: string, id: string): Promise<FollowUp>;
+  dismiss(userId: string, id: string): Promise<FollowUp | null>;
+}
+
 export interface AppDeps {
   webOrigin: string;
   getUser: GetUser;
@@ -58,4 +65,5 @@ export interface AppDeps {
   jobs: JobsService;
   gmail: GmailService;
   sending: SendingService;
+  followUps: FollowUpsService;
 }

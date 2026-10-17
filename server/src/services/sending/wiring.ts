@@ -6,6 +6,8 @@ import type { Db } from '../../lib/supabase.js';
 import { sendGmailMessage } from '../gmail/send.js';
 import type { GmailTokens } from '../gmail/tokens.js';
 import { downloadFile } from '../storage.js';
+import type { FollowUpRepo } from '../followups/repo.js';
+import { sendFollowUp, type FollowUpSendDeps } from '../followups/send-followup.js';
 import { sendApplication, type SendDeps, type SendInput } from './send-application.js';
 
 const PDF_TIMEOUT_MS = 20_000;
@@ -80,5 +82,28 @@ export function createSendingService(d: Parameters<typeof createSendDeps>[0]) {
       sendApplication(userId, id, { ...input, method: 'email' } satisfies SendInput, deps),
     sendAuto: (userId: string, id: string): Promise<ApplicationWithJob> =>
       sendApplication(userId, id, { method: 'auto' }, deps),
+  };
+}
+
+export function createFollowUpSender(d: Parameters<typeof createSendDeps>[0] & { repo: FollowUpRepo }) {
+  const base = createSendDeps(d);
+  const deps: FollowUpSendDeps = {
+    loadContext: (userId, id) => d.repo.loadSendContext(userId, id),
+    loadProfile: base.loadProfile,
+    followUpsSentToday: (userId) => d.repo.followUpsSentToday(userId),
+    isGmailConnected: base.isGmailConnected,
+    getAccessToken: base.getAccessToken,
+    sendMessage: base.sendMessage,
+    lock: base.lock,
+    markSent: (followUpId, applicationId, sentAt) => d.repo.markSent(followUpId, applicationId, sentAt),
+    markFailed: (followUpId) => d.repo.markFailed(followUpId),
+    dismiss: (followUpId) => d.repo.dismiss(followUpId),
+    logEmail: base.logEmail,
+    now: base.now,
+    newMessageId: base.newMessageId,
+  };
+  return {
+    send: (userId: string, followUpId: string) => sendFollowUp(userId, followUpId, { automatic: false }, deps),
+    sendAutomatic: (userId: string, followUpId: string) => sendFollowUp(userId, followUpId, { automatic: true }, deps),
   };
 }
