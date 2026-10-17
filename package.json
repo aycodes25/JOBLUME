@@ -1,0 +1,14 @@
+{
+  "name": "joblume",
+  "private": true,
+  "workspaces": ["packages/*", "server"],
+  "scripts": {
+    "build:shared": "npm run build -w @joblume/shared",
+    "postinstall": "npm run build:shared",
+    "dev:server": "npm run dev -w server",
+    "dev:web": "npm run dev -w web",
+    "typecheck": "npm run build:shared && npm run typecheck --workspaces --if-present",
+    "test": "npm run build:shared && npm test --workspaces --if-present",
+    "build": "npm run build:shared && npm run build -w server"
+  }
+}

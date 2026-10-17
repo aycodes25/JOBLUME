@@ -12,11 +12,15 @@
     "build": "tsc -p tsconfig.build.json",
     "start:api": "node dist/api/index.js",
     "start:worker": "node dist/worker/index.js",
+    "pretest": "npm run build:shared --prefix ..",
+    "pretypecheck": "npm run build:shared --prefix ..",
+    "prebuild": "npm run build:shared --prefix ..",
     "typecheck": "tsc -p tsconfig.json",
     "test": "vitest run",
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@joblume/shared": "*",
     "@supabase/supabase-js": "^2.118.0",
     "bullmq": "^5.81.5",
     "cheerio": "^1.2.0",

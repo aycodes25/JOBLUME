@@ -1,10 +1,11 @@
 import { Router } from 'express';
+import { APPLICATION_STATUSES } from '@joblume/shared';
 import { z } from 'zod';
 import { ApiError } from '../../lib/errors.js';
 import type { AppDeps } from '../deps.js';
 import { asyncHandler } from '../errors.js';
 
-const statusSchema = z.enum(['pending_review', 'approved', 'applied', 'interviewing', 'rejected', 'offer', 'skipped']);
+const statusSchema = z.enum(APPLICATION_STATUSES);
 const patchSchema = z
   .object({ tailored_cv_text: z.string().min(50).max(30_000), cover_letter_text: z.string().trim().min(1).max(10_000) })
   .partial()

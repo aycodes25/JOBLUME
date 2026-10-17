@@ -1,7 +1,8 @@
+import type { ApplicationStatus } from '@joblume/shared';
+export type { ApplicationStatus };
+
 export type JobSourceName = 'linkedin' | 'indeed' | 'jobberman' | 'myjobmag' | 'remotive';
 export type ApplyMode = 'manual' | 'auto';
-export type ApplicationStatus =
-  | 'pending_review' | 'approved' | 'applied' | 'interviewing' | 'rejected' | 'offer' | 'skipped';
 
 export interface JobRow {
   id: string;
