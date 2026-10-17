@@ -10,12 +10,13 @@ import { Button, buttonVariants } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { useApplication, useSetStatus, useUpdateApplicationText } from '@/hooks/api';
+import { useApplication, useGmailStatus, useNextEmail, useSendApplication, useSetStatus, useUpdateApplicationText } from '@/hooks/api';
 import { describeApiError } from '@/lib/api/errors';
 import { buildTextPatch } from '@/lib/applications';
 import { COLUMN_LABELS, sourceLabel } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { AssistedApplyPanel } from './AssistedApplyPanel';
+import { EmailSection } from './EmailSection';
 import { ScoreRing } from './ScoreRing';
 
 const APPLIED_FAMILY: ApplicationStatus[] = ['applied', 'interviewing', 'rejected', 'offer'];
@@ -25,6 +26,10 @@ export function ApplicationDetail({ id, onClose }: { id: string | null; onClose(
   const detail = useApplication(id);
   const updateText = useUpdateApplicationText();
   const setStatus = useSetStatus();
+  const gmail = useGmailStatus();
+  const sendEmail = useSendApplication();
+  const nextEmail = useNextEmail();
+  const [notice, setNotice] = useState<string | null>(null);
   const data = detail.data;
 
   const [cv, setCv] = useState('');
@@ -35,9 +40,14 @@ export function ApplicationDetail({ id, onClose }: { id: string | null; onClose(
     setLetter(data?.cover_letter_text ?? '');
     updateText.reset();
     setStatus.reset();
+    sendEmail.reset();
+    nextEmail.reset();
+    setNotice(null);
   }, [data?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const text = data ? buildTextPatch({ cv: data.tailored_cv_text, letter: data.cover_letter_text }, { cv, letter }) : null;
+  const lockedReason = text?.dirty ? 'You have unsaved changes. Save them first so the copied letter and the PDF match.' : undefined;
+  const emailError = sendEmail.error ?? nextEmail.error;
   const mutationError = updateText.error ?? setStatus.error;
   const move = (status: ApplicationStatus) => {
     if (id) setStatus.mutate({ id, status });
@@ -118,17 +128,28 @@ export function ApplicationDetail({ id, onClose }: { id: string | null; onClose(
             </div>
 
             {showPanel && (
-              <AssistedApplyPanel
-                app={data}
-                pending={setStatus.isPending}
-                lockedReason={text.dirty ? 'You have unsaved changes. Save them first so the copied letter and the PDF match.' : undefined}
-                onMarkApplied={() =>
-                  setStatus.mutate(
-                    { id: data.id, status: 'applied' },
-                    { onSuccess: () => onClose() },
-                  )
-                }
-              />
+              <>
+                <EmailSection
+                  app={data}
+                  gmail={gmail.data}
+                  lockedReason={lockedReason}
+                  pending={sendEmail.isPending || nextEmail.isPending}
+                  error={emailError ? describeApiError(emailError) : null}
+                  notice={notice}
+                  onSend={(body) => sendEmail.mutate({ id: data.id, body }, { onSuccess: () => onClose() })}
+                  onNextEmail={() =>
+                    nextEmail.mutate(data.id, {
+                      onSuccess: (result) => setNotice(result.exhausted ? 'No more suggested addresses. Paste one yourself.' : null),
+                    })
+                  }
+                />
+                <AssistedApplyPanel
+                  app={data}
+                  pending={setStatus.isPending}
+                  lockedReason={lockedReason}
+                  onMarkApplied={() => setStatus.mutate({ id: data.id, status: 'applied' }, { onSuccess: () => onClose() })}
+                />
+              </>
             )}
 
             <div className="space-y-2">
