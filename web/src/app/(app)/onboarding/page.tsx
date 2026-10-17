@@ -27,12 +27,25 @@ export default function OnboardingPage() {
   if (!profile.data || step === null) return <PageSkeleton />;
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
-      <ol className="flex gap-2 text-xs text-muted-foreground" aria-label="Progress">
+    <div className="mx-auto max-w-2xl space-y-8">
+      <ol className="flex flex-wrap items-center justify-center gap-x-3 gap-y-2 text-sm text-muted-foreground" aria-label="Progress">
         {STEPS.map((label, i) => (
-          <li key={label} aria-current={step === i + 1 ? 'step' : undefined} className={step === i + 1 ? 'font-semibold text-foreground' : undefined}>
-            {i + 1}. {label}
-            {i < STEPS.length - 1 ? ' ›' : ''}
+          <li
+            key={label}
+            aria-current={step === i + 1 ? 'step' : undefined}
+            className={`flex items-center gap-2 ${step === i + 1 ? 'font-semibold text-foreground' : ''}`}
+          >
+            <span
+              aria-hidden="true"
+              className={`flex h-7 w-7 items-center justify-center rounded-full border text-xs ${
+                step === i + 1 ? 'border-primary bg-white text-primary' : step > i + 1 ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-white'
+              }`}
+            >
+              {i + 1}
+            </span>
+            <span className="sr-only">{i + 1}. </span>
+            {label}
+            {i < STEPS.length - 1 && <span aria-hidden="true" className="ml-1 hidden h-px w-8 bg-border sm:block" />}
           </li>
         ))}
       </ol>

@@ -20,7 +20,23 @@ export default function TrackerPage() {
   const items = apps.data ?? [];
   return (
     <div className="space-y-6">
-      <h1 className="text-xl font-semibold">Tracker</h1>
+      <div>
+        <h1 className="text-3xl font-semibold tracking-tight">Tracker</h1>
+        <p className="mt-1 text-muted-foreground">Drag a card between columns as your applications progress.</p>
+      </div>
+      <dl className="grid grid-cols-2 gap-3 md:grid-cols-4">
+        {[
+          { label: 'Total', value: items.length },
+          { label: 'Applied', value: items.filter((a) => a.status === 'applied').length },
+          { label: 'Interviewing', value: items.filter((a) => a.status === 'interviewing').length },
+          { label: 'Offers', value: items.filter((a) => a.status === 'offer').length },
+        ].map((stat) => (
+          <div key={stat.label} className="rounded-xl border border-border/70 bg-white px-5 py-4 text-center shadow-card md:text-left">
+            <dd className="text-2xl font-semibold">{stat.value}</dd>
+            <dt className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{stat.label}</dt>
+          </div>
+        ))}
+      </dl>
       {setStatus.error && (
         <p role="alert" className="text-sm text-destructive">
           {describeApiError(setStatus.error)} The card was moved back.
