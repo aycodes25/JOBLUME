@@ -57,4 +57,12 @@ describe('KanbanBoard', () => {
     await userEvent.setup().click(screen.getByRole('button', { name: 'Role a1' }));
     expect(onOpen).toHaveBeenCalledWith('a1');
   });
+
+  it('opens a card with the keyboard from the focused title', async () => {
+    const onOpen = vi.fn();
+    render(<KanbanBoard apps={apps} onMove={() => {}} onOpen={onOpen} />);
+    screen.getByRole('button', { name: 'Role a1' }).focus();
+    await userEvent.setup().keyboard('{Enter}');
+    expect(onOpen).toHaveBeenCalledWith('a1');
+  });
 });

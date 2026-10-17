@@ -31,7 +31,7 @@ function DraggableCard({ app, onOpen }: { app: Application; onOpen(id: string): 
     >
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
-          <button type="button" className="text-left font-medium hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" onClick={() => onOpen(app.id)}>
+          <button type="button" className="text-left font-medium hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" onClick={() => onOpen(app.id)} onKeyDown={(e) => e.stopPropagation()}>
             {app.job?.title ?? 'Untitled role'}
           </button>
           <p className="truncate text-xs text-muted-foreground">{app.job?.company ?? 'Unknown company'}</p>
