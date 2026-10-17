@@ -88,4 +88,31 @@ describe('createApiClient', () => {
     fetchImpl.mockResolvedValue(new Response('<html>oops</html>', { status: 502 }));
     await expect(request('/x')).rejects.toMatchObject({ status: 502, code: 'http_error' });
   });
+
+  it('still rejects with 401 when onUnauthorized itself rejects', async () => {
+    const { request, fetchImpl, onUnauthorized } = make();
+    onUnauthorized.mockRejectedValue(new Error('signout failed'));
+    fetchImpl.mockResolvedValue(new Response('', { status: 401 }));
+    await expect(request('/x')).rejects.toMatchObject({ status: 401, code: 'unauthorized' });
+    expect(onUnauthorized).toHaveBeenCalled();
+  });
+
+  it('does not call onUnauthorized for a 500 response', async () => {
+    const { request, fetchImpl, onUnauthorized } = make();
+    fetchImpl.mockResolvedValue(json({ error: 'internal_error' }, 500));
+    await expect(request('/x')).rejects.toMatchObject({ status: 500 });
+    expect(onUnauthorized).not.toHaveBeenCalled();
+  });
+
+  it('throws bad_response for a non-JSON 2xx body', async () => {
+    const { request, fetchImpl } = make();
+    fetchImpl.mockResolvedValue(new Response('<html>hi</html>', { status: 200 }));
+    await expect(request('/x')).rejects.toMatchObject({ status: 200, code: 'bad_response' });
+  });
+
+  it('returns null for an empty 2xx body', async () => {
+    const { request, fetchImpl } = make();
+    fetchImpl.mockResolvedValue(new Response('', { status: 200 }));
+    expect(await request('/x')).toBeNull();
+  });
 });

@@ -28,10 +28,18 @@ export type ApiClient = <T>(path: string, init?: RequestInitLite) => Promise<T>;
 export function createApiClient(opts: ApiClientOptions): ApiClient {
   const doFetch: typeof fetch = opts.fetchImpl ?? ((...args) => fetch(...args));
 
+  async function notifyUnauthorized(): Promise<void> {
+    try {
+      await opts.onUnauthorized();
+    } catch {
+      // A failing callback must never replace the original 401.
+    }
+  }
+
   return async function request<T>(path: string, init: RequestInitLite = {}): Promise<T> {
     const token = await opts.getToken();
     if (!token) {
-      await opts.onUnauthorized();
+      await notifyUnauthorized();
       throw new ApiRequestError(401, 'unauthorized');
     }
 
@@ -52,7 +60,7 @@ export function createApiClient(opts: ApiClientOptions): ApiClient {
     }
 
     if (res.status === 401) {
-      await opts.onUnauthorized();
+      await notifyUnauthorized();
       throw new ApiRequestError(401, 'unauthorized');
     }
 
@@ -62,6 +70,7 @@ export function createApiClient(opts: ApiClientOptions): ApiClient {
       try {
         data = JSON.parse(text);
       } catch {
+        if (res.ok) throw new ApiRequestError(res.status, 'bad_response', 'The server sent an unreadable response');
         data = null;
       }
     }

@@ -13,6 +13,9 @@ describe('describeApiError', () => {
     [e(400, 'file_required'), /choose a file/i],
     [e(413, 'limit_file_size'), /5 mb/i],
     [e(413, 'payload_too_large'), /5 mb|too large/i],
+    [e(400, 'invalid_json'), /could not be read/i],
+    [e(404, 'profile_not_found'), /profile could not be found/i],
+    [e(200, 'bad_response'), /unexpected response/i],
     [e(429, 'rate_limited'), /too often/i],
     [e(404, 'application_not_found'), /no longer exists/i],
     [e(400, 'invalid_request'), /invalid/i],
@@ -21,6 +24,12 @@ describe('describeApiError', () => {
     [e(418, 'teapot'), /could not be completed/i],
   ])('explains %# in plain language', (err, pattern) => {
     expect(describeApiError(err)).toMatch(pattern);
+  });
+
+  it('uses a neutral message for payload_too_large and generic 413', () => {
+    expect(describeApiError(e(413, 'payload_too_large'))).toBe('That request is too large. Shorten the text and try again.');
+    expect(describeApiError(e(413, 'http_error'))).toBe('That request is too large.');
+    expect(describeApiError(e(413, 'limit_file_size'))).toBe('That file is larger than 5 MB.');
   });
 
   it('falls back to a generic message for unknown errors', () => {
