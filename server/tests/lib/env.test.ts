@@ -17,7 +17,7 @@ describe('loadEnv', () => {
     const env = loadEnv(valid);
     expect(env.PORT).toBe(4000);
     expect(env.OPENAI_MODEL).toBe('gpt-4o-mini');
-    expect(env.AI_DAILY_LIMIT).toBe(1400);
+    expect(env.AI_DAILY_LIMIT).toBe(200);
     expect(env.OPENAI_API_KEY).toBeUndefined();
   });
 

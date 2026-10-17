@@ -11,7 +11,8 @@ import {
 import { SCRAPE_LIMITS, SCRAPE_SOURCES, createScrapers } from '../scrapers/index.js';
 import { geminiProvider, openaiProvider } from '../services/ai/providers.js';
 import { QuotaExhaustedError } from '../services/ai/generate.js';
-import { createQuota, msUntilUtcMidnight } from '../services/ai/quota.js';
+import { delayForError } from '../services/ai/delay.js';
+import { createQuota } from '../services/ai/quota.js';
 import { createTailor } from '../services/ai/tailor.js';
 import { renderCvPdf } from '../services/cv/pdf.js';
 import { findSeenUrls, insertJobs } from '../services/jobs/repo.js';
@@ -83,9 +84,10 @@ async function main() {
           uploadPdf: (path, bytes) => uploadFile(db, path, bytes, 'application/pdf'),
         });
       } catch (err) {
-        if (err instanceof QuotaExhaustedError) {
-          // No fallback provider and today's budget is spent: wait for tomorrow instead of failing.
-          await job.moveToDelayed(Date.now() + msUntilUtcMidnight(), token);
+        // Local quota spent or provider 429: wait instead of burning retry attempts.
+        const wait = delayForError(err);
+        if (wait !== null) {
+          await job.moveToDelayed(Date.now() + wait, token);
           throw new DelayedError();
         }
         throw err;

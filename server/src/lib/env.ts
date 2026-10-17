@@ -13,7 +13,7 @@ const schema = z.object({
   GEMINI_MODEL: z.string().min(1),
   OPENAI_API_KEY: optionalString,
   OPENAI_MODEL: z.preprocess(blankToUndefined, z.string().min(1).default('gpt-4o-mini')),
-  AI_DAILY_LIMIT: z.preprocess(blankToUndefined, z.coerce.number().int().positive().default(1400)),
+  AI_DAILY_LIMIT: z.preprocess(blankToUndefined, z.coerce.number().int().positive().default(200)),
   UPSTASH_REDIS_URL: z.string().regex(/^rediss?:\/\//, 'must start with redis:// or rediss://'),
   ENCRYPTION_KEY: z.string().regex(/^[0-9a-fA-F]{64}$/, 'must be 64 hex characters (32 bytes)'),
   WEB_ORIGIN: z.string().url(),
