@@ -11,7 +11,8 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useApplications, useDismissFollowUp, useFollowUps, useRefreshJobs, useSendFollowUp, useUpdateFollowUp } from '@/hooks/api';
 import { describeApiError } from '@/lib/api/errors';
-import { splitQueue, type QueueTab } from '@/lib/applications';
+import { formatScore } from '@/lib/format';
+import { averageScore, splitQueue, type QueueTab } from '@/lib/applications';
 import type { FollowUpWithJob } from '@joblume/shared';
 
 type Tab = QueueTab | 'followups';
@@ -50,6 +51,7 @@ export default function QueuePage() {
   const [tab, setTab] = useState<Tab>('pending');
   const [openId, setOpenId] = useState<string | null>(null);
   const groups = useMemo(() => splitQueue(apps.data ?? []), [apps.data]);
+  const avg = useMemo(() => averageScore(apps.data ?? []), [apps.data]);
 
   if (apps.isLoading) return <PageSkeleton />;
   if (apps.error) return <ErrorState message={describeApiError(apps.error)} onRetry={() => void apps.refetch()} />;
@@ -57,18 +59,38 @@ export default function QueuePage() {
   const drafts = followUps.data ?? [];
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-xl font-semibold">Review queue</h1>
-        <Button variant="outline" size="sm" disabled={refresh.isPending} onClick={() => refresh.mutate()}>
+    <div className="mx-auto max-w-6xl space-y-6">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="text-3xl font-semibold tracking-tight">Application Queue</h1>
+          <p className="mt-1 text-muted-foreground">
+            Review and approve your prepared job applications. You have <span className="font-semibold text-primary">{groups.pending.length}</span> pending{' '}
+            {groups.pending.length === 1 ? 'match' : 'matches'}.
+          </p>
+        </div>
+        <Button size="sm" disabled={refresh.isPending} onClick={() => refresh.mutate()}>
           {refresh.isPending ? 'Checking…' : 'Check for new jobs'}
         </Button>
       </div>
       {refresh.isSuccess && <p role="status" className="text-sm text-muted-foreground">Checking for new jobs. New matches appear here within a few minutes.</p>}
       {refresh.error && <p role="alert" className="text-sm text-destructive">{describeApiError(refresh.error)}</p>}
 
+      <dl className="grid grid-cols-2 gap-3 md:grid-cols-4">
+        {[
+          { label: 'Pending review', value: String(groups.pending.length), tone: 'text-primary' },
+          { label: 'Ready to apply', value: String(groups.ready.length), tone: 'text-emerald-600' },
+          { label: 'Average match', value: avg === null ? '–' : `${formatScore(avg)}%`, tone: 'text-emerald-600' },
+          { label: 'Skipped', value: String(groups.skipped.length), tone: 'text-foreground' },
+        ].map((stat) => (
+          <div key={stat.label} className="rounded-xl border border-border/70 bg-white px-5 py-4 shadow-card">
+            <dt className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{stat.label}</dt>
+            <dd className={`mt-1 text-3xl font-semibold ${stat.tone}`}>{stat.value}</dd>
+          </div>
+        ))}
+      </dl>
+
       <Tabs value={tab} onValueChange={(v) => setTab(v as Tab)}>
-        <TabsList>
+        <TabsList className="w-full sm:w-auto">
           {TABS.map((t) => (
             <TabsTrigger key={t} value={t}>
               {TAB_LABELS[t]} ({groups[t].length})
@@ -81,7 +103,7 @@ export default function QueuePage() {
             {groups[t].length === 0 ? (
               <EmptyState title={EMPTY[t].title} description={EMPTY[t].description} />
             ) : (
-              <div className="space-y-4">
+              <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
                 {groups[t].map((a) => (
                   <ApplicationCard key={a.id} app={a} onOpen={setOpenId} />
                 ))}
