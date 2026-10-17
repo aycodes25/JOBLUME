@@ -21,8 +21,18 @@ describe('createCvService', () => {
     const svc = createCvService(deps);
     const result = await svc.upload('user-1', { buffer: await makePdf(longText) });
     expect(deps.upload).toHaveBeenCalledWith('user-1/base-cv.pdf', expect.any(Buffer), 'application/pdf');
-    expect(deps.setCv).toHaveBeenCalledWith('user-1', { text: expect.stringContaining('experienced engineer'), path: 'user-1/base-cv.pdf' });
+    expect(deps.setCv).toHaveBeenCalledWith('user-1', { text: expect.stringContaining('experienced engineer'), path: 'user-1/base-cv.pdf', filename: 'base-cv.pdf' });
     expect(result.characters).toBeGreaterThan(200);
+  });
+
+  it('saves the original file name when one is given', async () => {
+    const deps = {
+      upload: vi.fn().mockResolvedValue('user-1/base-cv.pdf'),
+      setCv: vi.fn().mockResolvedValue(undefined),
+    };
+    const svc = createCvService(deps);
+    await svc.upload('user-1', { buffer: await makePdf(longText), originalname: 'My CV.pdf' });
+    expect(deps.setCv).toHaveBeenCalledWith('user-1', expect.objectContaining({ filename: 'My CV.pdf' }));
   });
 
   it('rejects unsupported files with 400 and stores nothing', async () => {

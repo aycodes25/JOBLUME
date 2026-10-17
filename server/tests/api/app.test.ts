@@ -121,7 +121,7 @@ describe('cv upload', () => {
     const res = await authed(createApp(deps)).post('/cv').attach('file', Buffer.from('%PDF-1.7 hello'), 'cv.pdf');
     expect(res.status).toBe(200);
     expect(res.body).toEqual({ characters: 1234 });
-    expect(deps.cv.upload).toHaveBeenCalledWith('u1', { buffer: expect.any(Buffer) });
+    expect(deps.cv.upload).toHaveBeenCalledWith('u1', { buffer: expect.any(Buffer), originalname: 'cv.pdf' });
     expect(deps.jobs.rematch).toHaveBeenCalledWith('u1');
   });
 

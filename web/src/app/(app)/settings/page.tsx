@@ -6,9 +6,8 @@ import { ProfileForm } from '@/components/profile/ProfileForm';
 import { SettingsForm } from '@/components/profile/SettingsForm';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useProfile, useUpdateProfile, useUploadCv } from '@/hooks/api';
+import { displayCvName } from '@/lib/cv-name';
 import { profileToFormValues, profileToSettingsValues } from '@/lib/profile-form';
-
-const fileName = (path: string | null) => (path ? (path.split('/').pop() ?? path) : null);
 
 export default function SettingsPage() {
   const profile = useProfile();
@@ -28,7 +27,7 @@ export default function SettingsPage() {
           <CardDescription>Replacing it finds matches for your latest CV. Applications already prepared keep the CV they were tailored from.</CardDescription>
         </CardHeader>
         <CardContent>
-          <CvUpload currentName={fileName(data.base_cv_url)} onUpload={async (file) => { await uploadCv.mutateAsync(file); }} />
+          <CvUpload currentName={displayCvName(data)} onUpload={async (file) => { await uploadCv.mutateAsync(file); }} />
         </CardContent>
       </Card>
 

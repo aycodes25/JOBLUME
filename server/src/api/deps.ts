@@ -40,7 +40,7 @@ export interface AppDeps {
   webOrigin: string;
   getUser: GetUser;
   profiles: ProfileRepo;
-  cv: { upload(userId: string, file: { buffer: Buffer }): Promise<{ characters: number }> };
+  cv: { upload(userId: string, file: { buffer: Buffer; originalname?: string }): Promise<{ characters: number }> };
   applications: ApplicationsService;
   jobs: JobsService;
 }
