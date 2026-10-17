@@ -62,6 +62,14 @@ describe('AssistedApplyPanel', () => {
     expect(onMarkApplied).toHaveBeenCalledTimes(1);
   });
 
+  it('shows only the reason and no actions when locked', () => {
+    render(<AssistedApplyPanel app={detail()} onMarkApplied={() => {}} lockedReason="You have unsaved changes." />);
+    expect(screen.getByRole('alert')).toHaveTextContent('You have unsaved changes.');
+    expect(screen.queryAllByRole('link')).toHaveLength(0);
+    expect(screen.queryByRole('button', { name: 'Copy cover letter' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Mark as applied' })).toBeNull();
+  });
+
   it('disables Mark as applied while a change is pending', () => {
     render(<AssistedApplyPanel app={detail()} onMarkApplied={() => {}} pending />);
     expect(screen.getByRole('button', { name: 'Mark as applied' })).toBeDisabled();

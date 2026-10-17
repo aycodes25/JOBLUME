@@ -9,9 +9,10 @@ export interface AssistedApplyPanelProps {
   app: ApplicationDetail;
   onMarkApplied(): void;
   pending?: boolean;
+  lockedReason?: string;
 }
 
-export function AssistedApplyPanel({ app, onMarkApplied, pending = false }: AssistedApplyPanelProps) {
+export function AssistedApplyPanel({ app, onMarkApplied, pending = false, lockedReason }: AssistedApplyPanelProps) {
   const [copy, setCopy] = useState<'idle' | 'copied' | 'failed'>('idle');
   const jobUrl = safeHttpUrl(app.job?.url);
   const pdfUrl = safeHttpUrl(app.cv_pdf_url);
@@ -24,6 +25,15 @@ export function AssistedApplyPanel({ app, onMarkApplied, pending = false }: Assi
     } catch {
       setCopy('failed');
     }
+  }
+
+  if (lockedReason) {
+    return (
+      <section aria-label="Apply" className="space-y-3 rounded-lg border border-primary/40 bg-primary/5 p-4">
+        <h3 className="font-semibold">Apply on the employer's site</h3>
+        <p role="alert" className="text-sm text-destructive">{lockedReason}</p>
+      </section>
+    );
   }
 
   return (

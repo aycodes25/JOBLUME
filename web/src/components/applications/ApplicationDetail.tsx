@@ -29,12 +29,12 @@ export function ApplicationDetail({ id, onClose }: { id: string | null; onClose(
 
   const [cv, setCv] = useState('');
   const [letter, setLetter] = useState('');
-  const [panelOpen, setPanelOpen] = useState(false);
 
   useEffect(() => {
     setCv(data?.tailored_cv_text ?? '');
     setLetter(data?.cover_letter_text ?? '');
-    setPanelOpen(false);
+    updateText.reset();
+    setStatus.reset();
   }, [data?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const text = data ? buildTextPatch({ cv: data.tailored_cv_text, letter: data.cover_letter_text }, { cv, letter }) : null;
@@ -42,7 +42,7 @@ export function ApplicationDetail({ id, onClose }: { id: string | null; onClose(
   const move = (status: ApplicationStatus) => {
     if (id) setStatus.mutate({ id, status });
   };
-  const showPanel = data !== undefined && (data.status === 'approved' || panelOpen);
+  const showPanel = data !== undefined && data.status === 'approved';
 
   return (
     <Dialog open={id !== null} onOpenChange={(open) => { if (!open) onClose(); }}>
@@ -87,7 +87,8 @@ export function ApplicationDetail({ id, onClose }: { id: string | null; onClose(
             <div className="flex flex-wrap items-center gap-2">
               {data.status === 'pending_review' && (
                 <>
-                  <Button onClick={() => { move('approved'); setPanelOpen(true); }}>Approve &amp; Apply</Button>
+                  <Button disabled={text.dirty} onClick={() => move('approved')}>Approve &amp; Apply</Button>
+                  {text.dirty && <span className="text-xs text-muted-foreground">Save your changes before approving.</span>}
                   <Button variant="outline" onClick={() => { move('skipped'); onClose(); }}>Skip</Button>
                 </>
               )}
@@ -120,10 +121,11 @@ export function ApplicationDetail({ id, onClose }: { id: string | null; onClose(
               <AssistedApplyPanel
                 app={data}
                 pending={setStatus.isPending}
+                lockedReason={text.dirty ? 'You have unsaved changes. Save them first so the copied letter and the PDF match.' : undefined}
                 onMarkApplied={() =>
                   setStatus.mutate(
                     { id: data.id, status: 'applied' },
-                    { onSuccess: () => { setPanelOpen(false); onClose(); } },
+                    { onSuccess: () => onClose() },
                   )
                 }
               />
