@@ -39,7 +39,7 @@ export interface JobsService {
 }
 
 export interface GmailService {
-  startConnect(userId: string): string;
+  startConnect(userId: string): Promise<string>;
   finishConnect(input: { code?: string; state?: string; error?: string }): Promise<{ ok: true } | { ok: false; reason: string }>;
   status(userId: string): Promise<GmailStatus>;
   disconnect(userId: string): Promise<void>;

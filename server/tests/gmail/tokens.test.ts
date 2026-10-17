@@ -113,6 +113,12 @@ describe('getAccessToken', () => {
     await expect(offline.tokens.getAccessToken('u1')).rejects.toMatchObject({ status: 502, code: 'send_failed' });
   });
 
+  it('answers send_failed, not a SyntaxError, when Google sends a 200 that is not JSON', async () => {
+    const { tokens } = make({ fetchImpl: vi.fn().mockResolvedValue(new Response('<html>oops</html>', { status: 200 })) });
+    await tokens.connect('u1', { refreshToken: 'r', email: 'me@gmail.com' });
+    await expect(tokens.getAccessToken('u1')).rejects.toMatchObject({ status: 502, code: 'send_failed' });
+  });
+
   it('treats an unreadable stored token as a reconnect request', async () => {
     const { tokens, store } = make();
     await store.save('u1', { encryptedToken: 'garbage', email: 'a@b.c', connectedAt: 'x' });

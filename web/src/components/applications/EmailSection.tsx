@@ -34,11 +34,10 @@ export function EmailSection({ app, gmail, lockedReason, pending, error, notice,
   const info = recipientInfo(app, email);
   const gmailConnected = gmail?.connected === true;
   const reason = sendDisabledReason({ gmailConnected, email, isGuess: info.isGuess, guessConfirmed, locked: lockedReason });
-  const changed = email.trim().toLowerCase() !== stored.toLowerCase();
 
   function submit() {
     onSend({
-      ...(changed ? { to: email.trim() } : {}),
+      to: email.trim(),
       ...(info.isGuess && guessConfirmed ? { confirmGuess: true } : {}),
     });
   }

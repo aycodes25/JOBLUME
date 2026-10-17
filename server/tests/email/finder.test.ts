@@ -13,7 +13,7 @@ function make(over: { cached?: CachedContacts | null; hunter?: unknown; quota?: 
   const hunter = over.hunter === undefined
     ? { domainSearch: vi.fn<HunterSearch>().mockResolvedValue({ domain: 'acme.com', pattern: null, contacts: [recruiter] }) }
     : (over.hunter as { domainSearch: ReturnType<typeof vi.fn<HunterSearch>> } | null);
-  const quota = { consume: vi.fn().mockResolvedValue(over.quota ?? true) };
+  const quota = { consume: vi.fn().mockResolvedValue(over.quota ?? true), refund: vi.fn().mockResolvedValue(undefined) };
   const finder = createFinder({ cache, hunter, quota, now: () => NOW, log: log as never });
   return { finder, cache, hunter, quota };
 }
@@ -90,5 +90,36 @@ describe('createFinder.find', () => {
     const { finder, hunter } = make();
     expect(await finder.find({ company: 'Limited', knownDomain: null })).toEqual([]);
     expect(hunter!.domainSearch).not.toHaveBeenCalled();
+  });
+});
+
+describe('createFinder.find: cache keys and quota refunds', () => {
+  it('keys the cache on the known domain and does not reuse a name-keyed entry for it', async () => {
+    const cached: CachedContacts = { domain: 'wrong.com', contacts: [recruiter], pattern: null, fetchedAt: new Date(NOW.getTime() - 1000).toISOString() };
+    const { finder, cache, hunter } = make();
+    cache.get.mockImplementation(async (key: string) => (key === 'acme' ? cached : null));
+    await finder.find({ company: 'Acme', knownDomain: 'Acme.com' });
+    expect(cache.get).toHaveBeenCalledWith('d:acme.com');
+    expect(cache.get).not.toHaveBeenCalledWith('acme');
+    expect(hunter!.domainSearch).toHaveBeenCalledWith({ domain: 'Acme.com' });
+    expect(cache.put).toHaveBeenCalledWith('d:acme.com', expect.anything());
+  });
+
+  it('refunds the quota when the Hunter call fails', async () => {
+    const hunter = { domainSearch: vi.fn().mockRejectedValue(new HunterError('failed')) };
+    const { finder, quota } = make({ hunter });
+    await finder.find({ company: 'Acme', knownDomain: null });
+    expect(quota.refund).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not refund after a successful call, and survives a failing refund', async () => {
+    const ok = make();
+    await ok.finder.find({ company: 'Acme', knownDomain: null });
+    expect(ok.quota.refund).not.toHaveBeenCalled();
+
+    const hunter = { domainSearch: vi.fn().mockRejectedValue(new HunterError('failed')) };
+    const bad = make({ hunter });
+    bad.quota.refund.mockRejectedValue(new Error('redis down'));
+    await expect(bad.finder.find({ company: 'Acme', knownDomain: 'acme.com' })).resolves.toHaveLength(4);
   });
 });

@@ -19,7 +19,12 @@ export interface FollowUpSendDeps {
   isGmailConnected(userId: string): Promise<boolean>;
   getAccessToken(userId: string): Promise<{ accessToken: string; email: string }>;
   sendMessage(args: { accessToken: string; raw: string; threadId?: string }): Promise<{ id: string; threadId: string }>;
-  lock: { acquire(key: string, ttlSeconds: number): Promise<string | null>; release(key: string, token: string): Promise<void> };
+  lock: {
+    acquire(key: string, ttlSeconds: number): Promise<string | null>;
+    release(key: string, token: string): Promise<void>;
+    /** Token-checked TTL extension: keeps the lock alive after an email went out. */
+    extend(key: string, token: string, ttlSeconds: number): Promise<void>;
+  };
   markSent(followUpId: string, applicationId: string, sentAt: string): Promise<void>;
   markFailed(followUpId: string): Promise<void>;
   dismiss(followUpId: string): Promise<void>;
@@ -32,6 +37,7 @@ export interface FollowUpSendDeps {
 const DEFAULT_DAILY_CAP = 20;
 const LOCK_TTL_SECONDS = 60;
 const MAX_LOCK_AGE_MS = 25_000;
+const SENT_LOCK_TTL_SECONDS = 24 * 60 * 60;
 const alreadySent = () => new ApiError(409, 'already_sent', 'This follow-up was already handled');
 
 export async function sendFollowUp(userId: string, followUpId: string, opts: { automatic: boolean }, d: FollowUpSendDeps): Promise<void> {
@@ -122,6 +128,11 @@ export async function sendFollowUp(userId: string, followUpId: string, opts: { a
     // The email is out. Keep the lock until the status is recorded so nothing can re-send meanwhile.
     keepLock = true;
     try {
+      await d.lock.extend(lockKey, lockToken, SENT_LOCK_TTL_SECONDS);
+    } catch {
+      d.warn?.('follow-up lock could not be extended', { followUpId });
+    }
+    try {
       await d.logEmail({
         application_id: fresh.application.id, type: 'follow_up', to_email: original.to_email, subject: followUp.subject,
         gmail_message_id: sent.id, gmail_thread_id: sent.threadId, rfc_message_id: messageId, status: 'sent', error: null,
@@ -137,6 +148,12 @@ export async function sendFollowUp(userId: string, followUpId: string, opts: { a
     }
     keepLock = false;
   } finally {
-    if (!keepLock) await d.lock.release(lockKey, lockToken);
+    if (!keepLock) {
+      try {
+        await d.lock.release(lockKey, lockToken);
+      } catch {
+        d.warn?.('follow-up lock could not be released', { followUpId });
+      }
+    }
   }
 }

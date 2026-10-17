@@ -11,6 +11,7 @@ import { sendFollowUp, type FollowUpSendDeps } from '../followups/send-followup.
 import { sendApplication, type SendDeps, type SendInput } from './send-application.js';
 
 const PDF_TIMEOUT_MS = 20_000;
+const EXTEND_SCRIPT = "if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('pexpire', KEYS[1], ARGV[2]) else return 0 end";
 const RELEASE_SCRIPT = "if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) else return 0 end";
 
 function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
@@ -62,6 +63,9 @@ export function createSendDeps(d: {
       },
       release: async (key, token) => {
         await d.redis.eval(RELEASE_SCRIPT, 1, key, token);
+      },
+      extend: async (key, token, ttlSeconds) => {
+        await d.redis.eval(EXTEND_SCRIPT, 1, key, token, String(ttlSeconds * 1000));
       },
     },
     saveSent: (userId, id, changes) => d.applicationsRepo.update(userId, id, changes),

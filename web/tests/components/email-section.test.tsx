@@ -39,10 +39,10 @@ describe('EmailSection', () => {
     expect(screen.getByText(/tailored CV \(PDF\) is attached/i)).toBeInTheDocument();
   });
 
-  it('sends with no extra options for a stored, trusted address', async () => {
+  it('always sends the recipient shown, with no other options for a trusted address', async () => {
     const { onSend, user } = setup();
     await user.click(screen.getByRole('button', { name: 'Send application' }));
-    expect(onSend).toHaveBeenCalledWith({});
+    expect(onSend).toHaveBeenCalledWith({ to: 'hr@acme.com' });
   });
 
   it('requires confirming a guessed address before sending', async () => {
@@ -54,7 +54,7 @@ describe('EmailSection', () => {
     await user.click(screen.getByLabelText('Send to this guessed address'));
     expect(send).toBeEnabled();
     await user.click(send);
-    expect(onSend).toHaveBeenCalledWith({ confirmGuess: true });
+    expect(onSend).toHaveBeenCalledWith({ to: 'careers@acme.com', confirmGuess: true });
   });
 
   it('sends to an address the user typed, marked as entered by them, with no guess checkbox', async () => {

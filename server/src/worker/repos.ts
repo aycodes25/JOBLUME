@@ -77,9 +77,17 @@ export function createWorkerRepos(db: Db) {
       return (data as unknown as Awaited<ReturnType<FindEmailDeps['loadApplication']>>) ?? null;
     },
 
-    async saveApplicationFields(id: string, changes: Record<string, unknown>): Promise<void> {
-      const { error } = await db.from('applications').update(changes).eq('id', id);
+    /** Conditional write: only a still-pending application with no email chosen yet is updated. Returns whether a row changed. */
+    async saveApplicationFields(id: string, changes: Record<string, unknown>): Promise<boolean> {
+      const { data, error } = await db
+        .from('applications')
+        .update(changes)
+        .eq('id', id)
+        .eq('status', 'pending_review')
+        .is('email_source', null)
+        .select('id');
       if (error) throw error;
+      return (data ?? []).length > 0;
     },
   };
 }

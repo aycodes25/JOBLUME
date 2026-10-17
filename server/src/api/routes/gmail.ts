@@ -28,7 +28,7 @@ export function gmailRoutes(d: Pick<AppDeps, 'gmail'>) {
   const router = Router();
 
   router.post('/connect', asyncHandler(async (req, res) => {
-    res.json({ url: d.gmail.startConnect(req.user!.id) });
+    res.json({ url: await d.gmail.startConnect(req.user!.id) });
   }));
 
   router.get('/status', asyncHandler(async (req, res) => {

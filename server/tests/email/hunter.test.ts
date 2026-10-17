@@ -71,6 +71,14 @@ describe('createHunterClient', () => {
     expect(err.message).not.toContain('KEY');
   });
 
+  it.each([{}, { data: null }, { meta: {} }, []])('throws failed for a 200 whose body lacks data (%j), so it is not cached', async (body) => {
+    await expect(run(json(body)).promise).rejects.toMatchObject({ name: 'HunterError', kind: 'failed' });
+  });
+
+  it('throws failed for a 200 that is not JSON', async () => {
+    await expect(run(new Response('<html>', { status: 200 })).promise).rejects.toMatchObject({ kind: 'failed' });
+  });
+
   it('requires a company or a domain', async () => {
     await expect(run(json(sample), {}).promise).rejects.toMatchObject({ kind: 'bad_request' });
   });

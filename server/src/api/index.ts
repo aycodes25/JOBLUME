@@ -24,7 +24,7 @@ const queues = createQueues(redis);
 const applicationsRepo = createApplicationsRepo(db);
 const gmailCfg = gmailConfig(env);
 const gmailTokens = createGmailTokens({ store: createGmailTokenStore(db), cfg: gmailCfg, encryptionKey: env.ENCRYPTION_KEY });
-const gmail = createGmailService({ cfg: gmailCfg, tokens: gmailTokens, encryptionKey: env.ENCRYPTION_KEY });
+const gmail = createGmailService({ cfg: gmailCfg, tokens: gmailTokens, encryptionKey: env.ENCRYPTION_KEY, redis });
 
 const sending = createSendingService({ db, redis, tokens: gmailTokens, applicationsRepo });
 

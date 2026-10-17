@@ -212,7 +212,7 @@ async function main() {
       if (!result.ok) logger.info({ jobId: job.id, code: result.code }, 'automatic send refused');
       return result;
     },
-    { connection: createRedis(env.UPSTASH_REDIS_URL), concurrency: 1, limiter: { max: 1, duration: 10_000 }, ...idleTuning },
+    { connection: createRedis(env.UPSTASH_REDIS_URL), concurrency: 1, limiter: { max: 1, duration: 10_000 }, maxStalledCount: 0, ...idleTuning },
   );
 
   for (const w of [scrapeWorker, matchWorker, tailorWorker, findEmailWorker, followUpsWorker, sendWorker]) {

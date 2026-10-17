@@ -22,7 +22,7 @@ function make(over: Partial<FollowUpSendDeps> = {}): FollowUpSendDeps {
     isGmailConnected: vi.fn().mockResolvedValue(true),
     getAccessToken: vi.fn().mockResolvedValue({ accessToken: 'TOK', email: 'me@gmail.com' }),
     sendMessage: vi.fn().mockResolvedValue({ id: 'gm2', threadId: 'th1' }),
-    lock: { acquire: vi.fn().mockResolvedValue('tok-1'), release: vi.fn().mockResolvedValue(undefined) },
+    lock: { acquire: vi.fn().mockResolvedValue('tok-1'), release: vi.fn().mockResolvedValue(undefined), extend: vi.fn().mockResolvedValue(undefined) },
     markSent: vi.fn().mockResolvedValue(undefined),
     markFailed: vi.fn().mockResolvedValue(undefined),
     dismiss: vi.fn().mockResolvedValue(undefined),
@@ -109,7 +109,7 @@ describe('sendFollowUp: checks', () => {
   });
 
   it('409 already_sent when the lock is held, and re-checks after taking it', async () => {
-    const held = make({ lock: { acquire: vi.fn().mockResolvedValue(null), release: vi.fn() } });
+    const held = make({ lock: { acquire: vi.fn().mockResolvedValue(null), release: vi.fn(), extend: vi.fn() } });
     expect(await rejection(run(held))).toMatchObject({ code: 'already_sent' });
     expect(held.lock.release).not.toHaveBeenCalled();
 
@@ -234,5 +234,34 @@ describe('sendFollowUp: automatic sends', () => {
     const d = make({ autoEnabled: vi.fn().mockResolvedValue(false) });
     await expect(run(d)).resolves.toBeUndefined();
     expect(d.autoEnabled).not.toHaveBeenCalled();
+  });
+});
+
+describe('sendFollowUp: lock extension and release', () => {
+  it('extends the lock to 24 hours after the reply went out', async () => {
+    const d = make();
+    await run(d);
+    expect(d.lock.extend).toHaveBeenCalledWith('followup-lock-f1', 'tok-1', 86_400);
+  });
+
+  it('does not fail when extending the lock fails', async () => {
+    const warn = vi.fn();
+    const d = make({ warn, lock: { acquire: vi.fn().mockResolvedValue('tok-1'), release: vi.fn(), extend: vi.fn().mockRejectedValue(new Error('redis down')) } });
+    await expect(run(d)).resolves.toBeUndefined();
+    expect(d.markSent).toHaveBeenCalled();
+    expect(warn).toHaveBeenCalled();
+  });
+
+  it('does not extend the lock when Gmail refused the send', async () => {
+    const d = make({ sendMessage: vi.fn().mockRejectedValue(new GmailSendError('failed')) });
+    await rejection(run(d));
+    expect(d.lock.extend).not.toHaveBeenCalled();
+  });
+
+  it('keeps the original error when releasing the lock throws', async () => {
+    const warn = vi.fn();
+    const d = make({ warn, sendMessage: vi.fn().mockRejectedValue(new GmailSendError('failed')), lock: { acquire: vi.fn().mockResolvedValue('tok-1'), release: vi.fn().mockRejectedValue(new Error('redis down')), extend: vi.fn() } });
+    expect(await rejection(run(d))).toMatchObject({ status: 502, code: 'send_failed' });
+    expect(warn).toHaveBeenCalled();
   });
 });

@@ -19,7 +19,7 @@ export interface FinderDeps {
     put(key: string, value: Omit<CachedContacts, 'fetchedAt'>): Promise<void>;
   };
   hunter: { domainSearch(q: { company?: string; domain?: string }): Promise<HunterResult> } | null;
-  quota: { consume(): Promise<boolean> };
+  quota: { consume(): Promise<boolean>; refund(): Promise<void> };
   now?: () => Date;
   log: Logger;
 }
@@ -31,16 +31,31 @@ export function createFinder(d: FinderDeps) {
       const key = companyKey(input.company);
       if (!key) return [];
 
-      let entry = await d.cache.get(key);
+      // A known domain is a more precise identity than the company name, so name-keyed entries are not reused for it.
+      const cacheKey = input.knownDomain ? `d:${input.knownDomain.trim().toLowerCase()}` : key;
+      let entry = await d.cache.get(cacheKey);
       if (entry && now().getTime() - Date.parse(entry.fetchedAt) > CACHE_TTL_MS) entry = null;
 
       if (!entry && d.hunter && (await d.quota.consume())) {
+        let result: HunterResult | null = null;
         try {
-          const result = await d.hunter.domainSearch(input.knownDomain ? { domain: input.knownDomain } : { company: input.company });
-          entry = { ...result, fetchedAt: now().toISOString() };
-          await d.cache.put(key, { domain: result.domain, contacts: result.contacts, pattern: result.pattern });
+          result = await d.hunter.domainSearch(input.knownDomain ? { domain: input.knownDomain } : { company: input.company });
         } catch (err) {
           d.log.warn({ err, companyKey: key }, 'hunter lookup failed');
+          // A failed call did not use the free-tier budget.
+          try {
+            await d.quota.refund();
+          } catch (refundErr) {
+            d.log.warn({ err: refundErr, companyKey: key }, 'hunter quota refund failed');
+          }
+        }
+        if (result) {
+          entry = { ...result, fetchedAt: now().toISOString() };
+          try {
+            await d.cache.put(cacheKey, { domain: result.domain, contacts: result.contacts, pattern: result.pattern });
+          } catch (err) {
+            d.log.warn({ err, companyKey: key }, 'hunter cache write failed');
+          }
         }
       }
 

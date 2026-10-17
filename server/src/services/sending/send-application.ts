@@ -33,7 +33,12 @@ export interface SendDeps {
   getAccessToken(userId: string): Promise<{ accessToken: string; email: string }>;
   downloadPdf(path: string): Promise<Uint8Array>;
   sendMessage(args: { accessToken: string; raw: string; threadId?: string }): Promise<{ id: string; threadId: string }>;
-  lock: { acquire(key: string, ttlSeconds: number): Promise<string | null>; release(key: string, token: string): Promise<void> };
+  lock: {
+    acquire(key: string, ttlSeconds: number): Promise<string | null>;
+    release(key: string, token: string): Promise<void>;
+    /** Token-checked TTL extension: keeps the lock alive after an email went out. */
+    extend(key: string, token: string, ttlSeconds: number): Promise<void>;
+  };
   saveSent(userId: string, id: string, changes: Record<string, unknown>): Promise<ApplicationWithJob | null>;
   logEmail(row: EmailLogRow): Promise<void>;
   now(): Date;
@@ -45,6 +50,7 @@ const SENDABLE = new Set(['pending_review', 'approved']);
 const DEFAULT_DAILY_CAP = 20;
 const LOCK_TTL_SECONDS = 60;
 const MAX_LOCK_AGE_MS = 25_000;
+const SENT_LOCK_TTL_SECONDS = 24 * 60 * 60;
 const emailSchema = z.string().trim().toLowerCase().email().max(254);
 
 type Recipient = { email: string; source: 'hunter' | 'guess' | 'manual'; confidence: number | null };
@@ -114,7 +120,7 @@ export async function sendApplication(userId: string, id: string, input: SendInp
     const fresh = await d.loadApplication(userId, id);
     if (!fresh || !SENDABLE.has(fresh.status) || (await d.hasSentApplicationEmail(fresh.id))) throw alreadySent();
     const recipient = checkedRecipient(fresh, input);
-    if (input.method === 'auto') checkAutoRules(fresh, profile);
+    if (input.method === 'auto') checkAutoRules(fresh, await d.loadProfile(userId));
     if (!fresh.cover_letter_text?.trim()) throw new ApiError(422, 'empty_message', 'The cover letter is empty');
     if (!fresh.tailored_cv_url) throw new ApiError(409, 'cv_not_ready', 'The tailored CV is not ready yet');
 
@@ -170,6 +176,11 @@ export async function sendApplication(userId: string, id: string, input: SendInp
     }
 
     keepLock = true;
+    try {
+      await d.lock.extend(lockKey, token, SENT_LOCK_TTL_SECONDS);
+    } catch {
+      d.warn?.('send lock could not be extended', { applicationId: fresh.id });
+    }
     const saved = await d.saveSent(userId, id, {
       ...planStatusChange(fresh, 'applied', d.now()),
       apply_method: input.method,
@@ -181,6 +192,12 @@ export async function sendApplication(userId: string, id: string, input: SendInp
     if (!saved) throw new ApiError(404, 'application_not_found');
     return saved;
   } finally {
-    if (!keepLock) await d.lock.release(lockKey, token);
+    if (!keepLock) {
+      try {
+        await d.lock.release(lockKey, token);
+      } catch {
+        d.warn?.('send lock could not be released', { applicationId: app.id });
+      }
+    }
   }
 }

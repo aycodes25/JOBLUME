@@ -66,7 +66,10 @@ export function createHunterClient(cfg: { apiKey: string }, fetchImpl: typeof fe
       if (res.status === 403 || res.status === 429) throw new HunterError('rate_limited');
       if (res.status === 400 || res.status === 404) throw new HunterError('bad_request');
       if (!res.ok) throw new HunterError('failed');
-      return parseHunterDomainSearch(await res.json().catch(() => null));
+      const body = (await res.json().catch(() => null)) as { data?: unknown } | null;
+      // A 200 without `data` is not a real answer; fail so it is not cached as "no contacts".
+      if (!body || typeof body.data !== 'object' || body.data === null) throw new HunterError('failed', 'Hunter sent no data');
+      return parseHunterDomainSearch(body);
     },
   };
 }

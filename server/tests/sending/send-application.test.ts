@@ -25,7 +25,7 @@ function make(over: Partial<SendDeps> = {}): SendDeps {
     getAccessToken: vi.fn().mockResolvedValue({ accessToken: 'TOK', email: 'me@gmail.com' }),
     downloadPdf: vi.fn().mockResolvedValue(new Uint8Array([0x25, 0x50, 0x44, 0x46])),
     sendMessage: vi.fn().mockResolvedValue({ id: 'gm1', threadId: 'th1' }),
-    lock: { acquire: vi.fn().mockResolvedValue('tok-1'), release: vi.fn().mockResolvedValue(undefined) },
+    lock: { acquire: vi.fn().mockResolvedValue('tok-1'), release: vi.fn().mockResolvedValue(undefined), extend: vi.fn().mockResolvedValue(undefined) },
     saveSent: vi.fn(async (_u: string, _id: string, changes: Record<string, unknown>) => ({ ...app(), ...changes }) as ApplicationWithJob),
     logEmail: vi.fn().mockResolvedValue(undefined),
     now: () => NOW,
@@ -137,7 +137,7 @@ describe('sendApplication: checks, in order', () => {
   });
 
   it('409 already_sent when the lock is held, without releasing a lock it never took', async () => {
-    const d = make({ lock: { acquire: vi.fn().mockResolvedValue(null), release: vi.fn() } });
+    const d = make({ lock: { acquire: vi.fn().mockResolvedValue(null), release: vi.fn(), extend: vi.fn() } });
     expect(await rejection(send(d))).toMatchObject({ status: 409, code: 'already_sent' });
     expect(d.lock.release).not.toHaveBeenCalled();
     expect(d.sendMessage).not.toHaveBeenCalled();
@@ -148,6 +148,48 @@ describe('sendApplication: checks, in order', () => {
     expect(await rejection(send(d))).toMatchObject({ code: 'already_sent' });
     expect(d.sendMessage).not.toHaveBeenCalled();
     expect(d.lock.release).toHaveBeenCalledWith('send-lock-a1', 'tok-1');
+  });
+});
+
+describe('sendApplication: post-lock auto re-check and lock lifecycle', () => {
+  const prof = (over: Record<string, unknown> = {}) => ({ daily_cap: 20, apply_mode: 'auto', auto_threshold: 80, ...over });
+  it.each([
+    ['the profile switched to manual mode', { loadProfile: vi.fn().mockResolvedValueOnce(prof()).mockResolvedValueOnce(prof({ apply_mode: 'manual' })) }],
+    ['the threshold rose above the score', { loadProfile: vi.fn().mockResolvedValueOnce(prof()).mockResolvedValueOnce(prof({ auto_threshold: 95 })) }],
+    ['the score dropped', { loadApplication: vi.fn().mockResolvedValueOnce(app()).mockResolvedValueOnce(app({ match_score: 50 })) }],
+  ])('refuses 409 and sends nothing when %s after the lock was taken', async (_n, over) => {
+    const d = make(over as Partial<SendDeps>);
+    expect(await rejection(send(d, { method: 'auto' }))).toMatchObject({ status: 409, code: 'not_auto_eligible' });
+    expect(d.sendMessage).not.toHaveBeenCalled();
+    expect(d.lock.release).toHaveBeenCalledWith('send-lock-a1', 'tok-1');
+  });
+
+  it('extends the lock to 24 hours right after the email went out, before the status is saved', async () => {
+    const d = make();
+    await send(d);
+    expect(d.lock.extend).toHaveBeenCalledWith('send-lock-a1', 'tok-1', 86_400);
+    expect(vi.mocked(d.lock.extend).mock.invocationCallOrder[0]).toBeGreaterThan(vi.mocked(d.sendMessage).mock.invocationCallOrder[0]!);
+    expect(vi.mocked(d.lock.extend).mock.invocationCallOrder[0]).toBeLessThan(vi.mocked(d.saveSent).mock.invocationCallOrder[0]!);
+  });
+
+  it('does not fail the send when extending the lock fails', async () => {
+    const warn = vi.fn();
+    const d = make({ warn, lock: { acquire: vi.fn().mockResolvedValue('tok-1'), release: vi.fn(), extend: vi.fn().mockRejectedValue(new Error('redis down')) } });
+    await expect(send(d)).resolves.toMatchObject({ status: 'applied' });
+    expect(warn).toHaveBeenCalled();
+  });
+
+  it('does not extend the lock when Gmail refused the send', async () => {
+    const d = make({ sendMessage: vi.fn().mockRejectedValue(new GmailSendError('failed')) });
+    await rejection(send(d));
+    expect(d.lock.extend).not.toHaveBeenCalled();
+  });
+
+  it('keeps the original error when releasing the lock throws', async () => {
+    const warn = vi.fn();
+    const d = make({ warn, downloadPdf: vi.fn().mockRejectedValue(new Error('x')), lock: { acquire: vi.fn().mockResolvedValue('tok-1'), release: vi.fn().mockRejectedValue(new Error('redis down')), extend: vi.fn() } });
+    expect(await rejection(send(d))).toMatchObject({ status: 502, code: 'send_failed' });
+    expect(warn).toHaveBeenCalled();
   });
 });
 

@@ -10,7 +10,8 @@ export interface FindEmailDeps {
     job: { company: string; company_domain: string | null } | null;
   } | null>;
   find(input: { company: string; knownDomain: string | null }): Promise<EmailCandidate[]>;
-  saveCandidates(id: string, changes: Record<string, unknown>): Promise<void>;
+  /** Resolves true only when a row was actually updated. */
+  saveCandidates(id: string, changes: Record<string, unknown>): Promise<boolean>;
   afterFound?(applicationId: string): Promise<void>;
 }
 
@@ -23,12 +24,13 @@ export async function runFindEmail({ applicationId }: FindEmailJobData, d: FindE
   const best = candidates[0];
   if (!best) return 'none';
 
-  await d.saveCandidates(app.id, {
+  const saved = await d.saveCandidates(app.id, {
     email_candidates: candidates,
     hiring_manager_email: best.email,
     email_confidence: best.confidence,
     email_source: best.source,
   });
+  if (!saved) return 'skipped';
   await d.afterFound?.(app.id);
   return 'found';
 }

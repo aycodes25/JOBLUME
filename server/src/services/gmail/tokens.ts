@@ -97,7 +97,13 @@ export function createGmailTokens(deps: GmailTokenDeps) {
         throw new ApiError(502, 'send_failed', 'Google refused the request');
       }
 
-      const data = (await res.json()) as { access_token?: string; expires_in?: number };
+      let data: { access_token?: string; expires_in?: number };
+      try {
+        data = (await res.json()) as { access_token?: string; expires_in?: number };
+      } catch {
+        throw new ApiError(502, 'send_failed', 'Google sent an unreadable response');
+      }
+      if (typeof data !== 'object' || data === null) throw new ApiError(502, 'send_failed', 'Google sent an unreadable response');
       if (!data.access_token) throw new ApiError(502, 'send_failed', 'Google sent no access token');
       cache.set(userId, { accessToken: data.access_token, email, expiresAt: now() + (data.expires_in ?? 3600) * 1000 });
       return { accessToken: data.access_token, email };

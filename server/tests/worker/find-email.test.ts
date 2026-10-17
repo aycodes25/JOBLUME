@@ -15,7 +15,7 @@ function make(over: Partial<FindEmailDeps> = {}): FindEmailDeps {
   return {
     loadApplication: vi.fn().mockResolvedValue(application()),
     find: vi.fn().mockResolvedValue(candidates),
-    saveCandidates: vi.fn().mockResolvedValue(undefined),
+    saveCandidates: vi.fn().mockResolvedValue(true),
     afterFound: vi.fn().mockResolvedValue(undefined),
     ...over,
   };
@@ -36,6 +36,12 @@ describe('runFindEmail', () => {
     const d = make({ loadApplication: vi.fn().mockResolvedValue(application({ job: { company: 'Acme', company_domain: 'acme.com' } })) });
     await runFindEmail({ applicationId: 'a1' }, d);
     expect(d.find).toHaveBeenCalledWith({ company: 'Acme', knownDomain: 'acme.com' });
+  });
+
+  it('skips afterFound when the conditional write changed no row', async () => {
+    const d = make({ saveCandidates: vi.fn().mockResolvedValue(false) });
+    expect(await runFindEmail({ applicationId: 'a1' }, d)).toBe('skipped');
+    expect(d.afterFound).not.toHaveBeenCalled();
   });
 
   it('reports none and saves nothing when no candidate exists', async () => {
