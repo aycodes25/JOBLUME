@@ -5,8 +5,8 @@ import { logger } from '../lib/logger.js';
 import { createRedis } from '../lib/redis.js';
 import { createSupabaseAdmin } from '../lib/supabase.js';
 import {
-  QUEUES, createQueues, enqueueTailor as enqueueTailorJob,
-  type MatchJobData, type ScrapeJobData, type TailorJobData,
+  QUEUES, createQueues, enqueueFindEmail, enqueueTailor as enqueueTailorJob,
+  type FindEmailJobData, type MatchJobData, type ScrapeJobData, type TailorJobData,
 } from '../queues.js';
 import { SCRAPE_LIMITS, SCRAPE_SOURCES, createScrapers } from '../scrapers/index.js';
 import { geminiProvider, openaiProvider } from '../services/ai/providers.js';
@@ -14,11 +14,15 @@ import { QuotaExhaustedError } from '../services/ai/generate.js';
 import { delayForError } from '../services/ai/delay.js';
 import { createQuota } from '../services/ai/quota.js';
 import { createTailor } from '../services/ai/tailor.js';
+import { createFinder } from '../services/email/finder.js';
+import { createHunterClient } from '../services/email/hunter.js';
+import { createMonthlyQuota } from '../services/email/quota.js';
 import { renderCvPdf } from '../services/cv/pdf.js';
 import { findSeenUrls, insertJobs } from '../services/jobs/repo.js';
 import { uploadFile } from '../services/storage.js';
 import { matchJob, matchUser } from './match.js';
-import { createWorkerRepos } from './repos.js';
+import { runFindEmail } from './find-email.js';
+import { createCompanyCache, createWorkerRepos } from './repos.js';
 import { runScrape } from './scrape.js';
 import { runTailor } from './tailor.js';
 
@@ -44,6 +48,14 @@ async function main() {
     ? openaiProvider({ apiKey: env.OPENAI_API_KEY, model: env.OPENAI_MODEL })
     : undefined;
   const tailor = createTailor({ primary, fallback });
+
+  const hunter = env.HUNTER_API_KEY ? createHunterClient({ apiKey: env.HUNTER_API_KEY }) : null;
+  const finder = createFinder({
+    cache: createCompanyCache(db),
+    hunter,
+    quota: createMonthlyQuota(createRedis(env.UPSTASH_REDIS_URL), env.HUNTER_MONTHLY_LIMIT),
+    log: logger,
+  });
 
   const enqueueTailor = (userId: string, jobId: string) => enqueueTailorJob(queues.tailor, userId, jobId);
   const matchDeps = { ...repos, enqueueTailor };
@@ -82,6 +94,13 @@ async function main() {
           tailor,
           renderPdf: renderCvPdf,
           uploadPdf: (path, bytes) => uploadFile(db, path, bytes, 'application/pdf'),
+          onCreated: async (applicationId) => {
+            try {
+              await enqueueFindEmail(queues.findEmail, applicationId);
+            } catch (err) {
+              logger.error({ err, applicationId }, 'could not queue the email lookup');
+            }
+          },
         });
       } catch (err) {
         // Local quota spent or provider 429: wait instead of burning retry attempts.
@@ -101,7 +120,23 @@ async function main() {
     },
   );
 
-  for (const w of [scrapeWorker, matchWorker, tailorWorker]) {
+  const findEmailWorker = new Worker<FindEmailJobData>(
+    QUEUES.findEmail,
+    async (job) =>
+      runFindEmail(job.data, {
+        loadApplication: repos.loadApplicationForEmail,
+        find: finder.find,
+        saveCandidates: repos.saveApplicationFields,
+      }),
+    {
+      connection: createRedis(env.UPSTASH_REDIS_URL),
+      concurrency: 1,
+      limiter: { max: 1, duration: 1000 }, // Hunter allows about one request a second
+      ...idleTuning,
+    },
+  );
+
+  for (const w of [scrapeWorker, matchWorker, tailorWorker, findEmailWorker]) {
     w.on('failed', (job, err) => logger.error({ queue: w.name, jobId: job?.id, err }, 'job failed'));
     w.on('error', (err) => logger.error({ queue: w.name, err }, 'worker error'));
   }
@@ -114,8 +149,8 @@ async function main() {
 
   const shutdown = async (signal: string) => {
     logger.info({ signal }, 'shutting down');
-    const closeAll = Promise.allSettled([scrapeWorker.close(), matchWorker.close(), tailorWorker.close()]).then(() =>
-      Promise.allSettled([queues.scrape.close(), queues.match.close(), queues.tailor.close()]),
+    const closeAll = Promise.allSettled([scrapeWorker.close(), matchWorker.close(), tailorWorker.close(), findEmailWorker.close()]).then(() =>
+      Promise.allSettled([queues.scrape.close(), queues.match.close(), queues.tailor.close(), queues.findEmail.close()]),
     );
     await Promise.race([closeAll, sleep(25_000)]);
     process.exit(0);

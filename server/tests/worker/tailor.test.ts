@@ -73,3 +73,19 @@ describe('runTailor', () => {
     expect(d.insertApplication).not.toHaveBeenCalled();
   });
 });
+
+describe('runTailor onCreated', () => {
+  it('calls onCreated with the new application id', async () => {
+    const onCreated = vi.fn().mockResolvedValue(undefined);
+    const d = deps({ insertApplication: vi.fn().mockResolvedValue('new-app-id'), onCreated });
+    await runTailor({ userId: 'u1', jobId: 'j1' }, d);
+    expect(onCreated).toHaveBeenCalledWith('new-app-id');
+  });
+
+  it('does not call onCreated when the insert reported a duplicate (null) or returned nothing', async () => {
+    const onCreated = vi.fn();
+    await runTailor({ userId: 'u1', jobId: 'j1' }, deps({ insertApplication: vi.fn().mockResolvedValue(null), onCreated }));
+    await runTailor({ userId: 'u1', jobId: 'j1' }, deps({ insertApplication: vi.fn().mockResolvedValue(undefined), onCreated }));
+    expect(onCreated).not.toHaveBeenCalled();
+  });
+});

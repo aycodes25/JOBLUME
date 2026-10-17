@@ -30,12 +30,16 @@ const clean = (s: string) =>
     .replace(/[^a-z0-9]+/g, ' ')
     .trim();
 
-export function dedupeKey(company: string, title: string): string {
-  const c = clean(company)
+/** Normalised company name (lowercase, punctuation and legal suffixes removed): the cache key for company lookups. */
+export function companyKey(company: string): string {
+  return clean(company)
     .split(' ')
     .filter((w) => w && !COMPANY_SUFFIXES.has(w))
     .join(' ');
-  return `${c}|${clean(title)}`;
+}
+
+export function dedupeKey(company: string, title: string): string {
+  return `${companyKey(company)}|${clean(title)}`;
 }
 
 export function dedupeJobs(jobs: NormalisedJob[]): NormalisedJob[] {
