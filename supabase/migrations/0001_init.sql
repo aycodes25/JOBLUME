@@ -1,3 +1,4 @@
+-- JobLume schema v1
 create extension if not exists pgcrypto;
 
 -- ---------- tables ----------
@@ -61,6 +62,7 @@ create table public.applications (
   unique (user_id, job_id)
 );
 create index applications_user_status_idx on public.applications (user_id, status);
+create index applications_job_id_idx on public.applications (job_id);
 
 create table public.email_logs (
   id uuid primary key default gen_random_uuid(),
@@ -69,12 +71,13 @@ create table public.email_logs (
   sent_at timestamptz not null default now(),
   gmail_message_id text
 );
+create index email_logs_application_id_idx on public.email_logs (application_id);
 
 -- ---------- helpers ----------
 create function public.applications_applied_today(uid uuid)
 returns int language sql stable as $$
   select count(*)::int from public.applications
-  where user_id = uid and applied_at >= date_trunc('day', now() at time zone 'utc');
+  where user_id = uid and applied_at >= (date_trunc('day', now() at time zone 'utc') at time zone 'utc');
 $$;
 
 create function public.handle_new_user()
@@ -111,7 +114,8 @@ create policy profiles_update_own on public.profiles for update to authenticated
 create policy jobs_select_all on public.jobs for select to authenticated using (true);
 
 create policy applications_select_own on public.applications for select to authenticated using (user_id = auth.uid());
-create policy applications_update_own on public.applications for update to authenticated using (user_id = auth.uid());
+-- applications are written only by the server (service role); clients may only read their own rows
+revoke insert, update, delete on public.applications from anon, authenticated;
 
 create policy email_logs_select_own on public.email_logs for select to authenticated
   using (exists (select 1 from public.applications a where a.id = application_id and a.user_id = auth.uid()));
