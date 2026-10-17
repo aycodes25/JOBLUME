@@ -17,7 +17,8 @@ export function signState(userId: string, keyHex: string, now: number = Date.now
   return `${payload}.${sig}`;
 }
 
-export function verifyState(state: string, keyHex: string, now: number = Date.now()): { userId: string } | null {
+export function verifyState(state: unknown, keyHex: string, now: number = Date.now()): { userId: string } | null {
+  if (typeof state !== 'string') return null;
   const parts = state.split('.');
   if (parts.length !== 2) return null;
   const [payload, sig] = parts as [string, string];
@@ -77,9 +78,9 @@ export async function exchangeCode(
   code: string,
   fetchImpl: typeof fetch = fetch,
 ): Promise<{ refreshToken: string; email: string }> {
-  let res: Response;
+  let data: TokenResponse;
   try {
-    res = await fetchImpl('https://oauth2.googleapis.com/token', {
+    const res = await fetchImpl('https://oauth2.googleapis.com/token', {
       method: 'POST',
       headers: { 'content-type': 'application/x-www-form-urlencoded' },
       body: new URLSearchParams({
@@ -91,14 +92,16 @@ export async function exchangeCode(
       }).toString(),
       signal: AbortSignal.timeout(15_000),
     });
+    if (!res.ok) throw new GmailAuthError('exchange_failed');
+    const parsed: unknown = await res.json();
+    if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) throw new GmailAuthError('exchange_failed');
+    data = parsed as TokenResponse;
   } catch {
     throw new GmailAuthError('exchange_failed');
   }
-  if (!res.ok) throw new GmailAuthError('exchange_failed');
-  const data = (await res.json()) as TokenResponse;
   if (!data.refresh_token) throw new GmailAuthError('no_refresh_token');
   if (!(data.scope ?? '').split(' ').includes(SEND_SCOPE)) throw new GmailAuthError('missing_scope');
   const email = emailFromIdToken(data.id_token);
   if (!email) throw new GmailAuthError('no_email');
-  return { refreshToken: data.refresh_token, email };
+  return { refreshToken: data.refresh_token, email: email.toLowerCase() };
 }

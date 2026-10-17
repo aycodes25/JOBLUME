@@ -1,3 +1,4 @@
+import { createHmac } from 'node:crypto';
 import { describe, expect, it, vi } from 'vitest';
 import { gmailConfig } from '../../src/services/gmail/config.js';
 import {
@@ -44,6 +45,37 @@ describe('state signing', () => {
 
   it.each(['', 'nodots', 'a.b.c', '.', 'x.y'])('rejects malformed state %j', (state) => {
     expect(verifyState(state, KEY, NOW)).toBeNull();
+  });
+
+  it('returns null for non-string input instead of throwing', () => {
+    expect(verifyState(undefined as never, KEY, NOW)).toBeNull();
+    expect(verifyState(['a.b'] as never, KEY, NOW)).toBeNull();
+    expect(verifyState(42 as never, KEY, NOW)).toBeNull();
+  });
+
+  describe('correctly signed but badly shaped payloads', () => {
+    const signRaw = (raw: string) => {
+      const payload = Buffer.from(raw).toString('base64url');
+      const hmacKey = createHmac('sha256', Buffer.from(KEY, 'hex')).update('joblume:gmail-oauth-state').digest();
+      const sig = createHmac('sha256', hmacKey).update(payload).digest('base64url');
+      return `${payload}.${sig}`;
+    };
+
+    it('rejects a non-string u', () => {
+      expect(verifyState(signRaw(JSON.stringify({ u: 5, t: NOW })), KEY, NOW)).toBeNull();
+    });
+
+    it('rejects a non-number t', () => {
+      expect(verifyState(signRaw(JSON.stringify({ u: 'user-1', t: 'now' })), KEY, NOW)).toBeNull();
+    });
+
+    it('rejects a payload that is not JSON', () => {
+      expect(verifyState(signRaw('not json'), KEY, NOW)).toBeNull();
+    });
+
+    it('accepts the same helper when the payload is valid (sanity check)', () => {
+      expect(verifyState(signRaw(JSON.stringify({ u: 'user-1', t: NOW })), KEY, NOW)).toEqual({ userId: 'user-1' });
+    });
   });
 });
 
@@ -102,6 +134,24 @@ describe('exchangeCode', () => {
   it('fails with no_email when the id token carries no address', async () => {
     await expect(run(json({ access_token: 'a', refresh_token: 'r', scope: SEND_SCOPE, id_token: idToken({}) }))).rejects.toMatchObject({ code: 'no_email' });
     await expect(run(json({ access_token: 'a', refresh_token: 'r', scope: SEND_SCOPE }))).rejects.toBeInstanceOf(GmailAuthError);
+  });
+
+  it('fails with exchange_failed on a 200 with a non-JSON body', async () => {
+    const p = run(new Response('not json', { status: 200 }));
+    await expect(p).rejects.toMatchObject({ code: 'exchange_failed' });
+    await expect(run(new Response('not json', { status: 200 }))).rejects.toBeInstanceOf(GmailAuthError);
+  });
+
+  it('fails with exchange_failed when the JSON body is not an object', async () => {
+    await expect(run(new Response('null', { status: 200 }))).rejects.toMatchObject({ code: 'exchange_failed' });
+    await expect(run(new Response('[]', { status: 200 }))).rejects.toMatchObject({ code: 'exchange_failed' });
+  });
+
+  it('lower-cases the email', async () => {
+    const out = await run(
+      json({ access_token: 'a', refresh_token: 'r', scope: SEND_SCOPE, id_token: idToken({ email: 'Me@Gmail.com' }) }),
+    );
+    expect(out.email).toBe('me@gmail.com');
   });
 
   it('turns a network failure into exchange_failed', async () => {
