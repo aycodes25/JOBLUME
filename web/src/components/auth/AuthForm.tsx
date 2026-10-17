@@ -57,14 +57,14 @@ export function AuthForm({ onSignIn, onSignUp }: AuthFormProps) {
 
   return (
     <div className="space-y-4">
-      <div role="tablist" aria-label="Account" className="grid grid-cols-2 gap-1 rounded-lg bg-muted p-1">
+      <div role="tablist" aria-label="Account" className="grid grid-cols-2 gap-1 rounded-xl border border-border bg-secondary p-1">
         {(['signin', 'signup'] as const).map((m) => (
           <button
             key={m}
             type="button"
             role="tab"
             aria-selected={mode === m}
-            className={`rounded-md px-3 py-1.5 text-sm font-medium ${mode === m ? 'bg-background shadow' : 'text-muted-foreground'}`}
+            className={`rounded-lg px-3 py-1.5 text-sm font-medium ${mode === m ? 'bg-white shadow-sm' : 'text-muted-foreground'}`}
             onClick={() => {
               setMode(m);
               setMessage(null);

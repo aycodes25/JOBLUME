@@ -29,3 +29,21 @@ describe('COLUMN_LABELS', () => {
     });
   });
 });
+
+import { formatRelative } from '@/lib/format';
+
+describe('formatRelative', () => {
+  const now = new Date('2026-10-10T12:00:00.000Z');
+  it('describes minutes, hours, days and weeks', () => {
+    expect(formatRelative('2026-10-10T11:59:50.000Z', now)).toBe('just now');
+    expect(formatRelative('2026-10-10T11:30:00.000Z', now)).toBe('30 min ago');
+    expect(formatRelative('2026-10-10T11:00:00.000Z', now)).toBe('1 hour ago');
+    expect(formatRelative('2026-10-10T07:00:00.000Z', now)).toBe('5 hours ago');
+    expect(formatRelative('2026-10-08T12:00:00.000Z', now)).toBe('2 days ago');
+    expect(formatRelative('2026-09-26T12:00:00.000Z', now)).toBe('2 weeks ago');
+  });
+  it('returns an empty string for missing or invalid input', () => {
+    expect(formatRelative(null, now)).toBe('');
+    expect(formatRelative('nope', now)).toBe('');
+  });
+});

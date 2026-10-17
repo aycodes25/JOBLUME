@@ -106,3 +106,10 @@ export function buildTextPatch(
   }
   return { patch, errors, dirty: Object.keys(patch).length > 0 };
 }
+
+/** Mean match score of the applications that have one, or null when none do. */
+export function averageScore(apps: { match_score: number | null }[]): number | null {
+  const scores = apps.map((a) => a.match_score).filter((s): s is number => s !== null);
+  if (scores.length === 0) return null;
+  return Math.round((scores.reduce((sum, s) => sum + s, 0) / scores.length) * 10) / 10;
+}

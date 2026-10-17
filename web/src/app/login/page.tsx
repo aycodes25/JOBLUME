@@ -31,11 +31,13 @@ export default function LoginPage() {
 
   return (
     <main className="mx-auto flex min-h-screen max-w-sm flex-col justify-center gap-6 p-6">
-      <div className="space-y-1">
-        <h1 className="text-2xl font-semibold">JobLume</h1>
+      <div className="space-y-2">
+        <h1 className="text-3xl font-semibold tracking-tight text-primary">JobLume</h1>
         <p className="text-sm text-muted-foreground">AI-tailored applications that you approve before anything is sent.</p>
       </div>
-      <AuthForm onSignIn={onSignIn} onSignUp={onSignUp} />
+      <div className="rounded-xl border border-border/70 bg-white p-6 shadow-card">
+        <AuthForm onSignIn={onSignIn} onSignUp={onSignUp} />
+      </div>
     </main>
   );
 }

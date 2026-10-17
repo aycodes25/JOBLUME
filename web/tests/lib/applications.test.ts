@@ -164,3 +164,16 @@ describe('buildTextPatch', () => {
     expect(r.patch).toEqual({ cover_letter_text: 'Hi' });
   });
 });
+
+import { averageScore } from '@/lib/applications';
+
+describe('averageScore', () => {
+  it('averages the scores that exist, to one decimal', () => {
+    expect(averageScore([{ match_score: 80 }, { match_score: 85 }, { match_score: null }])).toBe(82.5);
+    expect(averageScore([{ match_score: 70 }, { match_score: 80 }])).toBe(75);
+  });
+  it('is null with no scores', () => {
+    expect(averageScore([])).toBeNull();
+    expect(averageScore([{ match_score: null }])).toBeNull();
+  });
+});

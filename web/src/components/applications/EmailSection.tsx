@@ -43,7 +43,7 @@ export function EmailSection({ app, gmail, lockedReason, pending, error, notice,
   }
 
   return (
-    <section aria-label="Send by email" className="space-y-3 rounded-lg border border-primary/40 bg-primary/5 p-4">
+    <section aria-label="Send by email" className="space-y-3 rounded-xl border border-primary/30 bg-blue-50 p-4">
       <h3 className="font-semibold">Send by email</h3>
 
       {!gmailConnected && (

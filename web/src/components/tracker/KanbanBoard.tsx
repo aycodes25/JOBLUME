@@ -9,6 +9,7 @@ import { ScoreRing } from '@/components/applications/ScoreRing';
 import { Badge } from '@/components/ui/badge';
 import { groupByColumn, resolveDrop } from '@/lib/applications';
 import { COLUMN_LABELS, formatShortDate } from '@/lib/format';
+import { MapPin } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export interface KanbanBoardProps {
@@ -27,10 +28,13 @@ function DraggableCard({ app, onOpen }: { app: Application; onOpen(id: string): 
       style={style}
       {...listeners}
       {...attributes}
-      className={cn('cursor-grab touch-none rounded-md border border-border bg-card p-3 text-sm shadow-sm', isDragging && 'relative z-10 opacity-80 shadow-lg')}
+      className={cn('cursor-grab touch-none rounded-xl border border-border/70 bg-card p-3 text-sm shadow-card', isDragging && 'relative z-10 opacity-80 shadow-lg')}
     >
       <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0">
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-secondary text-sm font-semibold uppercase text-primary" aria-hidden="true">
+          {(app.job?.company ?? '?').charAt(0)}
+        </span>
+        <div className="min-w-0 flex-1">
           <button type="button" className="text-left font-medium hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" onClick={() => onOpen(app.id)} onKeyDown={(e) => e.stopPropagation()}>
             {app.job?.title ?? 'Untitled role'}
           </button>
@@ -38,7 +42,13 @@ function DraggableCard({ app, onOpen }: { app: Application; onOpen(id: string): 
         </div>
         <ScoreRing score={app.match_score} size={32} />
       </div>
-      <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+      <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-dashed border-border pt-2 text-xs text-muted-foreground">
+        {app.job?.location && (
+          <span className="flex items-center gap-1">
+            <MapPin className="h-3 w-3" aria-hidden="true" />
+            {app.job.location}
+          </span>
+        )}
         {app.status === 'approved' && <Badge variant="success">Ready to apply</Badge>}
         {applied && <span>Applied {applied}</span>}
       </div>
@@ -52,11 +62,11 @@ function Column({ column, apps, onOpen }: { column: KanbanColumn; apps: Applicat
     <section
       aria-label={COLUMN_LABELS[column]}
       ref={setNodeRef}
-      className={cn('flex w-72 shrink-0 flex-col gap-3 rounded-lg border border-border bg-card/40 p-3', isOver && 'border-primary')}
+      className={cn('flex w-[82vw] max-w-72 shrink-0 snap-start flex-col gap-3 self-start rounded-xl border border-border/70 bg-secondary/60 p-3 sm:w-72', isOver && 'border-primary')}
     >
       <header className="flex items-center justify-between">
         <h2 className="text-sm font-semibold">{COLUMN_LABELS[column]}</h2>
-        <span className="text-xs text-muted-foreground" aria-label={`${apps.length} applications`}>
+        <span className="rounded-full bg-white px-2 py-0.5 text-xs text-muted-foreground shadow-sm" aria-label={`${apps.length} applications`}>
           {apps.length}
         </span>
       </header>
@@ -80,7 +90,7 @@ export function KanbanBoard({ apps, onMove, onOpen }: KanbanBoardProps) {
 
   return (
     <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
-      <div className="flex gap-4 overflow-x-auto pb-4">
+      <div className="flex snap-x gap-4 overflow-x-auto pb-4">
         {KANBAN_COLUMNS.map((column) => (
           <Column key={column} column={column} apps={groups[column]} onOpen={onOpen} />
         ))}

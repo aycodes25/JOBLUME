@@ -35,8 +35,11 @@ export default function SettingsPage() {
   const data = profile.data;
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
-      <h1 className="text-xl font-semibold">Settings</h1>
+    <div className="mx-auto max-w-3xl space-y-6">
+      <div>
+        <h1 className="text-3xl font-semibold tracking-tight">Settings</h1>
+        <p className="mt-1 text-muted-foreground">Your CV, Gmail connection, job preferences and how applications are handled.</p>
+      </div>
 
       <Card>
         <CardHeader>

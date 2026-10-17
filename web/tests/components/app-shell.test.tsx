@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -16,16 +16,13 @@ describe('AppShell', () => {
     expect(onSignOut).toHaveBeenCalledTimes(1);
   });
 
-  it('opens and closes the mobile menu', async () => {
-    const user = userEvent.setup();
-    render(<AppShell email={null} onSignOut={() => {}}><p>content</p></AppShell>);
-    expect(screen.getAllByRole('link', { name: 'Queue' })).toHaveLength(1);
-
-    await user.click(screen.getByRole('button', { name: 'Open menu' }));
-    expect(screen.getByRole('button', { name: 'Close menu' })).toHaveAttribute('aria-expanded', 'true');
-    expect(screen.getAllByRole('link', { name: 'Queue' })).toHaveLength(2);
-
-    await user.click(screen.getAllByRole('link', { name: 'Tracker' })[1]!);
-    expect(screen.getAllByRole('link', { name: 'Queue' })).toHaveLength(1);
+  it('shows the sidebar navigation and a mobile bottom tab bar with the four sections', () => {
+    render(<AppShell email={null} onSignOut={() => {}} pendingCount={3}><p>content</p></AppShell>);
+    for (const nav of ['Main', 'Mobile']) {
+      const links = within(screen.getByRole('navigation', { name: nav })).getAllByRole('link').map((l) => l.textContent);
+      expect(links).toEqual(['Queue', 'Tracker', 'Analytics', 'Settings']);
+    }
+    expect(screen.getByText('Pending')).toBeInTheDocument();
+    expect(screen.getByText('3')).toBeInTheDocument();
   });
 });

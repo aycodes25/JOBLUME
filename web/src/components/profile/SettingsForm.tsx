@@ -88,7 +88,7 @@ export function SettingsForm({ initial, onSubmit }: SettingsFormProps) {
         </p>
       )}
       {saved && (
-        <p role="status" className="text-sm text-emerald-400">
+        <p role="status" className="text-sm text-emerald-600">
           Saved.
         </p>
       )}

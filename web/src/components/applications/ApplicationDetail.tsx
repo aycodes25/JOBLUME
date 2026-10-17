@@ -57,8 +57,8 @@ export function ApplicationDetail({ id, onClose }: { id: string | null; onClose(
   return (
     <Dialog open={id !== null} onOpenChange={(open) => { if (!open) onClose(); }}>
       <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{data?.job?.title ?? 'Application'}</DialogTitle>
+        <DialogHeader className="border-b border-border pb-4">
+          <DialogTitle className="text-xl">{data?.job?.title ?? 'Application'}</DialogTitle>
           <DialogDescription>
             {data?.job ? `${data.job.company}${data.job.location ? ` · ${data.job.location}` : ''}` : 'Loading application'}
           </DialogDescription>
@@ -69,8 +69,11 @@ export function ApplicationDetail({ id, onClose }: { id: string | null; onClose(
 
         {data && text && (
           <div className="space-y-6">
-            <div className="flex flex-wrap items-center gap-3">
-              <ScoreRing score={data.match_score} />
+            <div className="flex flex-wrap items-center gap-3 rounded-xl border border-border/70 bg-white p-4 shadow-card">
+              <div className="mr-2 flex items-center gap-3">
+                <ScoreRing score={data.match_score} size={56} />
+                <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Match probability</span>
+              </div>
               {data.job && <Badge variant="outline">{sourceLabel(data.job.source)}</Badge>}
               <Badge variant="secondary">{data.status === 'approved' ? 'Ready to apply' : data.status.replace('_', ' ')}</Badge>
               <SafeLink href={data.job?.url} className="text-sm text-primary hover:underline">
@@ -82,7 +85,7 @@ export function ApplicationDetail({ id, onClose }: { id: string | null; onClose(
             </div>
 
             {data.missing_keywords.length > 0 && (
-              <div className="space-y-1">
+              <div className="space-y-2 rounded-xl border border-border/70 bg-white p-4 shadow-card">
                 <p className="text-sm font-medium">Keywords this CV does not support</p>
                 <div className="flex flex-wrap gap-1">
                   {data.missing_keywords.map((k) => (
@@ -115,7 +118,7 @@ export function ApplicationDetail({ id, onClose }: { id: string | null; onClose(
                   <select
                     value={data.status}
                     onChange={(e) => move(e.target.value as ApplicationStatus)}
-                    className="h-9 rounded-md border border-input bg-background px-2 text-sm"
+                    className="h-9 rounded-lg border border-input bg-white px-2 text-sm"
                   >
                     {MOVE_OPTIONS.map((s) => (
                       <option key={s} value={s}>
@@ -152,12 +155,12 @@ export function ApplicationDetail({ id, onClose }: { id: string | null; onClose(
               </>
             )}
 
-            <div className="space-y-2">
+            <div className="space-y-2 rounded-xl border border-border/70 bg-white p-4 shadow-card">
               <Label htmlFor="cv-text">Tailored CV</Label>
               <Textarea id="cv-text" value={cv} onChange={(e) => setCv(e.target.value)} rows={14} aria-invalid={text.errors.cv ? true : undefined} />
               {text.errors.cv && <p className="text-sm text-destructive">{text.errors.cv}</p>}
             </div>
-            <div className="space-y-2">
+            <div className="space-y-2 rounded-xl border border-border/70 bg-white p-4 shadow-card">
               <Label htmlFor="letter-text">Cover letter</Label>
               <Textarea id="letter-text" value={letter} onChange={(e) => setLetter(e.target.value)} rows={10} aria-invalid={text.errors.letter ? true : undefined} />
               {text.errors.letter && <p className="text-sm text-destructive">{text.errors.letter}</p>}
@@ -171,7 +174,7 @@ export function ApplicationDetail({ id, onClose }: { id: string | null; onClose(
                 {updateText.isPending ? 'Saving…' : 'Save changes'}
               </Button>
               <p className="text-xs text-muted-foreground">Saving a CV change rebuilds the PDF.</p>
-              {updateText.isSuccess && !text.dirty && <span role="status" className="text-sm text-emerald-400">Saved.</span>}
+              {updateText.isSuccess && !text.dirty && <span role="status" className="text-sm text-emerald-600">Saved.</span>}
             </div>
 
             {mutationError && <p role="alert" className="text-sm text-destructive">{describeApiError(mutationError)}</p>}
