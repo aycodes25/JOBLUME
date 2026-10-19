@@ -1,11 +1,18 @@
+import { createHash } from 'node:crypto';
+import type { LinkSource } from '@joblume/shared';
 import { Queue } from 'bullmq';
 import type { Redis } from 'ioredis';
 import type { ScrapeSource } from './scrapers/index.js';
 
-export const QUEUES = { scrape: 'scrape', match: 'match', tailor: 'tailor', findEmail: 'find-email', followups: 'followups', send: 'send' } as const;
+export const QUEUES = { scrape: 'scrape', match: 'match', tailor: 'tailor', findEmail: 'find-email', followups: 'followups', send: 'send', fetchJob: 'fetch-job' } as const;
 
 export type ScrapeJobData = { source: ScrapeSource };
-export type MatchJobData = { kind: 'job'; jobId: string } | { kind: 'user'; userId: string };
+export type MatchJobData =
+  | { kind: 'job'; jobId: string }
+  | { kind: 'user'; userId: string }
+  | { kind: 'user-job'; userId: string; jobId: string };
+/** A pasted job link, already canonicalised. */
+export type FetchJobData = { userId: string; url: string; source: LinkSource };
 export type TailorJobData = { userId: string; jobId: string };
 export type FindEmailJobData = { applicationId: string };
 export type FollowUpsJobData = { kind: 'scan' } | { kind: 'draft'; applicationId: string };
@@ -22,6 +29,10 @@ export const followUpDraftJobId = (applicationId: string) => `followup-draft-${a
 export const sendJobId = (data: SendJobData) =>
   data.kind === 'application' ? `auto-send-${data.applicationId}` : `auto-followup-${data.followUpId}`;
 
+/** A URL contains ":", which BullMQ forbids in ids, so the link is hashed. One fetch per (user, link). */
+export const fetchJobJobId = (userId: string, url: string) =>
+  `fetch-job-${userId}-${createHash('sha256').update(url).digest('hex').slice(0, 32)}`;
+
 const BASE_JOB_OPTIONS = {
   attempts: 3,
   backoff: { type: 'exponential' as const, delay: 30_000 },
@@ -37,6 +48,15 @@ const TAILOR_JOB_OPTIONS = {
   removeOnFail: { age: 86_400 },
 };
 
+// One retry for a page that did not load; finished ids expire after an hour so the same link can be pasted again.
+export const FETCH_JOB_OPTIONS = {
+  ...BASE_JOB_OPTIONS,
+  attempts: 2,
+  backoff: { type: 'exponential' as const, delay: 60_000 },
+  removeOnComplete: { age: 3_600, count: 1000 },
+  removeOnFail: { age: 3_600 },
+};
+
 export function createQueues(connection: Redis) {
   return {
     scrape: new Queue<ScrapeJobData>(QUEUES.scrape, { connection, defaultJobOptions: BASE_JOB_OPTIONS }),
@@ -48,7 +68,16 @@ export function createQueues(connection: Redis) {
     }),
     followups: new Queue<FollowUpsJobData>(QUEUES.followups, { connection, defaultJobOptions: TAILOR_JOB_OPTIONS }),
     send: new Queue<SendJobData>(QUEUES.send, { connection, defaultJobOptions: { ...BASE_JOB_OPTIONS, attempts: 1 } }),
+    fetchJob: new Queue<FetchJobData>(QUEUES.fetchJob, { connection, defaultJobOptions: FETCH_JOB_OPTIONS }),
   };
+}
+
+/** Queue a page fetch. A finished (failed or completed) job with the same id is removed first so the link can be tried again. */
+export async function enqueueFetchJob(queue: Pick<Queue<FetchJobData>, 'getJob' | 'add'>, data: FetchJobData): Promise<void> {
+  const id = fetchJobJobId(data.userId, data.url);
+  const existing = await queue.getJob(id);
+  if (existing && ((await existing.isFailed()) || (await existing.isCompleted()))) await existing.remove();
+  await queue.add('fetch-job', data, { jobId: id });
 }
 
 /** Add a tailor job; a previously failed job with the same deterministic id is removed first so it can be retried. */

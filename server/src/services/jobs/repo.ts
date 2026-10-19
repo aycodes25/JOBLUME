@@ -34,3 +34,19 @@ export async function insertJobs(db: Db, jobs: NormalisedJob[]): Promise<string[
   if (error) throw error;
   return (data ?? []).map((r) => (r as { id: string }).id);
 }
+
+export async function findJobIdByUrl(db: Db, url: string): Promise<string | null> {
+  const { data, error } = await db.from('jobs').select('id').eq('url', url).limit(1).maybeSingle();
+  if (error) throw error;
+  return (data as { id: string } | null)?.id ?? null;
+}
+
+/** Inserts one job and returns its id; when the same company and title is already stored, returns that job's id. */
+export async function saveJob(db: Db, job: NormalisedJob): Promise<string> {
+  const [id] = await insertJobs(db, [job]);
+  if (id) return id;
+  const { data, error } = await db.from('jobs').select('id').eq('dedupe_key', dedupeKey(job.company, job.title)).maybeSingle();
+  if (error) throw error;
+  if (!data) throw new Error('job insert was skipped but no matching job was found');
+  return (data as { id: string }).id;
+}
