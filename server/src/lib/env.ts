@@ -22,6 +22,8 @@ const schema = z.object({
   GMAIL_REDIRECT_URI: z.preprocess(blankToUndefined, z.string().url().optional()),
   HUNTER_API_KEY: optionalString,
   HUNTER_MONTHLY_LIMIT: z.preprocess(blankToUndefined, z.coerce.number().int().positive().default(25)),
+  JSEARCH_API_KEY: optionalString,
+  JSEARCH_MONTHLY_LIMIT: z.preprocess(blankToUndefined, z.coerce.number().int().positive().default(50)),
 });
 
 export type Env = z.infer<typeof schema>;
