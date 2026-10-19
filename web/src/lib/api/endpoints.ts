@@ -1,4 +1,5 @@
 import type {
+  AddJobLinkResult,
   Analytics,
   Application,
   ApplicationDetail,
@@ -7,6 +8,7 @@ import type {
   FollowUp,
   FollowUpWithJob,
   GmailStatus,
+  JobFetch,
   Profile,
   ProfilePatch,
 } from '@joblume/shared';
@@ -30,6 +32,8 @@ export function createApi(request: ApiClient) {
       request<Application>(`/applications/${encodeURIComponent(id)}/status`, { method: 'PATCH', json: { status } }),
     getAnalytics: () => request<Analytics>('/analytics'),
     refreshJobs: () => request<{ queued: boolean }>('/jobs/refresh', { method: 'POST' }),
+    addJobLink: (url: string) => request<AddJobLinkResult>('/jobs/from-url', { method: 'POST', json: { url } }),
+    listJobFetches: () => request<JobFetch[]>('/jobs/fetches'),
     getGmailStatus: () => request<GmailStatus>('/gmail/status'),
     startGmailConnect: () => request<{ url: string }>('/gmail/connect', { method: 'POST' }),
     disconnectGmail: () => request<{ connected: false }>('/gmail', { method: 'DELETE' }),

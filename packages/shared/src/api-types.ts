@@ -1,3 +1,4 @@
+import type { JobFetchReason, JobFetchStatus } from './job-sources.js';
 import type { ApplicationStatus } from './status.js';
 
 export interface Profile {
@@ -93,3 +94,17 @@ export interface FollowUp {
 export interface FollowUpWithJob extends FollowUp {
   job: { title: string; company: string } | null;
 }
+
+/** One job link the user pasted, as listed by GET /jobs/fetches. */
+export interface JobFetch {
+  id: string;
+  url: string;
+  status: JobFetchStatus;
+  reason: JobFetchReason | null;
+  job_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/** POST /jobs/from-url: 202 { queued: true } for a new link, 200 { job_id } when the job is already stored. */
+export type AddJobLinkResult = { queued: true } | { job_id: string };

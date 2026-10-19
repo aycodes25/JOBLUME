@@ -1,7 +1,7 @@
-import type { ApplicationStatus, EmailCandidate } from '@joblume/shared';
+import type { ApplicationStatus, EmailCandidate, JobSource } from '@joblume/shared';
 export type { ApplicationStatus };
 
-export type JobSourceName = 'linkedin' | 'indeed' | 'jobberman' | 'myjobmag' | 'remotive';
+export type JobSourceName = JobSource;
 export type ApplyMode = 'manual' | 'auto';
 
 export interface JobRow {

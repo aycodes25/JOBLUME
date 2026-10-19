@@ -1,0 +1,81 @@
+{
+  "status": "OK",
+  "request_id": "fixture-1",
+  "parameters": { "query": "data analyst in lagos, nigeria", "page": 1, "num_pages": 1, "date_posted": "week", "country": "ng" },
+  "data": [
+    {
+      "job_id": "li-1",
+      "employer_name": "Acme Analytics",
+      "employer_website": "https://www.acme-analytics.com/careers",
+      "job_publisher": "LinkedIn",
+      "job_title": "Data Analyst",
+      "job_apply_link": "https://www.linkedin.com/jobs/view/data-analyst-at-acme-analytics-4012345678?trk=public_jobs&refId=abc",
+      "job_description": "Acme Analytics is hiring a Data Analyst.\n\nYou will build dashboards with SQL and Power BI.",
+      "job_is_remote": false,
+      "job_city": "Lagos",
+      "job_state": "Lagos",
+      "job_country": "NG",
+      "apply_options": [{ "publisher": "LinkedIn", "apply_link": "https://www.linkedin.com/jobs/view/4012345678", "is_direct": false }]
+    },
+    {
+      "job_id": "in-1",
+      "employer_name": "Paystack",
+      "employer_website": null,
+      "job_publisher": "Indeed",
+      "job_title": "Backend Engineer",
+      "job_apply_link": "https://ng.indeed.com/viewjob?jk=0123456789abcdef&utm_source=jsearch",
+      "job_description": "We are looking for a backend engineer with Node.js and PostgreSQL experience.",
+      "job_is_remote": false,
+      "job_city": "Lagos",
+      "job_state": null,
+      "job_country": "NG",
+      "apply_options": []
+    },
+    {
+      "job_id": "gd-1",
+      "employer_name": "Globex",
+      "job_publisher": "Glassdoor",
+      "job_title": "Data Analyst",
+      "job_apply_link": "https://www.glassdoor.com/job-listing/123",
+      "job_description": "A Glassdoor job that must be dropped.",
+      "job_is_remote": false,
+      "job_city": "Lagos",
+      "job_country": "NG"
+    },
+    {
+      "job_id": "li-2",
+      "employer_name": "Remote First Ltd",
+      "employer_website": "https://remotefirst.io",
+      "job_publisher": "LinkedIn",
+      "job_title": "Product Analyst",
+      "job_apply_link": "https://remotefirst.io/apply/77",
+      "job_description": "A fully remote product analyst role.",
+      "job_is_remote": true,
+      "job_city": null,
+      "job_country": "NG",
+      "apply_options": [
+        { "publisher": "Company site", "apply_link": "https://remotefirst.io/apply/77" },
+        { "publisher": "LinkedIn", "apply_link": "https://www.linkedin.com/jobs/view/4099999999/?trackingId=xyz" }
+      ]
+    },
+    {
+      "job_id": "li-3",
+      "employer_name": "",
+      "job_publisher": "LinkedIn",
+      "job_title": "Mystery Role",
+      "job_apply_link": "https://www.linkedin.com/jobs/view/4011111111",
+      "job_description": "No employer name, so it is dropped.",
+      "job_is_remote": false
+    },
+    {
+      "job_id": "in-2",
+      "employer_name": "Initech",
+      "job_publisher": "Indeed",
+      "job_title": "Support Specialist",
+      "job_apply_link": "https://initech.example/jobs/1",
+      "job_description": "An Indeed listing without an Indeed job link, so it is dropped.",
+      "job_is_remote": false,
+      "apply_options": []
+    }
+  ]
+}

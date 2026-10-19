@@ -38,3 +38,15 @@ export async function matchUser(userId: string, d: MatchDeps): Promise<number> {
   for (const job of todo) await d.enqueueTailor(userId, job.id);
   return todo.length;
 }
+
+/** The user pasted this job: queue tailoring for them alone. No prefilter, because they chose it. */
+export async function matchUserJob(userId: string, jobId: string, d: MatchDeps): Promise<number> {
+  const profile = await d.loadProfile(userId);
+  if (!profile || !profile.base_cv_text) return 0;
+  const job = await d.loadJob(jobId);
+  if (!job) return 0;
+  const done = await d.existingJobIds(userId, [job.id]);
+  if (done.has(job.id)) return 0;
+  await d.enqueueTailor(userId, job.id);
+  return 1;
+}

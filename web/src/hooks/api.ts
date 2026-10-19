@@ -4,6 +4,7 @@ import type { Application, ApplicationDetail, ApplicationStatus, ProfilePatch } 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { getApi } from '@/lib/api/runtime';
 import { applyStatusLocal } from '@/lib/applications';
+import { hasRecentPendingFetch } from '@/lib/job-fetches';
 
 export const keys = {
   profile: ['profile'] as const,
@@ -12,6 +13,7 @@ export const keys = {
   analytics: ['analytics'] as const,
   gmail: ['gmail'] as const,
   followUps: ['follow-ups'] as const,
+  jobFetches: ['job-fetches'] as const,
 };
 
 export function useProfile() {
@@ -101,6 +103,27 @@ export function useRefreshJobs() {
   return useMutation({
     mutationFn: () => getApi().refreshJobs(),
     onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: keys.applications });
+    },
+  });
+}
+
+export function useJobFetches() {
+  return useQuery({
+    queryKey: keys.jobFetches,
+    queryFn: () => getApi().listJobFetches(),
+    // Poll faster while a link is still being read.
+    refetchInterval: (query) => (hasRecentPendingFetch(query.state.data) ? 10_000 : 60_000),
+    refetchOnWindowFocus: true,
+  });
+}
+
+export function useAddJobLink() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (url: string) => getApi().addJobLink(url),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: keys.jobFetches });
       void qc.invalidateQueries({ queryKey: keys.applications });
     },
   });

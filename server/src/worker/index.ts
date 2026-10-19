@@ -1,14 +1,16 @@
-import { DelayedError, Worker } from 'bullmq';
+import { DelayedError, UnrecoverableError, Worker } from 'bullmq';
 import { getEnv } from '../lib/env.js';
-import { fetchText, randomBetween, sleep } from '../lib/http.js';
+import { fetchText, pickUserAgent, randomBetween, sleep } from '../lib/http.js';
 import { logger } from '../lib/logger.js';
 import { createRedis } from '../lib/redis.js';
 import { createSupabaseAdmin } from '../lib/supabase.js';
 import {
   QUEUES, createQueues, enqueueFindEmail, enqueueFollowUpDraft, enqueueSend, enqueueTailor as enqueueTailorJob,
-  type FindEmailJobData, type FollowUpsJobData, type MatchJobData, type ScrapeJobData, type SendJobData, type TailorJobData,
+  type FetchJobData, type FindEmailJobData, type FollowUpsJobData, type MatchJobData, type ScrapeJobData, type SendJobData, type TailorJobData,
 } from '../queues.js';
-import { SCRAPE_LIMITS, SCRAPE_SOURCES, createScrapers } from '../scrapers/index.js';
+import { SCRAPE_EVERY_MS, SCRAPE_LIMITS, SCRAPE_SOURCES, createScrapers } from '../scrapers/index.js';
+import { createJSearchClient, JSearchError } from '../scrapers/jsearch-client.js';
+import { createJSearchScraper } from '../scrapers/jsearch.js';
 import { geminiProvider, openaiProvider } from '../services/ai/providers.js';
 import { QuotaExhaustedError } from '../services/ai/generate.js';
 import { delayForError } from '../services/ai/delay.js';
@@ -26,17 +28,18 @@ import { createFinder } from '../services/email/finder.js';
 import { createHunterClient } from '../services/email/hunter.js';
 import { createMonthlyQuota } from '../services/email/quota.js';
 import { renderCvPdf } from '../services/cv/pdf.js';
-import { findSeenUrls, insertJobs } from '../services/jobs/repo.js';
+import { findJobIdByUrl, findSeenUrls, insertJobs, saveJob } from '../services/jobs/repo.js';
+import { createJobFetchesRepo } from '../services/jobs/fetches-repo.js';
 import { uploadFile } from '../services/storage.js';
-import { matchJob, matchUser } from './match.js';
+import { matchJob, matchUser, matchUserJob } from './match.js';
+import { createPageFetcher, launchStealthChromium } from './browser.js';
+import { FetchJobError, runFetchJob } from './fetch-job.js';
 import { runFindEmail } from './find-email.js';
 import { runFollowUpsJob } from './followups.js';
 import { runSendJob } from './send.js';
 import { createCompanyCache, createWorkerRepos } from './repos.js';
 import { runScrape } from './scrape.js';
 import { runTailor } from './tailor.js';
-
-const SIX_HOURS = 6 * 60 * 60 * 1000;
 
 // Upstash free tier counts every Redis command. Poll idle queues rarely to stay inside the free allowance.
 const idleTuning = { drainDelay: 60, stalledInterval: 120_000 } as const;
@@ -46,7 +49,15 @@ async function main() {
   const db = createSupabaseAdmin(env);
   const repos = createWorkerRepos(db);
   const queues = createQueues(createRedis(env.UPSTASH_REDIS_URL));
-  const scrapers = createScrapers(fetchText);
+  const jsearchClient = env.JSEARCH_API_KEY ? createJSearchClient({ apiKey: env.JSEARCH_API_KEY }) : null;
+  const scrapers = createScrapers(fetchText, {
+    jsearch: createJSearchScraper({
+      client: jsearchClient,
+      quota: createMonthlyQuota(createRedis(env.UPSTASH_REDIS_URL), env.JSEARCH_MONTHLY_LIMIT, undefined, 'jsearch'),
+      loadProfiles: repos.loadCandidates,
+      log: logger,
+    }),
+  });
 
   const quota = createQuota(createRedis(env.UPSTASH_REDIS_URL), env.AI_DAILY_LIMIT);
   const gemini = geminiProvider({ apiKey: env.GEMINI_API_KEY, model: env.GEMINI_MODEL });
@@ -85,24 +96,35 @@ async function main() {
     QUEUES.scrape,
     async (job) => {
       const { source } = job.data;
-      return runScrape({
-        scraper: scrapers[source],
-        maxNew: SCRAPE_LIMITS[source],
-        findSeenUrls: (urls) => findSeenUrls(db, urls),
-        insertJobs: (jobs) => insertJobs(db, jobs),
-        enqueueMatch: async (jobId) => {
-          await queues.match.add('match', { kind: 'job', jobId }, { jobId: `match-job-${jobId}` });
-        },
-        sleep,
-        log: logger,
-      });
+      try {
+        return await runScrape({
+          scraper: scrapers[source],
+          maxNew: SCRAPE_LIMITS[source],
+          findSeenUrls: (urls) => findSeenUrls(db, urls),
+          insertJobs: (jobs) => insertJobs(db, jobs),
+          enqueueMatch: async (jobId) => {
+            await queues.match.add('match', { kind: 'job', jobId }, { jobId: `match-job-${jobId}` });
+          },
+          sleep,
+          log: logger,
+        });
+      } catch (err) {
+        // A rejected or unsubscribed JSearch key will not fix itself: do not spend retries on it.
+        if (err instanceof JSearchError && err.kind === 'auth') throw new UnrecoverableError('JSearch rejected the API key');
+        throw err;
+      }
     },
     { connection: createRedis(env.UPSTASH_REDIS_URL), concurrency: 1, ...idleTuning },
   );
 
   const matchWorker = new Worker<MatchJobData>(
     QUEUES.match,
-    async (job) => (job.data.kind === 'job' ? matchJob(job.data.jobId, matchDeps) : matchUser(job.data.userId, matchDeps)),
+    async (job) => {
+      const data = job.data;
+      if (data.kind === 'job') return matchJob(data.jobId, matchDeps);
+      if (data.kind === 'user-job') return matchUserJob(data.userId, data.jobId, matchDeps);
+      return matchUser(data.userId, matchDeps);
+    },
     { connection: createRedis(env.UPSTASH_REDIS_URL), concurrency: 2, ...idleTuning },
   );
 
@@ -215,22 +237,56 @@ async function main() {
     { connection: createRedis(env.UPSTASH_REDIS_URL), concurrency: 1, limiter: { max: 1, duration: 10_000 }, maxStalledCount: 0, ...idleTuning },
   );
 
-  for (const w of [scrapeWorker, matchWorker, tailorWorker, findEmailWorker, followUpsWorker, sendWorker]) {
+  const jobFetches = createJobFetchesRepo(db);
+  const pageFetcher = createPageFetcher({ launch: launchStealthChromium, userAgent: () => pickUserAgent() });
+  const fetchJobWorker = new Worker<FetchJobData>(
+    QUEUES.fetchJob,
+    async (job) => {
+      try {
+        return await runFetchJob(job.data, {
+          findJobIdByUrl: (url) => findJobIdByUrl(db, url),
+          fetchPage: (url) => pageFetcher.fetchPage(url),
+          saveJob: (j) => saveJob(db, j),
+          saveFetch: (userId, url, state) => jobFetches.save(userId, url, state),
+          enqueueUserMatch: async (userId, jobId) => {
+            await queues.match.add('match', { kind: 'user-job', userId, jobId });
+          },
+          sleep,
+          randomDelay: () => randomBetween(2_000, 5_000),
+          isFinalAttempt: job.attemptsMade + 1 >= (job.opts.attempts ?? 1),
+          log: logger,
+        });
+      } catch (err) {
+        // Blocked, login wall, gone or unreadable is final: retrying would only hit the site again.
+        if (err instanceof FetchJobError) throw new UnrecoverableError(err.reason);
+        throw err;
+      }
+    },
+    // One page at a time in one reused browser.
+    { connection: createRedis(env.UPSTASH_REDIS_URL), concurrency: 1, ...idleTuning },
+  );
+
+  for (const w of [scrapeWorker, matchWorker, tailorWorker, findEmailWorker, followUpsWorker, sendWorker, fetchJobWorker]) {
     w.on('failed', (job, err) => logger.error({ queue: w.name, jobId: job?.id, err }, 'job failed'));
     w.on('error', (err) => logger.error({ queue: w.name, err }, 'worker error'));
   }
 
   for (const source of SCRAPE_SOURCES) {
+    if (source === 'jsearch' && !jsearchClient) {
+      // No key: make sure a schedule left by an earlier run does not keep firing.
+      await queues.scrape.removeJobScheduler('scrape-jsearch');
+      continue;
+    }
     // upsertJobScheduler enqueues the first run immediately, so no separate boot job is needed
-    await queues.scrape.upsertJobScheduler(`scrape-${source}`, { every: SIX_HOURS }, { name: 'scrape', data: { source } });
+    await queues.scrape.upsertJobScheduler(`scrape-${source}`, { every: SCRAPE_EVERY_MS[source] }, { name: 'scrape', data: { source } });
   }
   await queues.followups.upsertJobScheduler('followup-scan', { every: 60 * 60 * 1000 }, { name: 'followups', data: { kind: 'scan' } });
-  logger.info({ sources: SCRAPE_SOURCES }, 'worker started; scraping every 6 hours');
+  logger.info({ sources: SCRAPE_SOURCES, jsearch: jsearchClient !== null }, 'worker started; job boards every 6 hours, JSearch daily');
 
   const shutdown = async (signal: string) => {
     logger.info({ signal }, 'shutting down');
-    const closeAll = Promise.allSettled([scrapeWorker.close(), matchWorker.close(), tailorWorker.close(), findEmailWorker.close(), followUpsWorker.close(), sendWorker.close()]).then(() =>
-      Promise.allSettled([queues.scrape.close(), queues.match.close(), queues.tailor.close(), queues.findEmail.close(), queues.followups.close(), queues.send.close()]),
+    const closeAll = Promise.allSettled([scrapeWorker.close(), matchWorker.close(), tailorWorker.close(), findEmailWorker.close(), followUpsWorker.close(), sendWorker.close(), fetchJobWorker.close()]).then(() =>
+      Promise.allSettled([queues.scrape.close(), queues.match.close(), queues.tailor.close(), queues.findEmail.close(), queues.followups.close(), queues.send.close(), queues.fetchJob.close(), pageFetcher.close()]),
     );
     await Promise.race([closeAll, sleep(25_000)]);
     process.exit(0);

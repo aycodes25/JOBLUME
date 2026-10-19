@@ -2,7 +2,7 @@ import { getEnv } from '../lib/env.js';
 import { logger } from '../lib/logger.js';
 import { createRedis } from '../lib/redis.js';
 import { createSupabaseAdmin } from '../lib/supabase.js';
-import { createQueues } from '../queues.js';
+import { createQueues, enqueueFetchJob } from '../queues.js';
 import { createApplicationsService } from '../services/applications.js';
 import { renderCvPdf } from '../services/cv/pdf.js';
 import { createCvService } from '../services/cv/upload.js';
@@ -12,6 +12,9 @@ import { createFollowUpsService } from '../services/followups/service.js';
 import { createGmailService } from '../services/gmail/service.js';
 import { createGmailTokens } from '../services/gmail/tokens.js';
 import { createJobsService } from '../services/jobs/service.js';
+import { createJobFetchesRepo } from '../services/jobs/fetches-repo.js';
+import { createJobLinksService } from '../services/jobs/links.js';
+import { findJobIdByUrl } from '../services/jobs/repo.js';
 import { createFollowUpSender, createSendingService } from '../services/sending/wiring.js';
 import { createSignedUrl, uploadFile } from '../services/storage.js';
 import { createApp } from './app.js';
@@ -51,6 +54,14 @@ const app = createApp({
     signUrl: (path) => createSignedUrl(db, path),
   }),
   jobs: createJobsService(queues),
+  jobLinks: createJobLinksService({
+    findJobIdByUrl: (url) => findJobIdByUrl(db, url),
+    fetches: createJobFetchesRepo(db),
+    enqueueFetch: (data) => enqueueFetchJob(queues.fetchJob, data),
+    enqueueUserMatch: async (userId, jobId) => {
+      await queues.match.add('match', { kind: 'user-job', userId, jobId });
+    },
+  }),
   gmail,
   sending,
   followUps,
