@@ -1,4 +1,4 @@
-import { DelayedError, Worker } from 'bullmq';
+import { DelayedError, UnrecoverableError, Worker } from 'bullmq';
 import { getEnv } from '../lib/env.js';
 import { fetchText, randomBetween, sleep } from '../lib/http.js';
 import { logger } from '../lib/logger.js';
@@ -8,7 +8,9 @@ import {
   QUEUES, createQueues, enqueueFindEmail, enqueueFollowUpDraft, enqueueSend, enqueueTailor as enqueueTailorJob,
   type FindEmailJobData, type FollowUpsJobData, type MatchJobData, type ScrapeJobData, type SendJobData, type TailorJobData,
 } from '../queues.js';
-import { SCRAPE_LIMITS, SCRAPE_SOURCES, createScrapers } from '../scrapers/index.js';
+import { SCRAPE_EVERY_MS, SCRAPE_LIMITS, SCRAPE_SOURCES, createScrapers } from '../scrapers/index.js';
+import { createJSearchClient, JSearchError } from '../scrapers/jsearch-client.js';
+import { createJSearchScraper } from '../scrapers/jsearch.js';
 import { geminiProvider, openaiProvider } from '../services/ai/providers.js';
 import { QuotaExhaustedError } from '../services/ai/generate.js';
 import { delayForError } from '../services/ai/delay.js';
@@ -36,8 +38,6 @@ import { createCompanyCache, createWorkerRepos } from './repos.js';
 import { runScrape } from './scrape.js';
 import { runTailor } from './tailor.js';
 
-const SIX_HOURS = 6 * 60 * 60 * 1000;
-
 // Upstash free tier counts every Redis command. Poll idle queues rarely to stay inside the free allowance.
 const idleTuning = { drainDelay: 60, stalledInterval: 120_000 } as const;
 
@@ -46,7 +46,15 @@ async function main() {
   const db = createSupabaseAdmin(env);
   const repos = createWorkerRepos(db);
   const queues = createQueues(createRedis(env.UPSTASH_REDIS_URL));
-  const scrapers = createScrapers(fetchText);
+  const jsearchClient = env.JSEARCH_API_KEY ? createJSearchClient({ apiKey: env.JSEARCH_API_KEY }) : null;
+  const scrapers = createScrapers(fetchText, {
+    jsearch: createJSearchScraper({
+      client: jsearchClient,
+      quota: createMonthlyQuota(createRedis(env.UPSTASH_REDIS_URL), env.JSEARCH_MONTHLY_LIMIT, undefined, 'jsearch'),
+      loadProfiles: repos.loadCandidates,
+      log: logger,
+    }),
+  });
 
   const quota = createQuota(createRedis(env.UPSTASH_REDIS_URL), env.AI_DAILY_LIMIT);
   const gemini = geminiProvider({ apiKey: env.GEMINI_API_KEY, model: env.GEMINI_MODEL });
@@ -85,17 +93,23 @@ async function main() {
     QUEUES.scrape,
     async (job) => {
       const { source } = job.data;
-      return runScrape({
-        scraper: scrapers[source],
-        maxNew: SCRAPE_LIMITS[source],
-        findSeenUrls: (urls) => findSeenUrls(db, urls),
-        insertJobs: (jobs) => insertJobs(db, jobs),
-        enqueueMatch: async (jobId) => {
-          await queues.match.add('match', { kind: 'job', jobId }, { jobId: `match-job-${jobId}` });
-        },
-        sleep,
-        log: logger,
-      });
+      try {
+        return await runScrape({
+          scraper: scrapers[source],
+          maxNew: SCRAPE_LIMITS[source],
+          findSeenUrls: (urls) => findSeenUrls(db, urls),
+          insertJobs: (jobs) => insertJobs(db, jobs),
+          enqueueMatch: async (jobId) => {
+            await queues.match.add('match', { kind: 'job', jobId }, { jobId: `match-job-${jobId}` });
+          },
+          sleep,
+          log: logger,
+        });
+      } catch (err) {
+        // A rejected or unsubscribed JSearch key will not fix itself: do not spend retries on it.
+        if (err instanceof JSearchError && err.kind === 'auth') throw new UnrecoverableError('JSearch rejected the API key');
+        throw err;
+      }
     },
     { connection: createRedis(env.UPSTASH_REDIS_URL), concurrency: 1, ...idleTuning },
   );
@@ -221,11 +235,16 @@ async function main() {
   }
 
   for (const source of SCRAPE_SOURCES) {
+    if (source === 'jsearch' && !jsearchClient) {
+      // No key: make sure a schedule left by an earlier run does not keep firing.
+      await queues.scrape.removeJobScheduler('scrape-jsearch');
+      continue;
+    }
     // upsertJobScheduler enqueues the first run immediately, so no separate boot job is needed
-    await queues.scrape.upsertJobScheduler(`scrape-${source}`, { every: SIX_HOURS }, { name: 'scrape', data: { source } });
+    await queues.scrape.upsertJobScheduler(`scrape-${source}`, { every: SCRAPE_EVERY_MS[source] }, { name: 'scrape', data: { source } });
   }
   await queues.followups.upsertJobScheduler('followup-scan', { every: 60 * 60 * 1000 }, { name: 'followups', data: { kind: 'scan' } });
-  logger.info({ sources: SCRAPE_SOURCES }, 'worker started; scraping every 6 hours');
+  logger.info({ sources: SCRAPE_SOURCES, jsearch: jsearchClient !== null }, 'worker started; job boards every 6 hours, JSearch daily');
 
   const shutdown = async (signal: string) => {
     logger.info({ signal }, 'shutting down');
