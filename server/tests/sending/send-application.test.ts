@@ -359,6 +359,7 @@ describe('sendApplication: auto method re-checks the eligibility rules at send t
     ['the score is below the threshold', { loadProfile: profile({ auto_threshold: 90 }) }],
     ['the score is missing', { loadApplication: vi.fn().mockResolvedValue(app({ match_score: null })) }],
     ['the job is from LinkedIn', { loadApplication: vi.fn().mockResolvedValue(app({ job: job('linkedin') })) }],
+    ['the job is from Indeed', { loadApplication: vi.fn().mockResolvedValue(app({ job: job('indeed') })) }],
     ['there is no profile', { loadProfile: vi.fn().mockResolvedValue(null) }],
   ])('refuses when %s', async (_n, over) => {
     const d = make(over as Partial<SendDeps>);

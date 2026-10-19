@@ -32,6 +32,17 @@ API endpoints: `GET /profile`, `PUT /profile`, `POST /cv`, `GET /applications`, 
 - **More endpoints:** `POST /gmail/connect`, `GET /gmail/callback`, `GET /gmail/status`, `DELETE /gmail`, `POST /applications/:id/send`, `POST /applications/:id/email/next`, `PUT /applications/:id/email`, `GET /follow-ups`, `PATCH /follow-ups/:id`, `POST /follow-ups/:id/send`, `POST /follow-ups/:id/dismiss`.
 - **Test it:** work through `docs/phase3-manual-checklist.md` using a second email address you own.
 
+## LinkedIn and Indeed (Phase 4)
+
+- **Apply the database change:** run `supabase/migrations/0003_job_sources.sql` in the Supabase SQL editor (once). It adds the `job_fetches` table.
+- **JSearch (optional):** set `JSEARCH_API_KEY` (a RapidAPI key subscribed to JSearch) and optionally `JSEARCH_MONTHLY_LIMIT` (default 50 requests a month). The worker then asks JSearch once a day for your roles and places and keeps only LinkedIn and Indeed results. Without a key, JSearch is skipped.
+- **Paste a job link:** on the Queue page, paste a LinkedIn or Indeed job link into **Add a job link**. The worker reads that one page and prepares an application for you. The list under the box shows each link's status, or why it could not be read (blocked, sign-in required, no longer available, or unreadable).
+- **Install the browser on the worker host (once):** `npm run browsers:install -w server`. On Linux use `npx -w server playwright install --with-deps chromium` to also install the system libraries. Only the worker uses it; the API never loads it, and the tests never need it.
+- **Terms of service and ban risk:** LinkedIn and Indeed restrict automated access in their terms. Reading a job page with a headless browser may breach those terms, and the site can block your worker host's IP address or, if you ever used the same network for your own account, flag it. JobLume limits this on purpose: it only fetches a link you paste yourself (one page per link, 10 links an hour per user), never signs in, never crawls search or listing pages, and never submits anything on the sites. JSearch is a licensed third-party API and does not touch those sites from your machine. You accept the remaining risk when you paste links; if a page is blocked, JobLume reports it and does not retry around the block.
+- **Applying stays manual:** for LinkedIn and Indeed jobs you use the job link, the tailored CV and the cover letter, and apply on the site yourself. Auto mode never sends these, and JobLume never submits anything on LinkedIn or Indeed, never signs in to them, and never crawls their search pages.
+- **More endpoints:** `POST /jobs/from-url` (body `{ "url": "..." }`, 10 an hour per user), `GET /jobs/fetches`.
+- **Test it:** work through `docs/phase4-manual-checklist.md`.
+
 ## Getting a test token (API only, without the web app)
 
 1. In the Supabase dashboard open Authentication > Users and create a user (email and password).
@@ -50,7 +61,7 @@ After the first run, the worker's scheduler keeps running every 6 hours. Deletin
 ## Deploying
 
 - API: Render (free) with start command `npm run start:api` after `npm run build`.
-- Worker: an always-on host (Railway, Fly.io or a small VPS) with start command `npm run start:worker`. Render's free tier sleeps, so it cannot run the worker's schedule.
+- Worker: an always-on host (Railway, Fly.io or a small VPS) with start command `npm run start:worker`. Render's free tier sleeps, so it cannot run the worker's schedule. Install Chromium on that host once (`npx -w server playwright install --with-deps chromium`) for pasted job links.
 - Both processes use the same environment variables.
 
 ## Deploying the web app
