@@ -58,6 +58,8 @@ export function describeApiError(err: unknown): string {
       return 'Automatic follow-ups are turned off. Turn them on in Settings first.';
     case 'not_auto_eligible':
       return 'Automatic sending no longer applies to this application. Review it and send it yourself.';
+    case 'unsupported_job_link':
+      return 'That is not a LinkedIn or Indeed job link. Open the job itself and copy the address from your browser.';
   }
   if (err.status === 413) return 'That request is too large.';
   if (err.status === 429) return 'You are doing that too often. Try again later.';

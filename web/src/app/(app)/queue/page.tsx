@@ -7,9 +7,12 @@ import { EmptyState } from '@/components/common/EmptyState';
 import { ErrorState } from '@/components/common/ErrorState';
 import { PageSkeleton } from '@/components/common/PageSkeleton';
 import { FollowUpCard } from '@/components/followups/FollowUpCard';
+import { AddJobLink } from '@/components/jobs/AddJobLink';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useApplications, useDismissFollowUp, useFollowUps, useRefreshJobs, useSendFollowUp, useUpdateFollowUp } from '@/hooks/api';
+import {
+  useAddJobLink, useApplications, useDismissFollowUp, useFollowUps, useJobFetches, useRefreshJobs, useSendFollowUp, useUpdateFollowUp,
+} from '@/hooks/api';
 import { describeApiError } from '@/lib/api/errors';
 import { formatScore } from '@/lib/format';
 import { averageScore, splitQueue, type QueueTab } from '@/lib/applications';
@@ -48,6 +51,8 @@ export default function QueuePage() {
   const apps = useApplications({ poll: true });
   const followUps = useFollowUps('pending_review');
   const refresh = useRefreshJobs();
+  const jobFetches = useJobFetches();
+  const addLink = useAddJobLink();
   const [tab, setTab] = useState<Tab>('pending');
   const [openId, setOpenId] = useState<string | null>(null);
   const groups = useMemo(() => splitQueue(apps.data ?? []), [apps.data]);
@@ -74,6 +79,14 @@ export default function QueuePage() {
       </div>
       {refresh.isSuccess && <p role="status" className="text-sm text-muted-foreground">Checking for new jobs. New matches appear here within a few minutes.</p>}
       {refresh.error && <p role="alert" className="text-sm text-destructive">{describeApiError(refresh.error)}</p>}
+
+      <AddJobLink
+        fetches={jobFetches.data ?? []}
+        pending={addLink.isPending}
+        error={addLink.error ? describeApiError(addLink.error) : null}
+        result={addLink.data ?? null}
+        onAdd={(url) => addLink.mutate(url)}
+      />
 
       <dl className="grid grid-cols-2 gap-3 md:grid-cols-4">
         {[

@@ -12,6 +12,7 @@ export const keys = {
   analytics: ['analytics'] as const,
   gmail: ['gmail'] as const,
   followUps: ['follow-ups'] as const,
+  jobFetches: ['job-fetches'] as const,
 };
 
 export function useProfile() {
@@ -101,6 +102,27 @@ export function useRefreshJobs() {
   return useMutation({
     mutationFn: () => getApi().refreshJobs(),
     onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: keys.applications });
+    },
+  });
+}
+
+export function useJobFetches() {
+  return useQuery({
+    queryKey: keys.jobFetches,
+    queryFn: () => getApi().listJobFetches(),
+    // Poll faster while a link is still being read.
+    refetchInterval: (query) => (query.state.data?.some((f) => f.status === 'queued') ? 10_000 : 60_000),
+    refetchOnWindowFocus: true,
+  });
+}
+
+export function useAddJobLink() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (url: string) => getApi().addJobLink(url),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: keys.jobFetches });
       void qc.invalidateQueries({ queryKey: keys.applications });
     },
   });
