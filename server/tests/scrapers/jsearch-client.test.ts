@@ -65,6 +65,7 @@ describe('createJSearchClient.search', () => {
     const err = await api.search(onsite).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(JSearchError);
     expect((err as JSearchError).kind).toBe('failed');
+    expect((err as JSearchError).neverSent).toBe(true);
     expect((err as JSearchError).message).not.toContain('SECRET-KEY');
     expect(JSON.stringify(err)).not.toContain('SECRET-KEY');
   });

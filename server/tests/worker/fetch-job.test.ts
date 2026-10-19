@@ -96,3 +96,23 @@ describe('runFetchJob: failures', () => {
     expect(d.saveJob).not.toHaveBeenCalled();
   });
 });
+
+describe('runFetchJob: final URL host', () => {
+  it('accepts a final URL that stays on LinkedIn or Indeed', async () => {
+    const d = make({ fetchPage: vi.fn<FetchJobDeps['fetchPage']>().mockImplementation(async () => page({ finalUrl: 'https://linkedin.com/jobs/view/4012345678/' })) });
+    await expect(runFetchJob(LINK, d)).resolves.toEqual({ jobId: 'j-new' });
+  });
+
+  it.each([
+    ['another host', 'https://evil.example.com/jobs/view/4012345678/'],
+    ['a look-alike host', 'https://www.linkedin.com.evil.example/jobs/view/4012345678/'],
+    ['plain http', 'http://www.linkedin.com/jobs/view/4012345678/'],
+    ['an empty URL', ''],
+  ])('records blocked and saves nothing after a redirect to %s', async (_n, finalUrl) => {
+    const d = make({ fetchPage: vi.fn<FetchJobDeps['fetchPage']>().mockImplementation(async () => page({ finalUrl })) });
+    await expect(runFetchJob(LINK, d)).rejects.toMatchObject({ name: 'FetchJobError', reason: 'blocked' });
+    expect(d.saveFetch).toHaveBeenCalledWith('u1', LINK.url, { status: 'failed', reason: 'blocked' });
+    expect(d.saveJob).not.toHaveBeenCalled();
+    expect(d.enqueueUserMatch).not.toHaveBeenCalled();
+  });
+});

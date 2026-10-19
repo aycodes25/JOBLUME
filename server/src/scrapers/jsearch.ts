@@ -1,7 +1,7 @@
 import { canonicalJobUrl, type LinkSource } from '@joblume/shared';
 import { domainFromWebsite, normaliseJob, tidyLocation, type JobStub, type NormalisedJob } from '../domain/jobs.js';
 import type { Logger } from '../lib/logger.js';
-import type { JSearchClient, JSearchJob, JSearchQuery } from './jsearch-client.js';
+import { JSearchError, type JSearchClient, type JSearchJob, type JSearchQuery } from './jsearch-client.js';
 import type { Scraper } from './types.js';
 
 /** Requests per run. The scheduler runs JSearch daily, so 2 a run keeps the 50-a-month budget lasting most of the month. */
@@ -90,6 +90,8 @@ export function createJSearchScraper(d: JSearchScraperDeps): Scraper {
       found.clear();
       if (!d.client) return [];
       const queries = buildJSearchQueries(await d.loadProfiles(), d.maxQueries ?? JSEARCH_MAX_QUERIES);
+      let succeeded = 0;
+      let lastError: unknown;
       for (const q of queries) {
         if (!(await d.quota.consume())) {
           d.log.warn({ source: 'jsearch' }, 'JSearch monthly limit reached; skipping until next month');
@@ -99,19 +101,27 @@ export function createJSearchScraper(d: JSearchScraperDeps): Scraper {
         try {
           results = await d.client.search(q);
         } catch (err) {
-          // A failed request did not use the budget.
-          try {
-            await d.quota.refund();
-          } catch (refundErr) {
-            d.log.warn({ err: refundErr }, 'jsearch quota refund failed');
+          // Only a request that never reached RapidAPI used no budget; anything that was sent counts.
+          if (err instanceof JSearchError && err.neverSent) {
+            try {
+              await d.quota.refund();
+            } catch (refundErr) {
+              d.log.warn({ err: refundErr }, 'jsearch quota refund failed');
+            }
           }
-          throw err;
+          if (err instanceof JSearchError && err.kind === 'auth') throw err;
+          d.log.warn({ err, source: 'jsearch', query: q.query }, 'JSearch query failed');
+          lastError = err;
+          continue;
         }
+        succeeded++;
         for (const raw of results) {
           const job = parseJSearchJob(raw);
           if (job && !found.has(job.url)) found.set(job.url, job);
         }
       }
+      // Keep what earlier queries found; fail only when every attempted query failed.
+      if (lastError !== undefined && succeeded === 0) throw lastError;
       return [...found.values()].map(({ title, company, location, url, source, description }) => ({ title, company, location, url, source, description }));
     },
     async detail(stub) {

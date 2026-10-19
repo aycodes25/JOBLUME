@@ -1,3 +1,4 @@
+import { isAllowedJobHost } from '@joblume/shared';
 import type { FetchedPage } from '../scrapers/job-page.js';
 
 export const PAGE_TIMEOUT_MS = 30_000;
@@ -10,7 +11,20 @@ export interface PageLike {
   close(): Promise<void>;
 }
 
+export interface RequestLike {
+  url(): string;
+  resourceType(): string;
+  isNavigationRequest(): boolean;
+}
+
+export interface RouteLike {
+  request(): RequestLike;
+  abort(): Promise<void>;
+  continue(): Promise<void>;
+}
+
 export interface ContextLike {
+  route(pattern: string, handler: (route: RouteLike) => Promise<void> | void): Promise<unknown>;
   newPage(): Promise<PageLike>;
   close(): Promise<void>;
 }
@@ -19,6 +33,17 @@ export interface BrowserLike {
   newContext(opts: { userAgent: string; locale: string; viewport: { width: number; height: number } }): Promise<ContextLike>;
   isConnected(): boolean;
   close(): Promise<void>;
+}
+
+const BLOCKED_RESOURCES = new Set(['image', 'media', 'font']);
+
+/** Aborts navigations (documents) to hosts other than LinkedIn/Indeed, and images, media and fonts; everything else goes through. */
+export async function guardRoute(route: RouteLike): Promise<void> {
+  const req = route.request();
+  const type = req.resourceType();
+  if (BLOCKED_RESOURCES.has(type)) return route.abort();
+  if ((type === 'document' || req.isNavigationRequest()) && !isAllowedJobHost(req.url())) return route.abort();
+  return route.continue();
 }
 
 export interface PageFetcher {
@@ -46,6 +71,7 @@ export function createPageFetcher(d: { launch(): Promise<BrowserLike>; userAgent
     const context = await b.newContext({ userAgent: d.userAgent(), locale: 'en-GB', viewport: { width: 1366, height: 900 } });
     let page: PageLike | null = null;
     try {
+      await context.route('**/*', guardRoute);
       page = await context.newPage();
       const response = await page.goto(url, { waitUntil: 'domcontentloaded', timeout });
       const status = response ? response.status() : null;

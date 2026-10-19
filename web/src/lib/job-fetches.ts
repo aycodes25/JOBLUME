@@ -27,3 +27,15 @@ export function addResultMessage(result: AddJobLinkResult): string {
     ? 'We already have this job. Its application appears in your queue shortly.'
     : 'Got it. We are reading the job now. It appears in your queue within a few minutes.';
 }
+
+/** A queued row older than this is treated as stuck, so it no longer speeds up polling. */
+export const FAST_POLL_MAX_AGE_MS = 10 * 60 * 1000;
+
+/** True when a link was queued recently enough that its result is worth polling for quickly. */
+export function hasRecentPendingFetch(fetches: Pick<JobFetch, 'status' | 'created_at'>[] | undefined, now: number = Date.now()): boolean {
+  return (fetches ?? []).some((f) => {
+    if (f.status !== 'queued') return false;
+    const created = Date.parse(f.created_at);
+    return Number.isNaN(created) || now - created <= FAST_POLL_MAX_AGE_MS;
+  });
+}

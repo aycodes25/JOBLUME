@@ -25,6 +25,8 @@ export class JSearchError extends Error {
   constructor(
     public readonly kind: 'auth' | 'rate_limited' | 'timeout' | 'failed' | 'malformed',
     message?: string,
+    /** True only when the request clearly never reached RapidAPI (a network error with no response), so it used no quota. */
+    public readonly neverSent: boolean = false,
   ) {
     super(message ?? kind);
     this.name = 'JSearchError';
@@ -49,7 +51,7 @@ export function createJSearchClient(cfg: { apiKey: string; timeoutMs?: number },
       } catch (err) {
         const name = (err as { name?: unknown } | null)?.name;
         if (name === 'TimeoutError' || name === 'AbortError') throw new JSearchError('timeout', 'JSearch did not answer in time');
-        throw new JSearchError('failed', 'Could not reach JSearch');
+        throw new JSearchError('failed', 'Could not reach JSearch', true);
       }
       if (res.status === 401 || res.status === 403) throw new JSearchError('auth', `JSearch refused the key (${res.status})`);
       if (res.status === 429) throw new JSearchError('rate_limited', 'JSearch rate limit reached');

@@ -1,4 +1,4 @@
-import type { JobFetchReason } from '@joblume/shared';
+import { isAllowedJobHost, type JobFetchReason } from '@joblume/shared';
 import type { NormalisedJob } from '../domain/jobs.js';
 import type { Logger } from '../lib/logger.js';
 import type { FetchJobData } from '../queues.js';
@@ -49,6 +49,12 @@ export async function runFetchJob(data: FetchJobData, d: FetchJobDeps): Promise<
     d.log.warn({ err, userId: data.userId, url: data.url, finalAttempt: d.isFinalAttempt }, 'job page did not load');
     if (d.isFinalAttempt) return fail('blocked');
     throw err;
+  }
+
+  // A redirect off LinkedIn/Indeed is never read as a job page, whatever it contains.
+  if (!isAllowedJobHost(page.finalUrl)) {
+    d.log.warn({ userId: data.userId, url: data.url }, 'job page redirected to a host that is not allowed');
+    return fail('blocked');
   }
 
   const result = extractJobPage(page, { url: data.url, source: data.source });

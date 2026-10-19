@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { addResultMessage, FETCH_REASON_TEXT, fetchSourceLabel, fetchStatusText, INVALID_LINK_MESSAGE } from '@/lib/job-fetches';
+import { addResultMessage, FAST_POLL_MAX_AGE_MS, FETCH_REASON_TEXT, fetchSourceLabel, fetchStatusText, hasRecentPendingFetch, INVALID_LINK_MESSAGE } from '@/lib/job-fetches';
 
 describe('fetchStatusText', () => {
   it('describes each status and failure reason in plain language', () => {
@@ -33,5 +33,24 @@ describe('addResultMessage', () => {
 
   it('has an invalid-link message that names both sites', () => {
     expect(INVALID_LINK_MESSAGE).toMatch(/LinkedIn or Indeed/);
+  });
+});
+
+describe('hasRecentPendingFetch', () => {
+  const now = Date.parse('2026-10-19T12:00:00.000Z');
+  const row = (status: 'queued' | 'done' | 'failed', ageMs: number) => ({ status, created_at: new Date(now - ageMs).toISOString() });
+
+  it('is true for a recently queued row', () => {
+    expect(hasRecentPendingFetch([row('done', 0), row('queued', 60_000)], now)).toBe(true);
+  });
+
+  it('is false when nothing is queued or the list is missing', () => {
+    expect(hasRecentPendingFetch([row('done', 0), row('failed', 0)], now)).toBe(false);
+    expect(hasRecentPendingFetch(undefined, now)).toBe(false);
+  });
+
+  it('ignores a queued row older than 10 minutes', () => {
+    expect(hasRecentPendingFetch([row('queued', FAST_POLL_MAX_AGE_MS + 1)], now)).toBe(false);
+    expect(hasRecentPendingFetch([row('queued', FAST_POLL_MAX_AGE_MS)], now)).toBe(true);
   });
 });

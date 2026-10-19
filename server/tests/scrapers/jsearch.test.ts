@@ -140,12 +140,73 @@ describe('createJSearchScraper', () => {
     expect(log.warn).toHaveBeenCalledTimes(1);
   });
 
-  it('refunds a failed request and rethrows the typed error', async () => {
+  const TWO = () => vi.fn<JSearchScraperDeps['loadProfiles']>().mockImplementation(async () => [{ desired_roles: ['Data Analyst', 'Backend Engineer'], location: 'Lagos' }]);
+
+  it('does not refund a malformed answer (the request was sent) and rethrows the typed error', async () => {
     const { scraper, search, quota } = make();
     search.mockImplementation(async () => {
       throw new JSearchError('malformed');
     });
     await expect(scraper.list()).rejects.toMatchObject({ name: 'JSearchError', kind: 'malformed' });
+    expect(quota.refund).not.toHaveBeenCalled();
+  });
+
+  it('refunds only a request that never reached RapidAPI, and rethrows when nothing succeeded', async () => {
+    const { scraper, search, quota } = make();
+    search.mockImplementation(async () => {
+      throw new JSearchError('failed', 'Could not reach JSearch', true);
+    });
+    await expect(scraper.list()).rejects.toMatchObject({ kind: 'failed' });
     expect(quota.refund).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([['timeout'], ['rate_limited'], ['failed']] as const)('does not refund a %s that was sent', async (kind) => {
+    const { scraper, search, quota } = make();
+    search.mockImplementation(async () => {
+      throw new JSearchError(kind);
+    });
+    await expect(scraper.list()).rejects.toMatchObject({ kind });
+    expect(quota.refund).not.toHaveBeenCalled();
+  });
+
+  it('keeps the results of earlier queries when a later one fails', async () => {
+    const { scraper, search, log } = make({ loadProfiles: TWO() });
+    search.mockImplementationOnce(async () => fixture.data).mockImplementationOnce(async () => {
+      throw new JSearchError('timeout');
+    });
+    expect(await scraper.list()).toHaveLength(3);
+    expect(search).toHaveBeenCalledTimes(2);
+    expect(log.warn).toHaveBeenCalled();
+  });
+
+  it('carries on to the next query after a failure and keeps its results', async () => {
+    const { scraper, search } = make({ loadProfiles: TWO() });
+    search.mockImplementationOnce(async () => {
+      throw new JSearchError('failed');
+    }).mockImplementationOnce(async () => fixture.data);
+    expect(await scraper.list()).toHaveLength(3);
+  });
+
+  it('rethrows when every query failed', async () => {
+    const { scraper, search } = make({ loadProfiles: TWO() });
+    search.mockImplementation(async () => {
+      throw new JSearchError('timeout');
+    });
+    await expect(scraper.list()).rejects.toMatchObject({ kind: 'timeout' });
+    expect(search).toHaveBeenCalledTimes(2);
+  });
+
+  it('rethrows an auth error immediately, even after earlier results', async () => {
+    const first = make({ loadProfiles: TWO() });
+    first.search.mockImplementationOnce(async () => fixture.data).mockImplementationOnce(async () => {
+      throw new JSearchError('auth');
+    });
+    await expect(first.scraper.list()).rejects.toMatchObject({ kind: 'auth' });
+    const second = make({ loadProfiles: TWO() });
+    second.search.mockImplementation(async () => {
+      throw new JSearchError('auth');
+    });
+    await expect(second.scraper.list()).rejects.toMatchObject({ kind: 'auth' });
+    expect(second.search).toHaveBeenCalledTimes(1);
   });
 });

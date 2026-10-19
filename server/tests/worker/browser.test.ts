@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { createPageFetcher, PAGE_TIMEOUT_MS, type BrowserLike, type ContextLike, type PageLike } from '../../src/worker/browser.js';
+import { createPageFetcher, guardRoute, PAGE_TIMEOUT_MS, type BrowserLike, type ContextLike, type PageLike, type RouteLike } from '../../src/worker/browser.js';
 
 function fakeBrowser(opts: { goto?: PageLike['goto']; connected?: () => boolean } = {}) {
   const events: string[] = [];
@@ -12,6 +12,7 @@ function fakeBrowser(opts: { goto?: PageLike['goto']; connected?: () => boolean 
     }),
   };
   const context: ContextLike = {
+    route: vi.fn<ContextLike['route']>().mockImplementation(async () => undefined),
     newPage: vi.fn<ContextLike['newPage']>().mockImplementation(async () => page),
     close: vi.fn<ContextLike['close']>().mockImplementation(async () => {
       events.push('context.close');
@@ -122,5 +123,61 @@ describe('createPageFetcher', () => {
     await fetcher.fetchPage(URL_1);
     await fetcher.close();
     expect(f.browser.close).toHaveBeenCalledTimes(1);
+  });
+});
+
+function fakeRoute(type: string, url: string, navigation = false) {
+  const route = {
+    request: () => ({ url: () => url, resourceType: () => type, isNavigationRequest: () => navigation }),
+    abort: vi.fn<RouteLike['abort']>().mockImplementation(async () => undefined),
+    continue: vi.fn<RouteLike['continue']>().mockImplementation(async () => undefined),
+  };
+  return route;
+}
+
+describe('request guard', () => {
+  it('installs the guard on the context before opening a page', async () => {
+    const f = fakeBrowser();
+    const fetcher = createPageFetcher({ launch: async () => f.browser, userAgent: () => 'UA' });
+    await fetcher.fetchPage(URL_1);
+    expect(f.context.route).toHaveBeenCalledWith('**/*', guardRoute);
+    expect(vi.mocked(f.context.route).mock.invocationCallOrder[0]!).toBeLessThan(vi.mocked(f.context.newPage).mock.invocationCallOrder[0]!);
+  });
+
+  it('aborts a document navigation to a host that is not LinkedIn or Indeed', async () => {
+    const r = fakeRoute('document', 'https://evil.example.com/jobs', true);
+    await guardRoute(r);
+    expect(r.abort).toHaveBeenCalledTimes(1);
+    expect(r.continue).not.toHaveBeenCalled();
+  });
+
+  it('aborts a navigation request to another host even when typed otherwise', async () => {
+    const r = fakeRoute('other', 'http://www.linkedin.com/jobs/view/4012345678/', true);
+    await guardRoute(r);
+    expect(r.abort).toHaveBeenCalledTimes(1);
+  });
+
+  it('lets documents on LinkedIn and Indeed through', async () => {
+    for (const url of ['https://www.linkedin.com/jobs/view/4012345678/', 'https://ng.indeed.com/viewjob?jk=0123456789abcdef']) {
+      const r = fakeRoute('document', url, true);
+      await guardRoute(r);
+      expect(r.continue).toHaveBeenCalledTimes(1);
+      expect(r.abort).not.toHaveBeenCalled();
+    }
+  });
+
+  it('aborts images, media and fonts, even on allowed hosts', async () => {
+    for (const type of ['image', 'media', 'font']) {
+      const r = fakeRoute(type, 'https://static.licdn.com/a', false);
+      await guardRoute(r);
+      expect(r.abort).toHaveBeenCalledTimes(1);
+      expect(r.continue).not.toHaveBeenCalled();
+    }
+  });
+
+  it('lets scripts and API calls to other hosts through', async () => {
+    const r = fakeRoute('script', 'https://static.licdn.com/app.js', false);
+    await guardRoute(r);
+    expect(r.continue).toHaveBeenCalledTimes(1);
   });
 });

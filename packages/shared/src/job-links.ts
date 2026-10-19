@@ -36,6 +36,20 @@ function indeed(u: URL, host: string): JobLink | null {
   return { url: `https://${canonicalHost}/viewjob?jk=${key.toLowerCase()}`, source: 'indeed' };
 }
 
+/** True for an https URL on LinkedIn or Indeed (same host rule as canonicalJobUrl); used to vet where a browser ended up. */
+export function isAllowedJobHost(raw: unknown): boolean {
+  if (typeof raw !== 'string') return false;
+  let u: URL;
+  try {
+    u = new URL(raw);
+  } catch {
+    return false;
+  }
+  if (u.protocol !== 'https:' || u.username !== '' || u.password !== '' || u.port !== '') return false;
+  const host = u.hostname.toLowerCase();
+  return LINKEDIN_HOSTS.has(host) || INDEED_HOST.test(host);
+}
+
 /** Returns the canonical job link for a LinkedIn or Indeed job page, or null for anything else. */
 export function canonicalJobUrl(raw: unknown): JobLink | null {
   if (typeof raw !== 'string') return null;

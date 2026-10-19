@@ -4,6 +4,7 @@ import type { Application, ApplicationDetail, ApplicationStatus, ProfilePatch } 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { getApi } from '@/lib/api/runtime';
 import { applyStatusLocal } from '@/lib/applications';
+import { hasRecentPendingFetch } from '@/lib/job-fetches';
 
 export const keys = {
   profile: ['profile'] as const,
@@ -112,7 +113,7 @@ export function useJobFetches() {
     queryKey: keys.jobFetches,
     queryFn: () => getApi().listJobFetches(),
     // Poll faster while a link is still being read.
-    refetchInterval: (query) => (query.state.data?.some((f) => f.status === 'queued') ? 10_000 : 60_000),
+    refetchInterval: (query) => (hasRecentPendingFetch(query.state.data) ? 10_000 : 60_000),
     refetchOnWindowFocus: true,
   });
 }

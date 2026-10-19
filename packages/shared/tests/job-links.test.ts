@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { canonicalJobUrl, MAX_JOB_LINK_LENGTH } from '../src/index.js';
+import { canonicalJobUrl, isAllowedJobHost, MAX_JOB_LINK_LENGTH } from '../src/index.js';
 
 describe('canonicalJobUrl: LinkedIn', () => {
   const canonical = 'https://www.linkedin.com/jobs/view/4012345678/';
@@ -102,4 +102,27 @@ describe('canonicalJobUrl: refused', () => {
     expect(canonicalJobUrl(evil)).toBeNull();
     expect(Date.now() - start).toBeLessThan(500);
   });
+});
+
+describe('isAllowedJobHost', () => {
+  it.each([
+    'https://www.linkedin.com/login',
+    'https://linkedin.com/jobs/view/1',
+    'https://indeed.com/',
+    'https://ng.indeed.com/viewjob?jk=0123456789abcdef',
+    'https://secure.indeed.com/auth',
+  ])('allows %s', (u) => expect(isAllowedJobHost(u)).toBe(true));
+
+  it.each([
+    'http://www.linkedin.com/',
+    'https://evil.example.com/',
+    'https://www.linkedin.com.evil.example/',
+    'https://a.b.indeed.com/',
+    'https://notindeed.com/',
+    'https://user:pw@www.linkedin.com/',
+    'https://www.linkedin.com:8443/',
+    'not a url',
+    '',
+    null,
+  ])('refuses %s', (u) => expect(isAllowedJobHost(u)).toBe(false));
 });
