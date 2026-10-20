@@ -12,6 +12,7 @@ import { followUpRoutes } from './routes/followups.js';
 import { gmailCallbackRoutes, gmailRoutes } from './routes/gmail.js';
 import { jobRoutes } from './routes/jobs.js';
 import { profileRoutes } from './routes/profile.js';
+import { scanRoutes } from './routes/scan.js';
 
 export function createApp(d: AppDeps) {
   const app = express();
@@ -33,6 +34,7 @@ export function createApp(d: AppDeps) {
   app.use('/cv', cvRoutes(d));
   app.use('/applications', applicationRoutes(d));
   app.use('/jobs', jobRoutes(d));
+  app.use('/scan', scanRoutes(d));
   app.use('/analytics', analyticsRoutes(d));
   app.use('/follow-ups', followUpRoutes(d));
   app.use('/gmail', gmailRoutes(d));

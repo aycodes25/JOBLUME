@@ -1,5 +1,5 @@
 import { profilePatchSchema, type ProfilePatch } from '@joblume/shared';
-import type { AddJobLinkResult, Analytics, FollowUp, FollowUpWithJob, GmailReturnTarget, GmailStatus, JobFetch, JobLink } from '@joblume/shared';
+import type { AddJobLinkResult, Analytics, FollowUp, FollowUpWithJob, GmailReturnTarget, GmailStatus, JobFetch, JobLink, ScanStatus } from '@joblume/shared';
 import type { ApplicationRow, ApplicationStatus, ProfileRow } from '../db/types.js';
 import type { AnalyticsRow } from '../services/analytics.js';
 import type { GetUser } from './auth.js';
@@ -38,6 +38,10 @@ export interface JobsService {
   rematch(userId: string): Promise<void>;
 }
 
+export interface ScanService {
+  status(): Promise<ScanStatus>;
+}
+
 export interface JobLinksService {
   addFromUrl(userId: string, link: JobLink): Promise<AddJobLinkResult>;
   listFetches(userId: string): Promise<JobFetch[]>;
@@ -70,6 +74,7 @@ export interface AppDeps {
   cv: { upload(userId: string, file: { buffer: Buffer; originalname?: string }): Promise<{ characters: number }> };
   applications: ApplicationsService;
   jobs: JobsService;
+  scan: ScanService;
   jobLinks: JobLinksService;
   gmail: GmailService;
   sending: SendingService;

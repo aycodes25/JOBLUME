@@ -30,6 +30,8 @@ import { createMonthlyQuota } from '../services/email/quota.js';
 import { renderCvPdf } from '../services/cv/pdf.js';
 import { findJobIdByUrl, findSeenUrls, insertJobs, saveJob } from '../services/jobs/repo.js';
 import { createJobFetchesRepo } from '../services/jobs/fetches-repo.js';
+import { createHeartbeat, HEARTBEAT_EVERY_MS } from '../services/scan/heartbeat.js';
+import { createScanRunsRepo } from '../services/scan/runs.js';
 import { uploadFile } from '../services/storage.js';
 import { matchJob, matchUser, matchUserJob } from './match.js';
 import { createPageFetcher, launchStealthChromium } from './browser.js';
@@ -38,7 +40,7 @@ import { runFindEmail } from './find-email.js';
 import { runFollowUpsJob } from './followups.js';
 import { runSendJob } from './send.js';
 import { createCompanyCache, createWorkerRepos } from './repos.js';
-import { runScrape } from './scrape.js';
+import { runRecordedScrape } from './scrape.js';
 import { runTailor } from './tailor.js';
 
 // Upstash free tier counts every Redis command. Poll idle queues rarely to stay inside the free allowance.
@@ -48,6 +50,7 @@ async function main() {
   const env = getEnv();
   const db = createSupabaseAdmin(env);
   const repos = createWorkerRepos(db);
+  const scanRuns = createScanRunsRepo(db);
   const queues = createQueues(createRedis(env.UPSTASH_REDIS_URL));
   const jsearchClient = env.JSEARCH_API_KEY ? createJSearchClient({ apiKey: env.JSEARCH_API_KEY }) : null;
   const scrapers = createScrapers(fetchText, {
@@ -97,7 +100,7 @@ async function main() {
     async (job) => {
       const { source } = job.data;
       try {
-        return await runScrape({
+        return await runRecordedScrape({
           scraper: scrapers[source],
           maxNew: SCRAPE_LIMITS[source],
           findSeenUrls: (urls) => findSeenUrls(db, urls),
@@ -105,6 +108,9 @@ async function main() {
           enqueueMatch: async (jobId) => {
             await queues.match.add('match', { kind: 'job', jobId }, { jobId: `match-job-${jobId}` });
           },
+          loadCandidates: repos.loadCandidates,
+          recordRun: (run) => scanRuns.record(run),
+          now: () => new Date(),
           sleep,
           log: logger,
         });
@@ -283,8 +289,15 @@ async function main() {
   await queues.followups.upsertJobScheduler('followup-scan', { every: 60 * 60 * 1000 }, { name: 'followups', data: { kind: 'scan' } });
   logger.info({ sources: SCRAPE_SOURCES, jsearch: jsearchClient !== null }, 'worker started; job boards every 6 hours, JSearch daily');
 
+  // Tell the API this worker is alive: once now, then every minute (a missed beat is only logged).
+  const heartbeat = createHeartbeat(createRedis(env.UPSTASH_REDIS_URL));
+  const beat = () => heartbeat.beat().catch((err) => logger.warn({ err }, 'worker heartbeat failed'));
+  void beat();
+  const heartbeatTimer = setInterval(() => void beat(), HEARTBEAT_EVERY_MS);
+
   const shutdown = async (signal: string) => {
     logger.info({ signal }, 'shutting down');
+    clearInterval(heartbeatTimer);
     const closeAll = Promise.allSettled([scrapeWorker.close(), matchWorker.close(), tailorWorker.close(), findEmailWorker.close(), followUpsWorker.close(), sendWorker.close(), fetchJobWorker.close()]).then(() =>
       Promise.allSettled([queues.scrape.close(), queues.match.close(), queues.tailor.close(), queues.findEmail.close(), queues.followups.close(), queues.send.close(), queues.fetchJob.close(), pageFetcher.close()]),
     );
