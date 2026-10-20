@@ -1,5 +1,5 @@
 import { profilePatchSchema, type ProfilePatch } from '@joblume/shared';
-import type { AddJobLinkResult, Analytics, FollowUp, FollowUpWithJob, GmailStatus, JobFetch, JobLink } from '@joblume/shared';
+import type { AddJobLinkResult, Analytics, FollowUp, FollowUpWithJob, GmailReturnTarget, GmailStatus, JobFetch, JobLink } from '@joblume/shared';
 import type { ApplicationRow, ApplicationStatus, ProfileRow } from '../db/types.js';
 import type { AnalyticsRow } from '../services/analytics.js';
 import type { GetUser } from './auth.js';
@@ -44,8 +44,10 @@ export interface JobLinksService {
 }
 
 export interface GmailService {
-  startConnect(userId: string): Promise<string>;
+  startConnect(userId: string, returnTo?: GmailReturnTarget): Promise<string>;
   finishConnect(input: { code?: string; state?: string; error?: string }): Promise<{ ok: true } | { ok: false; reason: string }>;
+  /** 'app' only for a state this server signed for a flow started in the phone app. */
+  returnTarget(state: string | undefined): GmailReturnTarget;
   status(userId: string): Promise<GmailStatus>;
   disconnect(userId: string): Promise<void>;
 }

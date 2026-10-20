@@ -4,3 +4,4 @@ export * from './links.js';
 export * from './api-types.js';
 export * from './job-sources.js';
 export * from './job-links.js';
+export * from './gmail.js';

@@ -1,4 +1,5 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
+import type { GmailReturnTarget } from '@joblume/shared';
 import type { GmailConfig } from './config.js';
 
 export const GMAIL_SCOPES = ['openid', 'email', 'https://www.googleapis.com/auth/gmail.send'] as const;
@@ -11,13 +12,17 @@ const CLOCK_SKEW_MS = 60 * 1000;
 const stateKey = (keyHex: string) =>
   createHmac('sha256', Buffer.from(keyHex, 'hex')).update('joblume:gmail-oauth-state').digest();
 
-export function signState(userId: string, keyHex: string, now: number = Date.now()): string {
-  const payload = Buffer.from(JSON.stringify({ u: userId, t: now })).toString('base64url');
+/** `returnTo: 'app'` adds `r: 'app'` to the signed payload. A web state carries no extra field, so it is unchanged. */
+export function signState(userId: string, keyHex: string, now: number = Date.now(), returnTo: GmailReturnTarget = 'web'): string {
+  const body: { u: string; t: number; r?: 'app' } = { u: userId, t: now };
+  if (returnTo === 'app') body.r = 'app';
+  const payload = Buffer.from(JSON.stringify(body)).toString('base64url');
   const sig = createHmac('sha256', stateKey(keyHex)).update(payload).digest('base64url');
   return `${payload}.${sig}`;
 }
 
-export function verifyState(state: unknown, keyHex: string, now: number = Date.now()): { userId: string } | null {
+/** The payload of a state this server signed, or null. Does not check its age. */
+function signedPayload(state: unknown, keyHex: string): string | null {
   if (typeof state !== 'string') return null;
   const parts = state.split('.');
   if (parts.length !== 2) return null;
@@ -25,6 +30,12 @@ export function verifyState(state: unknown, keyHex: string, now: number = Date.n
   const expected = createHmac('sha256', stateKey(keyHex)).update(payload).digest();
   const given = Buffer.from(sig, 'base64url');
   if (given.length !== expected.length || !timingSafeEqual(given, expected)) return null;
+  return payload;
+}
+
+export function verifyState(state: unknown, keyHex: string, now: number = Date.now()): { userId: string } | null {
+  const payload = signedPayload(state, keyHex);
+  if (payload === null) return null;
   try {
     const data = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8')) as { u?: unknown; t?: unknown };
     if (typeof data.u !== 'string' || typeof data.t !== 'number') return null;
@@ -32,6 +43,21 @@ export function verifyState(state: unknown, keyHex: string, now: number = Date.n
     return { userId: data.u };
   } catch {
     return null;
+  }
+}
+
+/**
+ * Where the callback should send the browser. 'app' only when a state this server signed says so.
+ * The age is not checked, so an expired flow that started on the phone still lands back in the app with its error.
+ */
+export function readReturnTarget(state: unknown, keyHex: string): GmailReturnTarget {
+  const payload = signedPayload(state, keyHex);
+  if (payload === null) return 'web';
+  try {
+    const data = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8')) as { r?: unknown };
+    return data.r === 'app' ? 'app' : 'web';
+  } catch {
+    return 'web';
   }
 }
 

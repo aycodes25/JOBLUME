@@ -4,7 +4,8 @@
   "workspaces": [
     "packages/*",
     "server",
-    "web"
+    "web",
+    "mobile"
   ],
   "scripts": {
     "build:shared": "npm run build -w @joblume/shared",
@@ -12,6 +13,7 @@
     "dev": "concurrently -n server,web -c blue,green \"npm:dev:server\" \"npm:dev:web\"",
     "dev:server": "npm run dev -w server",
     "dev:web": "npm run dev -w web",
+    "dev:mobile": "npm run start -w mobile",
     "typecheck": "npm run build:shared && npm run typecheck --workspaces --if-present",
     "test": "npm run build:shared && npm test --workspaces --if-present",
     "build": "npm run build:shared && npm run build -w server && npm run build -w web"

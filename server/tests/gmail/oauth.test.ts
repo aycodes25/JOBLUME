@@ -2,7 +2,7 @@ import { createHmac } from 'node:crypto';
 import { describe, expect, it, vi } from 'vitest';
 import { gmailConfig } from '../../src/services/gmail/config.js';
 import {
-  buildAuthUrl, exchangeCode, GmailAuthError, GMAIL_SCOPES, signState, verifyState,
+  buildAuthUrl, exchangeCode, GmailAuthError, GMAIL_SCOPES, readReturnTarget, signState, verifyState,
 } from '../../src/services/gmail/oauth.js';
 
 const KEY = 'ab'.repeat(32);
@@ -76,6 +76,38 @@ describe('state signing', () => {
     it('accepts the same helper when the payload is valid (sanity check)', () => {
       expect(verifyState(signRaw(JSON.stringify({ u: 'user-1', t: NOW })), KEY, NOW)).toEqual({ userId: 'user-1' });
     });
+  });
+});
+
+describe('return target in the signed state', () => {
+  it('leaves a web state exactly as before (no extra field)', () => {
+    expect(signState('user-1', KEY, NOW, 'web')).toBe(signState('user-1', KEY, NOW));
+    const payload = JSON.parse(Buffer.from(signState('user-1', KEY, NOW).split('.')[0]!, 'base64url').toString('utf8'));
+    expect(payload).toEqual({ u: 'user-1', t: NOW });
+  });
+
+  it('marks an app state and still verifies it for the same user', () => {
+    const state = signState('user-1', KEY, NOW, 'app');
+    expect(verifyState(state, KEY, NOW)).toEqual({ userId: 'user-1' });
+    expect(readReturnTarget(state, KEY)).toBe('app');
+    expect(readReturnTarget(signState('user-1', KEY, NOW), KEY)).toBe('web');
+  });
+
+  it('still returns an expired app state to the app (the signature is what matters here)', () => {
+    const state = signState('user-1', KEY, NOW - 60 * 60 * 1000, 'app');
+    expect(verifyState(state, KEY, NOW)).toBeNull();
+    expect(readReturnTarget(state, KEY)).toBe('app');
+  });
+
+  it('never trusts an unsigned or forged app marker', () => {
+    const forgedPayload = Buffer.from(JSON.stringify({ u: 'user-1', t: NOW, r: 'app' })).toString('base64url');
+    const [, webSig] = signState('user-1', KEY, NOW).split('.') as [string, string];
+    expect(readReturnTarget(`${forgedPayload}.${webSig}`, KEY)).toBe('web');
+    expect(readReturnTarget(signState('user-1', OTHER_KEY, NOW, 'app'), KEY)).toBe('web');
+  });
+
+  it.each([undefined, 42, '', 'nodots', 'a.b.c'])('falls back to web for %j', (state) => {
+    expect(readReturnTarget(state, KEY)).toBe('web');
   });
 });
 

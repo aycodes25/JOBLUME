@@ -7,7 +7,7 @@ Semi-automatic job application platform. Phase 1 is the backend that finds jobs 
 1. Create a Supabase project and run `supabase/migrations/0001_init.sql` (CLI `supabase db push`, or the SQL editor). In Authentication, enable the Email provider. For easy local testing you may turn off "Confirm email".
 2. Copy `.env.example` to `.env` and fill in the server values (Supabase, Gemini, Upstash). For email sending also set `GMAIL_CLIENT_ID`, `GMAIL_CLIENT_SECRET`, `GMAIL_REDIRECT_URI` and optionally `HUNTER_API_KEY` and `HUNTER_MONTHLY_LIMIT` (see `.env.example`). `GEMINI_MODEL` must be a model Google currently offers. `WEB_ORIGIN` must equal the web app's address (`http://localhost:3000` in development).
 3. Copy `web/.env.example` to `web/.env.local` and set `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` (public values only) and `NEXT_PUBLIC_API_URL` (`http://localhost:4000`).
-4. From the repo root run `npm install`. This is an npm workspace (`server`, `web`, `packages/shared`); the install also builds the shared package.
+4. From the repo root run `npm install`. This is an npm workspace (`server`, `web`, `mobile`, `packages/shared`); the install also builds the shared package.
 5. Run everything with `npm run dev` (server on port 4000, web on port 3000), or separately with `npm run dev:server` and `npm run dev:web`.
 6. Open http://localhost:3000, create an account, and follow the onboarding steps (upload your CV, set your roles).
 
@@ -42,6 +42,18 @@ API endpoints: `GET /profile`, `PUT /profile`, `POST /cv`, `GET /applications`, 
 - **Applying stays manual:** for LinkedIn and Indeed jobs you use the job link, the tailored CV and the cover letter, and apply on the site yourself. Auto mode never sends these, and JobLume never submits anything on LinkedIn or Indeed, never signs in to them, and never crawls their search pages.
 - **More endpoints:** `POST /jobs/from-url` (body `{ "url": "..." }`, 10 an hour per user), `GET /jobs/fetches`.
 - **Test it:** work through `docs/phase4-manual-checklist.md`.
+
+## Mobile app (Phase 5)
+
+An Android-first Expo app in `mobile/` (Expo SDK 58, Expo Router, React Native 0.88) with the same functions as the web dashboard: sign-in, the queue (search, All / 90%+ / Recent, Follow-ups, Add a job link, pull to refresh), job detail (approve, send by email, skip, assisted apply with PDF share), tracker, analytics, settings with Gmail, and onboarding with CV upload. It talks only to the Express API with your Supabase access token; Supabase JS is used only to sign in and refresh the session, which is kept in the phone's SecureStore. Nothing is sent without your tap, except under the existing Auto-mode rules on the server.
+
+- **Configure:** copy `mobile/.env.example` to `mobile/.env` and set `EXPO_PUBLIC_SUPABASE_URL`, `EXPO_PUBLIC_SUPABASE_ANON_KEY` and `EXPO_PUBLIC_API_URL=http://<your PC's Wi-Fi IP>:4000` (not `localhost`; the phone is another device). Only these three public values go into the app. Never commit `mobile/.env`.
+- **Run on your phone:** install Expo Go from the Play Store, put the phone on the same Wi-Fi as the PC, run `npm run dev:server` and `npm run dev:mobile`, then scan the QR code with Expo Go. Windows must allow inbound TCP 4000 (and 8081 for the Metro bundler) on your private network; see `docs/phase5-manual-checklist.md`.
+- **Gmail from the phone:** Settings, Connect Gmail opens Google in an in-app browser and the API sends you back to `joblume://gmail-return`. Google only accepts `http://localhost` or an https address as `GMAIL_REDIRECT_URI`, so while the API runs on your PC connect Gmail once from the web app on the PC; the phone then shows it connected (the connection belongs to your account, not the device).
+- **Standalone APK (later):** `mobile/eas.json` has a `preview` profile that builds an APK with EAS Build. It needs a deployed https API first (out of scope for this phase); the steps are in the checklist.
+- **Tests:** `npm test -w mobile` (Jest with jest-expo and React Native Testing Library, fakes only) and `npm run typecheck -w mobile`.
+- **React version:** the repo-root override pins React `19.3.1`; Expo SDK 58 lists `19.3.0`. `mobile/package.json` excludes `react` and `react-dom` from `expo install --check`, and React Native 0.88 accepts `^19.3.0`, so there is one React for all workspaces.
+- **Test it:** work through `docs/phase5-manual-checklist.md` on a real phone.
 
 ## Getting a test token (API only, without the web app)
 
