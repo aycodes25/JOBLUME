@@ -1,12 +1,14 @@
 import type { FetchText } from '../lib/http.js';
 import { logger } from '../lib/logger.js';
+import { createArbeitnowScraper } from './arbeitnow.js';
 import { createJobbermanScraper } from './jobberman.js';
 import { createJSearchScraper } from './jsearch.js';
 import { createMyJobMagScraper } from './myjobmag.js';
+import { createRemoteOkScraper } from './remoteok.js';
 import { createRemotiveScraper } from './remotive.js';
 import type { Scraper } from './types.js';
 
-export const SCRAPE_SOURCES = ['remotive', 'myjobmag', 'jobberman', 'jsearch'] as const;
+export const SCRAPE_SOURCES = ['remotive', 'myjobmag', 'jobberman', 'remoteok', 'arbeitnow', 'jsearch'] as const;
 export type ScrapeSource = (typeof SCRAPE_SOURCES)[number];
 
 /** Max NEW jobs processed per run, to keep detail requests polite. */
@@ -14,6 +16,8 @@ export const SCRAPE_LIMITS: Record<ScrapeSource, number> = {
   remotive: 100,
   myjobmag: 60,
   jobberman: 60,
+  remoteok: 60,
+  arbeitnow: 60,
   jsearch: 50,
 };
 
@@ -43,6 +47,8 @@ export function createScrapers(fetchText: FetchText, extra: { jsearch?: Scraper 
     remotive: createRemotiveScraper(fetchText),
     myjobmag: createMyJobMagScraper(fetchText),
     jobberman: createJobbermanScraper(fetchText),
+    remoteok: createRemoteOkScraper(fetchText),
+    arbeitnow: createArbeitnowScraper(fetchText),
     jsearch: extra.jsearch ?? inertJSearch(),
   };
 }
