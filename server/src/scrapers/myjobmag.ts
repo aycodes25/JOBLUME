@@ -1,5 +1,5 @@
 import * as cheerio from 'cheerio';
-import type { JobStub } from '../domain/jobs.js';
+import { parsePostedAt, type JobStub } from '../domain/jobs.js';
 import { htmlToText } from '../lib/html.js';
 import type { FetchText } from '../lib/http.js';
 import type { Scraper } from './types.js';
@@ -32,7 +32,10 @@ export function parseMyJobMagList(html: string): JobStub[] {
   return stubs;
 }
 
-export function parseMyJobMagDetail(html: string): { description: string; location: string } {
+// The page's JSON-LD block is not always valid JSON (raw control characters), so the posted time is read with a pattern.
+const DATE_POSTED = /"datePosted"\s*:\s*"([^"]+)"/;
+
+export function parseMyJobMagDetail(html: string): { description: string; location: string; postedAt?: string } {
   const $ = cheerio.load(html);
   let location = '';
   $('ul.job-key-info li').each((_, li) => {
@@ -46,7 +49,8 @@ export function parseMyJobMagDetail(html: string): { description: string; locati
     .get()
     .join('\n\n')
     .trim();
-  return { description, location };
+  const postedAt = parsePostedAt(DATE_POSTED.exec(html)?.[1]);
+  return { description, location, ...(postedAt ? { postedAt } : {}) };
 }
 
 export function createMyJobMagScraper(fetchText: FetchText): Scraper {
@@ -57,7 +61,7 @@ export function createMyJobMagScraper(fetchText: FetchText): Scraper {
       return parseMyJobMagList(await fetchText(LIST_URL));
     },
     async detail(stub) {
-      const { description, location } = parseMyJobMagDetail(await fetchText(stub.url));
+      const { description, location, postedAt } = parseMyJobMagDetail(await fetchText(stub.url));
       return {
         title: stub.title,
         company: stub.company,
@@ -66,6 +70,7 @@ export function createMyJobMagScraper(fetchText: FetchText): Scraper {
         source: 'myjobmag',
         url: stub.url,
         companyDomain: null,
+        postedAt: postedAt ?? null,
       };
     },
   };

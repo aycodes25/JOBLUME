@@ -1,5 +1,5 @@
 import * as cheerio from 'cheerio';
-import type { JobStub } from '../domain/jobs.js';
+import { parsePostedAt, type JobStub } from '../domain/jobs.js';
 import { htmlToText } from '../lib/html.js';
 import type { FetchText } from '../lib/http.js';
 import type { Scraper } from './types.js';
@@ -28,21 +28,25 @@ export function parseJobbermanList(html: string): JobStub[] {
   return stubs;
 }
 
-export function parseJobbermanDetail(html: string): { description: string } {
+export function parseJobbermanDetail(html: string): { description: string; postedAt?: string } {
   const $ = cheerio.load(html);
   let description = '';
+  let postedAt: string | null = null;
   $('script[type="application/ld+json"]').each((_, el) => {
     if (description) return;
     try {
       const json = JSON.parse($(el).contents().text()) as { '@graph'?: unknown[] } | unknown[];
-      const nodes = (Array.isArray(json) ? json : (json['@graph'] ?? [json])) as Array<{ '@type'?: string; description?: string }>;
+      const nodes = (Array.isArray(json) ? json : (json['@graph'] ?? [json])) as Array<{ '@type'?: string; description?: string; datePosted?: string }>;
       const posting = nodes.find((n) => n['@type'] === 'JobPosting' && n.description);
-      if (posting?.description) description = htmlToText(posting.description);
+      if (posting?.description) {
+        description = htmlToText(posting.description);
+        postedAt = parsePostedAt(posting.datePosted);
+      }
     } catch {
       /* ignore malformed JSON-LD blocks */
     }
   });
-  return { description };
+  return { description, ...(postedAt ? { postedAt } : {}) };
 }
 
 export function createJobbermanScraper(fetchText: FetchText): Scraper {
@@ -53,7 +57,7 @@ export function createJobbermanScraper(fetchText: FetchText): Scraper {
       return parseJobbermanList(await fetchText(LIST_URL));
     },
     async detail(stub) {
-      const { description } = parseJobbermanDetail(await fetchText(stub.url));
+      const { description, postedAt } = parseJobbermanDetail(await fetchText(stub.url));
       return {
         title: stub.title,
         company: stub.company,
@@ -62,6 +66,7 @@ export function createJobbermanScraper(fetchText: FetchText): Scraper {
         source: 'jobberman',
         url: stub.url,
         companyDomain: null,
+        postedAt: postedAt ?? null,
       };
     },
   };

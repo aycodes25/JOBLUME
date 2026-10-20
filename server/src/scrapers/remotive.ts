@@ -1,4 +1,4 @@
-import type { JobStub } from '../domain/jobs.js';
+import { parsePostedAt, type JobStub } from '../domain/jobs.js';
 import type { FetchText } from '../lib/http.js';
 import { htmlToText } from '../lib/html.js';
 import type { Scraper } from './types.js';
@@ -11,6 +11,7 @@ interface RemotiveJob {
   company_name?: string;
   candidate_required_location?: string;
   description?: string;
+  publication_date?: string;
 }
 
 export function parseRemotive(json: string): JobStub[] {
@@ -25,6 +26,7 @@ export function parseRemotive(json: string): JobStub[] {
       url: j.url,
       source: 'remotive',
       description: htmlToText(j.description ?? ''),
+      postedAt: parsePostedAt(j.publication_date),
     });
   }
   return stubs;
@@ -45,6 +47,7 @@ export function createRemotiveScraper(fetchText: FetchText): Scraper {
         source: 'remotive',
         url: stub.url,
         companyDomain: null,
+        postedAt: stub.postedAt ?? null,
       };
     },
   };

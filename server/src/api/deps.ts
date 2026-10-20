@@ -13,7 +13,7 @@ export interface ProfileRepo {
 }
 
 export interface ApplicationWithJob extends ApplicationRow {
-  job: { title: string; company: string; location: string; source: string; url: string; company_domain: string | null } | null;
+  job: { title: string; company: string; location: string; source: string; url: string; company_domain: string | null; posted_at?: string | null } | null;
 }
 
 export interface ApplicationsRepo {
