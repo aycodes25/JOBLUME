@@ -13,7 +13,7 @@ export function makeDeps(over: Partial<AppDeps> = {}): AppDeps {
     jobLinks: { addFromUrl: vi.fn(), listFetches: vi.fn() },
     sending: { send: vi.fn() },
     followUps: { list: vi.fn(), update: vi.fn(), send: vi.fn(), dismiss: vi.fn() },
-    gmail: { startConnect: vi.fn(), finishConnect: vi.fn(), status: vi.fn(), disconnect: vi.fn() },
+    gmail: { startConnect: vi.fn(), finishConnect: vi.fn(), returnTarget: vi.fn(() => 'web' as const), status: vi.fn(), disconnect: vi.fn() },
     ...over,
   };
 }

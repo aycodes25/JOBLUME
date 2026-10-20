@@ -32,6 +32,15 @@ describe('startConnect', () => {
     expect(url.searchParams.get('state')).toBe(signState('user-1', KEY, NOW));
   });
 
+  it('signs an app return target into the state when asked, and reads it back', async () => {
+    const { service } = make();
+    const state = new URL(await service.startConnect('user-1', 'app')).searchParams.get('state')!;
+    expect(state).toBe(signState('user-1', KEY, NOW, 'app'));
+    expect(service.returnTarget(state)).toBe('app');
+    expect(service.returnTarget(signState('user-1', KEY, NOW))).toBe('web');
+    expect(service.returnTarget(undefined)).toBe('web');
+  });
+
   it('answers 503 gmail_not_configured without settings', async () => {
     await expect(make({ cfg: null }).service.startConnect('u')).rejects.toMatchObject(expect.objectContaining({ status: 503, code: 'gmail_not_configured' }));
   });

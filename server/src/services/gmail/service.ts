@@ -3,7 +3,7 @@ import type { Redis } from 'ioredis';
 import { ApiError } from '../../lib/errors.js';
 import type { GmailService } from '../../api/deps.js';
 import type { GmailConfig } from './config.js';
-import { buildAuthUrl, exchangeCode, GmailAuthError, signState, verifyState } from './oauth.js';
+import { buildAuthUrl, exchangeCode, GmailAuthError, readReturnTarget, signState, verifyState } from './oauth.js';
 import type { GmailTokens } from './tokens.js';
 
 const STATE_TTL_SECONDS = 10 * 60;
@@ -20,12 +20,14 @@ export function createGmailService(deps: {
   const now = deps.now ?? Date.now;
   const stateKey = (state: string) => `gmail-oauth-state:${createHash('sha256').update(state).digest('hex')}`;
   return {
-    async startConnect(userId) {
+    async startConnect(userId, returnTo = 'web') {
       if (!deps.cfg) throw new ApiError(503, 'gmail_not_configured', 'Gmail is not configured on this server');
-      const state = signState(userId, deps.encryptionKey, now());
+      const state = signState(userId, deps.encryptionKey, now(), returnTo);
       await deps.redis.set(stateKey(state), userId, 'EX', STATE_TTL_SECONDS, 'NX');
       return buildAuthUrl(deps.cfg, state);
     },
+
+    returnTarget: (state) => readReturnTarget(state, deps.encryptionKey),
 
     async finishConnect({ code, state, error }) {
       if (!deps.cfg) return { ok: false, reason: 'not_configured' };
