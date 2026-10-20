@@ -30,7 +30,7 @@ beforeEach(() => {
 });
 
 describe('SettingsForm', () => {
-  const initial = { applyMode: 'manual' as const, autoThreshold: '80', dailyCap: '10', autoFollowup: false };
+  const initial = { applyMode: 'manual' as const, autoThreshold: '80', dailyCap: '10', autoFollowup: false, notifyNewMatches: false };
 
   it('saves the apply mode, threshold, cap and follow-up choice', async () => {
     const onSubmit = jest.fn().mockResolvedValue(undefined);
@@ -39,8 +39,19 @@ describe('SettingsForm', () => {
     await fireEvent.changeText(screen.getByLabelText('Auto-apply threshold'), '90');
     await fireEvent.press(screen.getByRole('checkbox', { name: 'Auto follow-up' }));
     await fireEvent.press(screen.getByRole('button', { name: 'Save settings' }));
-    expect(onSubmit).toHaveBeenCalledWith({ apply_mode: 'auto', auto_threshold: 90, daily_cap: 10, auto_followup: true });
+    expect(onSubmit).toHaveBeenCalledWith({ apply_mode: 'auto', auto_threshold: 90, daily_cap: 10, auto_followup: true, notify_new_matches: false });
     expect(await screen.findByText('Saved.')).toBeOnTheScreen();
+  });
+
+  it('has the new-match email switch off by default and saves it when ticked', async () => {
+    const onSubmit = jest.fn().mockResolvedValue(undefined);
+    await render(<SettingsForm initial={initial} onSubmit={onSubmit} />);
+    expect(screen.getByRole('checkbox', { name: 'Email me about new matches' })).not.toBeChecked();
+    expect(screen.getByText(/at most one email an hour/i)).toBeOnTheScreen();
+    expect(screen.getByText(/never includes your CV/i)).toBeOnTheScreen();
+    await fireEvent.press(screen.getByRole('checkbox', { name: 'Email me about new matches' }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Save settings' }));
+    expect(onSubmit).toHaveBeenCalledWith({ apply_mode: 'manual', auto_threshold: 80, daily_cap: 10, auto_followup: false, notify_new_matches: true });
   });
 
   it('keeps the daily cap between 1 and 20', async () => {
