@@ -14,6 +14,7 @@ export const profilePatchSchema = z
     auto_threshold: z.number().int().min(0).max(100),
     daily_cap: z.number().int().min(1).max(20),
     auto_followup: z.boolean(),
+    notify_new_matches: z.boolean(),
   })
   .partial()
   .strict()

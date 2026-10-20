@@ -6,6 +6,11 @@ const SOURCES: Record<string, string> = {
   jobberman: 'Jobberman',
   linkedin: 'LinkedIn',
   indeed: 'Indeed',
+  remoteok: 'RemoteOK',
+  weworkremotely: 'We Work Remotely',
+  himalayas: 'Himalayas',
+  arbeitnow: 'Arbeitnow',
+  jsearch: 'JSearch (LinkedIn, Indeed)',
 };
 
 export const sourceLabel = (source: string): string => SOURCES[source] ?? source;

@@ -56,6 +56,7 @@ export const profile = (over: Partial<Profile> = {}): Profile => ({
   auto_threshold: 80,
   daily_cap: 10,
   auto_followup: false,
+  notify_new_matches: false,
   updated_at: '2026-10-18T10:00:00.000Z',
   ...over,
 });

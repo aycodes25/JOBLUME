@@ -10,7 +10,7 @@ const job: JobRow = {
 const profile: ProfileRow = {
   user_id: 'u1', base_cv_text: 'My CV text', base_cv_url: 'u1/base-cv.pdf', base_cv_filename: null, skills: ['Node.js'], years_experience: 4,
   desired_roles: ['backend engineer'], location: 'Lagos', salary_min: null, salary_max: null, apply_mode: 'manual',
-  auto_threshold: 80, daily_cap: 20, auto_followup: false, updated_at: '',
+  auto_threshold: 80, daily_cap: 20, auto_followup: false, notify_new_matches: false, updated_at: '',
 };
 const result = { tailored_cv_text: 'TAILORED', cover_letter_text: 'LETTER', match_score_0_to_100: 77, missing_keywords: ['Docker'] };
 

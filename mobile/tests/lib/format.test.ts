@@ -7,6 +7,11 @@ describe('sourceLabel', () => {
     expect(sourceLabel('jobberman')).toBe('Jobberman');
     expect(sourceLabel('linkedin')).toBe('LinkedIn');
     expect(sourceLabel('indeed')).toBe('Indeed');
+    expect(sourceLabel('remoteok')).toBe('RemoteOK');
+    expect(sourceLabel('weworkremotely')).toBe('We Work Remotely');
+    expect(sourceLabel('himalayas')).toBe('Himalayas');
+    expect(sourceLabel('arbeitnow')).toBe('Arbeitnow');
+    expect(sourceLabel('jsearch')).toBe('JSearch (LinkedIn, Indeed)');
     expect(sourceLabel('somewhere')).toBe('somewhere');
   });
 });

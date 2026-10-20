@@ -16,6 +16,7 @@ export interface Profile {
   auto_threshold: number;
   daily_cap: number;
   auto_followup: boolean;
+  notify_new_matches: boolean;
   updated_at: string;
 }
 
@@ -26,6 +27,8 @@ export interface JobSummary {
   source: string;
   url: string;
   company_domain: string | null;
+  /** When the source says the job was posted (ISO time). Missing or null: use the application's created_at. */
+  posted_at?: string | null;
 }
 
 export interface Application {
@@ -108,3 +111,28 @@ export interface JobFetch {
 
 /** POST /jobs/from-url: 202 { queued: true } for a new link, 200 { job_id } when the job is already stored. */
 export type AddJobLinkResult = { queued: true } | { job_id: string };
+
+/** One finished scan of one source, as listed by GET /scan/status. */
+export interface ScanRun {
+  /** A job board name ('myjobmag', 'remoteok', ...) or 'jsearch'. */
+  source: string;
+  started_at: string;
+  finished_at: string;
+  status: 'ok' | 'failed';
+  /** A short reason when status is 'failed'. */
+  error: string | null;
+  listed: number;
+  new_count: number;
+  inserted: number;
+  /** New jobs no user's roles matched on the title. */
+  rejected_title: number;
+  /** New jobs whose title matched somebody but whose place did not. */
+  rejected_location: number;
+}
+
+/** GET /scan/status: the latest run per source and whether the worker has reported in lately. */
+export interface ScanStatus {
+  worker_alive: boolean;
+  worker_last_seen: string | null;
+  runs: ScanRun[];
+}
