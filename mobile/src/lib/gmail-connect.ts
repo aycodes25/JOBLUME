@@ -26,7 +26,7 @@ export async function connectGmail(deps: GmailConnectDeps): Promise<GmailReturn 
   } catch {
     return { kind: 'error', reason: 'unknown' };
   }
-  if (parsed.protocol !== 'https:' || parsed.hostname !== 'accounts.google.com') return { kind: 'error', reason: 'unknown' };
+  if (parsed.protocol !== 'https:' || parsed.hostname !== 'accounts.google.com' || !url.startsWith('https://accounts.google.com/')) return { kind: 'error', reason: 'unknown' };
   try {
     const result = await deps.openAuth(url, MOBILE_GMAIL_RETURN);
     return result.type === 'success' && 'url' in result ? parseGmailReturnUrl(result.url) : null;

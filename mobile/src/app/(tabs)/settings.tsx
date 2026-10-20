@@ -7,8 +7,13 @@ export default function SettingsTab() {
   return (
     <SettingsScreen
       onSignOut={async () => {
-        const { error } = await getSupabase().auth.signOut();
-        if (error) throw error;
+        const auth = getSupabase().auth;
+        const { error } = await auth.signOut();
+        if (error) {
+          // Offline or the server refused: still end this device's session so the user lands on /login.
+          const local = await auth.signOut({ scope: 'local' });
+          if (local.error) throw local.error;
+        }
         qc.clear();
       }}
     />

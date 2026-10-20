@@ -7,7 +7,7 @@ import { AddJobLink } from '@/components/jobs/AddJobLink';
 import { Button } from '@/components/ui/Button';
 import { Chips } from '@/components/ui/Chips';
 import { Screen } from '@/components/ui/Screen';
-import { EmptyState, ErrorState, Loading, Message } from '@/components/ui/States';
+import { EmptyState, ErrorState, InlineError, Loading, Message } from '@/components/ui/States';
 import { useAddJobLink, useApplications, useFollowUps, useJobFetches, useRefreshJobs } from '@/hooks/api';
 import { describeApiError } from '@/lib/api/errors';
 import { splitQueue, type QueueTab } from '@/lib/applications';
@@ -41,7 +41,7 @@ export function QueueScreen() {
   const groups = useMemo(() => splitQueue(apps.data ?? []), [apps.data]);
 
   if (apps.isLoading) return <Loading />;
-  if (apps.error) return <ErrorState message={describeApiError(apps.error)} onRetry={() => void apps.refetch()} />;
+  if (apps.error && !apps.data) return <ErrorState message={describeApiError(apps.error)} onRetry={() => void apps.refetch()} />;
 
   const drafts = followUps.data ?? [];
   const segments = [
@@ -60,6 +60,7 @@ export function QueueScreen() {
 
   return (
     <Screen onRefresh={onRefresh} refreshing={apps.isRefetching}>
+      {apps.error ? <InlineError message={describeApiError(apps.error)} onRetry={() => void apps.refetch()} /> : null}
       <View>
         <Text style={styles.welcome}>Welcome back,</Text>
         <Text style={styles.name}>{email ?? 'JobLume'}</Text>

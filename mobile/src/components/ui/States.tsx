@@ -23,6 +23,16 @@ export function ErrorState({ message, onRetry }: { message: string; onRetry?: ()
   );
 }
 
+/** A small message with a retry, shown above cached data when a background refetch fails (the data stays on screen). */
+export function InlineError({ message, onRetry }: { message: string; onRetry?: () => void }) {
+  return (
+    <View style={styles.inline}>
+      <Message kind="error" text={message} />
+      {onRetry ? <Button label="Try again" variant="outline" size="sm" onPress={onRetry} /> : null}
+    </View>
+  );
+}
+
 export function EmptyState({ title, description, action }: { title: string; description: string; action?: ReactNode }) {
   return (
     <View style={styles.empty}>
@@ -55,4 +65,5 @@ const styles = StyleSheet.create({
   title: { fontSize: font.heading, fontWeight: '600', color: colors.text, textAlign: 'center' },
   description: { fontSize: font.small, color: colors.muted, textAlign: 'center' },
   message: { fontSize: font.small },
+  inline: { gap: space(2) },
 });

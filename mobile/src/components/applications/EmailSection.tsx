@@ -1,5 +1,5 @@
 import type { ApplicationDetail, GmailStatus } from '@joblume/shared';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -40,7 +40,15 @@ export function EmailSection({ app, gmail, lockedReason, pending, error, notice,
   const gmailConnected = gmail?.connected === true;
   const reason = sendDisabledReason({ gmailConnected, email, isGuess: info.isGuess, guessConfirmed, locked: lockedReason });
 
+  const sending = useRef(false);
+  useEffect(() => {
+    if (!pending) sending.current = false;
+  }, [pending]);
+
   function submit() {
+    // Two taps in one frame arrive before `pending` re-renders; only the first is sent until the request settles.
+    if (sending.current) return;
+    sending.current = true;
     onSend({ to: email.trim(), ...(info.isGuess && guessConfirmed ? { confirmGuess: true } : {}) });
   }
 

@@ -21,7 +21,7 @@ export default function TabsLayout() {
   const pending = apps.data?.filter((a) => a.status === 'pending_review').length ?? 0;
 
   if (profile.isLoading) return <Loading />;
-  if (profile.error) return <ErrorState message={describeApiError(profile.error)} onRetry={() => void profile.refetch()} />;
+  if (profile.error && !profile.data) return <ErrorState message={describeApiError(profile.error)} onRetry={() => void profile.refetch()} />;
   if (profile.data && needsOnboarding(profile.data)) return <Redirect href="/onboarding" />;
 
   return (

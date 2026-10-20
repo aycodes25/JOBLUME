@@ -1,5 +1,5 @@
 import type { ApplicationDetail } from '@joblume/shared';
-import { fireEvent, render, screen } from '@testing-library/react-native';
+import { act, fireEvent, render, screen } from '@testing-library/react-native';
 import { EmailSection, type EmailSectionProps } from '@/components/applications/EmailSection';
 import { detail } from '../fixtures';
 
@@ -125,5 +125,15 @@ describe('EmailSection send flow', () => {
     );
     expect(screen.getByLabelText('Recipient')).toHaveDisplayValue('jobs@other.com');
     expect(screen.getByRole('checkbox', { name: 'Send to this guessed address' })).not.toBeChecked();
+  });
+
+  it('sends once when Send is tapped twice in the same frame', async () => {
+    const { onSend } = await setup();
+    const press = screen.getByRole('button', { name: 'Send application' }).props.onClick;
+    await act(async () => {
+      press();
+      press();
+    });
+    expect(onSend).toHaveBeenCalledTimes(1);
   });
 });

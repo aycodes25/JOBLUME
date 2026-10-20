@@ -30,7 +30,7 @@ describe('connectGmail', () => {
     expect(d.refresh).toHaveBeenCalledTimes(1);
   });
 
-  it.each(['http://accounts.google.com/o/oauth2/v2/auth', 'https://evil.example/o/oauth2', 'javascript:alert(1)', 'nonsense'])(
+  it.each(['http://accounts.google.com/o/oauth2/v2/auth', 'https://evil.example/o/oauth2', 'javascript:alert(1)', 'nonsense', 'https://evil.com/x@accounts.google.com', 'https://accounts.google.com.evil.com/o/oauth2', 'https://accounts.google.com@evil.com/o/oauth2'])(
     'never opens %s',
     async (url) => {
       const d = deps({ start: jest.fn().mockResolvedValue({ url }) });

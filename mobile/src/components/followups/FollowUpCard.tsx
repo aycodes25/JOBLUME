@@ -1,5 +1,5 @@
 import type { FollowUpWithJob } from '@joblume/shared';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -28,6 +28,17 @@ export function FollowUpCard({ followUp, pending, error, onSave, onSend, onDismi
     setBody(followUp.body);
   }, [followUp.id, followUp.subject, followUp.body]);
 
+  const sending = useRef(false);
+  useEffect(() => {
+    if (!pending) sending.current = false;
+  }, [pending]);
+  function send() {
+    // Two taps in one frame arrive before `pending` re-renders; only the first is sent until the request settles.
+    if (sending.current) return;
+    sending.current = true;
+    onSend();
+  }
+
   const edit = buildFollowUpPatch({ subject: followUp.subject, body: followUp.body }, { subject, body });
   const hasErrors = Object.keys(edit.errors).length > 0;
 
@@ -41,7 +52,7 @@ export function FollowUpCard({ followUp, pending, error, onSave, onSend, onDismi
       <TextField label="Message" value={body} onChangeText={setBody} error={edit.errors.body} multiline lines={8} />
       <View style={styles.actions}>
         <Button label="Save changes" variant="outline" size="sm" disabled={!edit.dirty || hasErrors || pending} onPress={() => onSave(edit.patch)} />
-        <Button label="Send follow-up" size="sm" disabled={edit.dirty || pending} onPress={onSend} />
+        <Button label="Send follow-up" size="sm" disabled={edit.dirty || pending} onPress={send} />
         <Button label="Dismiss" variant="ghost" size="sm" disabled={pending} onPress={onDismiss} />
       </View>
       {edit.dirty ? <Text style={styles.muted}>Save your changes first.</Text> : null}

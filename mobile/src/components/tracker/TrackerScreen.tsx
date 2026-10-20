@@ -7,7 +7,7 @@ import { Card } from '@/components/ui/Card';
 import { Chips } from '@/components/ui/Chips';
 import { OptionSheet } from '@/components/ui/OptionSheet';
 import { Screen } from '@/components/ui/Screen';
-import { EmptyState, ErrorState, Loading, Message } from '@/components/ui/States';
+import { EmptyState, ErrorState, InlineError, Loading, Message } from '@/components/ui/States';
 import { useApplications, useSetStatus } from '@/hooks/api';
 import { describeApiError } from '@/lib/api/errors';
 import { groupByColumn } from '@/lib/applications';
@@ -57,7 +57,7 @@ export function TrackerScreen() {
   const groups = useMemo(() => groupByColumn(items), [items]);
 
   if (apps.isLoading) return <Loading />;
-  if (apps.error) return <ErrorState message={describeApiError(apps.error)} onRetry={() => void apps.refetch()} />;
+  if (apps.error && !apps.data) return <ErrorState message={describeApiError(apps.error)} onRetry={() => void apps.refetch()} />;
 
   const shown = groups[tab].filter((a) => matchesSearch(a, search));
   const stats = [
@@ -69,6 +69,7 @@ export function TrackerScreen() {
 
   return (
     <Screen title="Application Tracker" onRefresh={() => void apps.refetch()} refreshing={apps.isRefetching}>
+      {apps.error ? <InlineError message={describeApiError(apps.error)} onRetry={() => void apps.refetch()} /> : null}
       <View style={styles.stats}>
         {stats.map((s) => (
           <View key={s.label} style={styles.stat}>

@@ -7,7 +7,7 @@ import { SettingsForm } from '@/components/profile/SettingsForm';
 import { Button } from '@/components/ui/Button';
 import { Section } from '@/components/ui/Card';
 import { Screen } from '@/components/ui/Screen';
-import { ErrorState, Loading, Message } from '@/components/ui/States';
+import { ErrorState, InlineError, Loading, Message } from '@/components/ui/States';
 import { useProfile, useUpdateProfile, useUploadCv } from '@/hooks/api';
 import { describeApiError } from '@/lib/api/errors';
 import { displayCvName } from '@/lib/cv-name';
@@ -34,7 +34,7 @@ export function SettingsScreen({ onSignOut }: SettingsScreenProps) {
   const [signOutError, setSignOutError] = useState<string | null>(null);
 
   if (profile.isLoading) return <Loading />;
-  if (profile.error || !profile.data) return <ErrorState message={describeApiError(profile.error)} onRetry={() => void profile.refetch()} />;
+  if (!profile.data) return <ErrorState message={describeApiError(profile.error)} onRetry={() => void profile.refetch()} />;
   const data = profile.data;
 
   async function signOut() {
@@ -48,6 +48,7 @@ export function SettingsScreen({ onSignOut }: SettingsScreenProps) {
 
   return (
     <Screen title="Settings" subtitle="Your CV, Gmail connection, job preferences and how applications are handled.">
+      {profile.error ? <InlineError message={describeApiError(profile.error)} onRetry={() => void profile.refetch()} /> : null}
       <Section title="Your CV" description="Replacing it finds matches for your latest CV. Applications already prepared keep the CV they were tailored from.">
         <CvUpload
           currentName={displayCvName(data)}
