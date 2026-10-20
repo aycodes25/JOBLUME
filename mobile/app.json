@@ -1,0 +1,13 @@
+{
+  "expo": {
+    "name": "JobLume",
+    "slug": "joblume",
+    "scheme": "joblume",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "android": { "package": "com.joblume.app" },
+    "plugins": ["expo-router", "expo-secure-store", "expo-web-browser"],
+    "experiments": { "typedRoutes": false }
+  }
+}
