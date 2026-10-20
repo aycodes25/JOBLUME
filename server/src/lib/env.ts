@@ -24,6 +24,8 @@ const schema = z.object({
   HUNTER_MONTHLY_LIMIT: z.preprocess(blankToUndefined, z.coerce.number().int().positive().default(25)),
   JSEARCH_API_KEY: optionalString,
   JSEARCH_MONTHLY_LIMIT: z.preprocess(blankToUndefined, z.coerce.number().int().positive().default(50)),
+  /** How often the job boards are scanned. At least 30, so the boards are never hit more than twice an hour. */
+  SCRAPE_EVERY_MINUTES: z.preprocess(blankToUndefined, z.coerce.number().int().min(30).default(120)),
 });
 
 export type Env = z.infer<typeof schema>;

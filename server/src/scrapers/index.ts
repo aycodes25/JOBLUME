@@ -12,20 +12,23 @@ export type ScrapeSource = (typeof SCRAPE_SOURCES)[number];
 /** Max NEW jobs processed per run, to keep detail requests polite. */
 export const SCRAPE_LIMITS: Record<ScrapeSource, number> = {
   remotive: 100,
-  myjobmag: 25,
-  jobberman: 25,
+  myjobmag: 60,
+  jobberman: 60,
   jsearch: 50,
 };
 
-const SIX_HOURS = 6 * 60 * 60 * 1000;
+const SIX_HOURS_MS = 6 * 60 * 60 * 1000;
+const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 
-/** How often the scheduler runs each source. JSearch is daily to stay inside its small monthly quota. */
-export const SCRAPE_EVERY_MS: Record<ScrapeSource, number> = {
-  remotive: SIX_HOURS,
-  myjobmag: SIX_HOURS,
-  jobberman: SIX_HOURS,
-  jsearch: 24 * 60 * 60 * 1000,
-};
+/**
+ * How often the scheduler runs a source. Job boards use SCRAPE_EVERY_MINUTES. Two sources keep their own pace:
+ * JSearch is daily to stay inside its small monthly quota, and Remotive asks callers to fetch at most 4 times a day.
+ */
+export function scrapeIntervalMs(source: ScrapeSource, boardMinutes: number): number {
+  if (source === 'jsearch') return ONE_DAY_MS;
+  if (source === 'remotive') return SIX_HOURS_MS;
+  return boardMinutes * 60_000;
+}
 
 const inertJSearch = () =>
   createJSearchScraper({

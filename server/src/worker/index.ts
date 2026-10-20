@@ -8,7 +8,7 @@ import {
   QUEUES, createQueues, enqueueFindEmail, enqueueFollowUpDraft, enqueueSend, enqueueTailor as enqueueTailorJob,
   type FetchJobData, type FindEmailJobData, type FollowUpsJobData, type MatchJobData, type ScrapeJobData, type SendJobData, type TailorJobData,
 } from '../queues.js';
-import { SCRAPE_EVERY_MS, SCRAPE_LIMITS, SCRAPE_SOURCES, createScrapers } from '../scrapers/index.js';
+import { SCRAPE_LIMITS, SCRAPE_SOURCES, createScrapers, scrapeIntervalMs } from '../scrapers/index.js';
 import { createJSearchClient, JSearchError } from '../scrapers/jsearch-client.js';
 import { createJSearchScraper } from '../scrapers/jsearch.js';
 import { geminiProvider, openaiProvider } from '../services/ai/providers.js';
@@ -284,10 +284,13 @@ async function main() {
       continue;
     }
     // upsertJobScheduler enqueues the first run immediately, so no separate boot job is needed
-    await queues.scrape.upsertJobScheduler(`scrape-${source}`, { every: SCRAPE_EVERY_MS[source] }, { name: 'scrape', data: { source } });
+    await queues.scrape.upsertJobScheduler(`scrape-${source}`, { every: scrapeIntervalMs(source, env.SCRAPE_EVERY_MINUTES) }, { name: 'scrape', data: { source } });
   }
   await queues.followups.upsertJobScheduler('followup-scan', { every: 60 * 60 * 1000 }, { name: 'followups', data: { kind: 'scan' } });
-  logger.info({ sources: SCRAPE_SOURCES, jsearch: jsearchClient !== null }, 'worker started; job boards every 6 hours, JSearch daily');
+  logger.info(
+    { sources: SCRAPE_SOURCES, jsearch: jsearchClient !== null, boardMinutes: env.SCRAPE_EVERY_MINUTES },
+    'worker started; job boards every SCRAPE_EVERY_MINUTES (Remotive every 6 hours), JSearch daily',
+  );
 
   // Tell the API this worker is alive: once now, then every minute (a missed beat is only logged).
   const heartbeat = createHeartbeat(createRedis(env.UPSTASH_REDIS_URL));

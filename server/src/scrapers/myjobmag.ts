@@ -2,6 +2,7 @@ import * as cheerio from 'cheerio';
 import { parsePostedAt, type JobStub } from '../domain/jobs.js';
 import { htmlToText } from '../lib/html.js';
 import type { FetchText } from '../lib/http.js';
+import { listPages } from './pages.js';
 import type { Scraper } from './types.js';
 
 const BASE = 'https://www.myjobmag.com';
@@ -53,12 +54,16 @@ export function parseMyJobMagDetail(html: string): { description: string; locati
   return { description, location, ...(postedAt ? { postedAt } : {}) };
 }
 
-export function createMyJobMagScraper(fetchText: FetchText): Scraper {
+/** Listing pages read per scan: /jobs, then /jobs/page/2 and /jobs/page/3 (35 jobs each). */
+export const MYJOBMAG_PAGES = 3;
+const pageUrl = (page: number) => (page === 1 ? LIST_URL : `${LIST_URL}/page/${page}`);
+
+export function createMyJobMagScraper(fetchText: FetchText, opts: { pages?: number; pause?: () => Promise<void> } = {}): Scraper {
   return {
     source: 'myjobmag',
     detailDelayMs: [1000, 3000],
     async list() {
-      return parseMyJobMagList(await fetchText(LIST_URL));
+      return listPages({ fetchText, pageUrl, parse: parseMyJobMagList, pages: opts.pages ?? MYJOBMAG_PAGES, pause: opts.pause });
     },
     async detail(stub) {
       const { description, location, postedAt } = parseMyJobMagDetail(await fetchText(stub.url));
