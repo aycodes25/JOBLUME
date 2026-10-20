@@ -74,3 +74,11 @@ export function formatRelative(iso: string | null, now: Date = new Date()): stri
   const weeks = Math.floor(days / 7);
   return `${weeks} ${weeks === 1 ? 'week' : 'weeks'} ago`;
 }
+
+/** "Posted 3 hours ago" from the source's posted time, or "Found 3 hours ago" from when JobLume added it. '' when neither can be read. */
+export function postedLabel(createdAt: string, postedAt: string | null | undefined, now: Date = new Date()): string {
+  const posted = formatRelative(postedAt ?? null, now);
+  if (posted) return `Posted ${posted}`;
+  const found = formatRelative(createdAt, now);
+  return found ? `Found ${found}` : '';
+}

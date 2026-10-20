@@ -65,6 +65,18 @@ describe('ApplicationCard', () => {
     expect(onOpen).toHaveBeenNthCalledWith(2, 'a1');
   });
 
+  it('shows when the source says the job was posted', () => {
+    const posted = new Date(Date.now() - 3 * 3_600_000).toISOString();
+    render(<ApplicationCard app={app({ job: { title: 'Data Analyst', company: 'Acme Ltd', location: 'Lagos', source: 'remoteok', url: 'https://example.com/job/1', company_domain: null, posted_at: posted } })} onOpen={() => {}} />);
+    expect(screen.getByText('Posted 3 hours ago')).toBeInTheDocument();
+  });
+
+  it('falls back to when the application was found when the source gives no posted time', () => {
+    const created = new Date(Date.now() - 2 * 86_400_000).toISOString();
+    render(<ApplicationCard app={app({ created_at: created })} onOpen={() => {}} />);
+    expect(screen.getByText('Found 2 days ago')).toBeInTheDocument();
+  });
+
   it('copes with a missing job and no score', () => {
     render(<ApplicationCard app={app({ job: null, match_score: null })} onOpen={() => {}} />);
     expect(screen.getByRole('button', { name: 'Untitled role' })).toBeInTheDocument();

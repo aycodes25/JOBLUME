@@ -14,6 +14,24 @@ export function sortByScore<T extends { match_score: number | null; created_at: 
   );
 }
 
+/** When the source says the job was posted, else when the application was created. */
+export const postedKey = (a: { created_at: string; job?: { posted_at?: string | null } | null }): string => a.job?.posted_at ?? a.created_at;
+
+const timeOf = (iso: string): number => {
+  const t = Date.parse(iso);
+  return Number.isNaN(t) ? 0 : t;
+};
+
+/** Newest posting first; a tie goes to the better match, then the newer application. Does not change the input. */
+export function sortNewest<T extends { match_score: number | null; created_at: string; job?: { posted_at?: string | null } | null }>(items: T[]): T[] {
+  return [...items].sort(
+    (a, b) =>
+      timeOf(postedKey(b)) - timeOf(postedKey(a)) ||
+      (b.match_score ?? -1) - (a.match_score ?? -1) ||
+      timeOf(b.created_at) - timeOf(a.created_at),
+  );
+}
+
 export function queueTab(status: ApplicationStatus): QueueTab | null {
   if (status === 'pending_review') return 'pending';
   if (status === 'approved') return 'ready';
@@ -23,7 +41,7 @@ export function queueTab(status: ApplicationStatus): QueueTab | null {
 
 export function splitQueue(apps: Application[]): Record<QueueTab, Application[]> {
   const out: Record<QueueTab, Application[]> = { pending: [], ready: [], skipped: [] };
-  for (const app of sortByScore(apps)) {
+  for (const app of sortNewest(apps)) {
     const tab = queueTab(app.status);
     if (tab) out[tab].push(app);
   }
