@@ -1,7 +1,7 @@
 import type { JobRow, ProfileRow } from '../db/types.js';
 import { matchesProfile } from '../domain/prefilter.js';
 
-export type MatchCandidate = Pick<ProfileRow, 'user_id' | 'desired_roles' | 'location'>;
+export type MatchCandidate = Pick<ProfileRow, 'user_id' | 'desired_roles' | 'location'> & { skills?: string[] };
 
 export interface MatchDeps {
   loadJob(id: string): Promise<JobRow | null>;
