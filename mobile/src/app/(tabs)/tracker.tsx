@@ -1,6 +1,5 @@
-import { Screen } from '@/components/ui/Screen';
+import { TrackerScreen } from '@/components/tracker/TrackerScreen';
 
-/** Temporary: replaced by the real screen in a later task. */
 export default function TrackerTab() {
-  return <Screen title="Tracker" />;
+  return <TrackerScreen />;
 }

@@ -1,6 +1,5 @@
-import { Screen } from '@/components/ui/Screen';
+import { AnalyticsScreen } from '@/components/analytics/AnalyticsScreen';
 
-/** Temporary: replaced by the real screen in a later task. */
 export default function AnalyticsTab() {
-  return <Screen title="Analytics" />;
+  return <AnalyticsScreen />;
 }
