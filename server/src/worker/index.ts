@@ -10,6 +10,7 @@ import {
 } from '../queues.js';
 import { SCRAPE_LIMITS, SCRAPE_SOURCES, createScrapers, scrapeIntervalMs } from '../scrapers/index.js';
 import { createJSearchClient, JSearchError } from '../scrapers/jsearch-client.js';
+import { buildHimalayasQueries } from '../scrapers/himalayas.js';
 import { createJSearchScraper } from '../scrapers/jsearch.js';
 import { geminiProvider, openaiProvider } from '../services/ai/providers.js';
 import { QuotaExhaustedError } from '../services/ai/generate.js';
@@ -54,6 +55,7 @@ async function main() {
   const queues = createQueues(createRedis(env.UPSTASH_REDIS_URL));
   const jsearchClient = env.JSEARCH_API_KEY ? createJSearchClient({ apiKey: env.JSEARCH_API_KEY }) : null;
   const scrapers = createScrapers(fetchText, {
+    loadHimalayasQueries: async () => buildHimalayasQueries(await repos.loadCandidates()),
     jsearch: createJSearchScraper({
       client: jsearchClient,
       quota: createMonthlyQuota(createRedis(env.UPSTASH_REDIS_URL), env.JSEARCH_MONTHLY_LIMIT, undefined, 'jsearch'),

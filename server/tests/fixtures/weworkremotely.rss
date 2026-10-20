@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:media="http://search.yahoo.com/mrss">
+  <channel>
+    <title>We Work Remotely: Remote jobs in design, programming, marketing and more</title>
+    <link>https://weworkremotely.com/remote-jobs.rss</link>
+    <description>We Work Remotely: Remote jobs in design, programming, marketing and more</description>
+    <language>en-US</language>
+    <ttl>60</ttl>
+    <item>
+      <title>Toptal: Senior Analytics Engineer / BI Lead - Channel Insights (iX360)</title>
+      <region>North America Only</region>
+      <country></country>
+      <state></state>
+      <skills></skills>
+      <category>Full-Stack Programming</category>
+      <type>Full-Time</type>
+      <description>&lt;p&gt;Headquarters: Summary We are seeking an Analytics Engineer / BI Lead for Channel Insights to define the semantic layer, build dashboards, and present&lt;/p&gt;</description>
+      <pubDate>Tue, 20 Oct 2026 18:10:55 +0000</pubDate>
+      <expires_at>Thu, 19 Nov 2026 18:10:55 +0000</expires_at>
+      <guid>https://weworkremotely.com/remote-jobs/toptal-senior-analytics-engineer-bi-lead-channel-insights-ix360</guid>
+      <link>https://weworkremotely.com/remote-jobs/toptal-senior-analytics-engineer-bi-lead-channel-insights-ix360</link>
+    </item>
+    <item>
+      <media:content url="https://wwr-pro.s3.amazonaws.com/logos/0171/6611/logo.gif" type="image/png"/>
+      <title>Vertex Marketing Group: Distribution Engineer</title>
+      <region>Anywhere in the World</region>
+      <country></country>
+      <state>Lemesos</state>
+      <skills>Python, API, DevOps, Android, and iOS</skills>
+      <category>Back-End Programming</category>
+      <type>Full-Time</type>
+      <description>&lt;p&gt;Headquarters: Bulgaria URL: https://vertexmg.com Scale our distribution by code: a fleet of real devices, iPhones first and Android too, plus&lt;/p&gt;</description>
+      <pubDate>Tue, 20 Oct 2026 11:32:37 +0000</pubDate>
+      <expires_at>Thu, 19 Nov 2026 11:32:37 +0000</expires_at>
+      <guid>https://weworkremotely.com/remote-jobs/vertex-marketing-group-distribution-engineer</guid>
+      <link>https://weworkremotely.com/remote-jobs/vertex-marketing-group-distribution-engineer</link>
+    </item>
+    <item>
+      <media:content url="https://wwr-pro.s3.amazonaws.com/logos/0171/6608/logo.gif" type="image/png"/>
+      <title>FIXD Automotive: Client Success Manager - Enterprise Accounts</title>
+      <region>USA Only</region>
+      <country></country>
+      <state></state>
+      <skills></skills>
+      <category>Customer Support</category>
+      <type>Full-Time</type>
+      <description>&lt;p&gt;Headquarters: Atlanta, Georgia, United States URL: http://www.fixdapp.com About FIXD &amp;amp; AppraisalPRO: FIXD breaks car problems down into&lt;/p&gt;</description>
+      <pubDate>Mon, 19 Oct 2026 19:48:25 +0000</pubDate>
+      <expires_at>Wed, 18 Nov 2026 19:48:25 +0000</expires_at>
+      <guid>https://weworkremotely.com/remote-jobs/fixd-automotive-client-success-manager-enterprise-accounts</guid>
+      <link>https://weworkremotely.com/remote-jobs/fixd-automotive-client-success-manager-enterprise-accounts</link>
+    </item>
+  </channel>
+</rss>
