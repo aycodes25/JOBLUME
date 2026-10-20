@@ -1,5 +1,7 @@
 import type { ApplicationStatus, ProfileRow } from '../db/types.js';
 import type { Db } from '../lib/supabase.js';
+import type { AnalyticsRow } from '../services/analytics.js';
+export { createGmailTokenStore } from '../services/gmail/store.js';
 import type { ApplicationWithJob, ApplicationsRepo, ProfilePatch, ProfileRepo } from './deps.js';
 
 const APP_SELECT = '*, job:jobs(title, company, location, source, url, company_domain)';
@@ -27,7 +29,7 @@ export function createProfileRepo(db: Db): ProfileRepo {
 export function createApplicationsRepo(db: Db): ApplicationsRepo {
   return {
     async list(userId, status?: ApplicationStatus) {
-      let q = db.from('applications').select(APP_SELECT).eq('user_id', userId).order('match_score', { ascending: false, nullsFirst: false });
+      let q = db.from('applications').select(APP_SELECT).eq('user_id', userId).order('match_score', { ascending: false, nullsFirst: false }).limit(200);
       if (status) q = q.eq('status', status);
       const { data, error } = await q;
       if (error) throw error;
@@ -49,13 +51,18 @@ export function createApplicationsRepo(db: Db): ApplicationsRepo {
       if (error) throw error;
       return (data as unknown as ApplicationWithJob | null) ?? null;
     },
+    async listForAnalytics(userId) {
+      const { data, error } = await db.from('applications').select('status, match_score').eq('user_id', userId);
+      if (error) throw error;
+      return (data ?? []) as AnalyticsRow[];
+    },
   };
 }
 
-export async function setCv(db: Db, userId: string, v: { text: string; path: string }): Promise<void> {
+export async function setCv(db: Db, userId: string, v: { text: string; path: string; filename: string }): Promise<void> {
   const { error } = await db
     .from('profiles')
-    .update({ base_cv_text: v.text, base_cv_url: v.path, updated_at: new Date().toISOString() })
+    .update({ base_cv_text: v.text, base_cv_url: v.path, base_cv_filename: v.filename, updated_at: new Date().toISOString() })
     .eq('user_id', userId);
   if (error) throw error;
 }

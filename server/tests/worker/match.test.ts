@@ -7,7 +7,7 @@ const job = (over: Partial<JobRow> = {}): JobRow => ({
   url: 'https://x/1', company_domain: null, dedupe_key: 'acme|backend engineer', created_at: '2026-10-17T00:00:00Z', ...over,
 });
 const profile = (over: Partial<ProfileRow> = {}): ProfileRow => ({
-  user_id: 'u1', base_cv_text: 'cv', base_cv_url: 'p', skills: [], years_experience: 3, desired_roles: ['backend engineer'],
+  user_id: 'u1', base_cv_text: 'cv', base_cv_url: 'p', base_cv_filename: null, skills: [], years_experience: 3, desired_roles: ['backend engineer'],
   location: 'Lagos', salary_min: null, salary_max: null, apply_mode: 'manual', auto_threshold: 80, daily_cap: 20,
   auto_followup: false, updated_at: '', ...over,
 });

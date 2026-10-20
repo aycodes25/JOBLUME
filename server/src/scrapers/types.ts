@@ -1,7 +1,8 @@
 import type { JobSource, JobStub, NormalisedJob } from '../domain/jobs.js';
 
 export interface Scraper {
-  source: JobSource;
+  /** The board it reads. 'jsearch' lists LinkedIn and Indeed jobs, each tagged with its own JobSource. */
+  source: JobSource | 'jsearch';
   /** Cheap: one listing request. */
   list(): Promise<JobStub[]>;
   /** May cost one request per job. Only called for stubs not already stored. */

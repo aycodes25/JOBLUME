@@ -1,0 +1,19 @@
+{
+  "data": {
+    "domain": "acme.com",
+    "disposable": false,
+    "webmail": false,
+    "accept_all": false,
+    "pattern": "{first}.{last}",
+    "organization": "Acme",
+    "emails": [
+      { "value": "ada.lovelace@acme.com", "type": "personal", "confidence": 94, "first_name": "Ada", "last_name": "Lovelace", "position": "Senior Software Engineer", "department": "it" },
+      { "value": "grace.hopper@acme.com", "type": "personal", "confidence": 88, "first_name": "Grace", "last_name": "Hopper", "position": "Talent Acquisition Manager", "department": "hr" },
+      { "value": "careers@acme.com", "type": "generic", "confidence": 82, "first_name": null, "last_name": null, "position": null, "department": null },
+      { "value": "alan.turing@acme.com", "type": "personal", "confidence": 40, "first_name": "Alan", "last_name": "Turing", "position": "Recruiter", "department": "hr" },
+      { "value": "not-an-email", "type": "personal", "confidence": 90 },
+      { "type": "personal", "confidence": 90 }
+    ]
+  },
+  "meta": { "results": 6, "limit": 10, "offset": 0, "params": { "domain": "acme.com", "company": null } }
+}

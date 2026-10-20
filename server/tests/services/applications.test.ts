@@ -4,7 +4,7 @@ import type { ApplicationWithJob } from '../../src/api/deps.js';
 
 const app: ApplicationWithJob = {
   id: 'a1', user_id: 'u1', job_id: 'j1', tailored_cv_text: 'OLD', tailored_cv_url: 'u1/tailored/j1.pdf',
-  cover_letter_text: 'LETTER', match_score: 70, missing_keywords: [], hiring_manager_email: null, email_confidence: null,
+  cover_letter_text: 'LETTER', match_score: 70, missing_keywords: [], hiring_manager_email: null, email_confidence: null, email_source: null, email_candidates: [],
   apply_method: null, status: 'pending_review', applied_at: null, follow_up_at: null, created_at: '', job: null,
 };
 
@@ -13,6 +13,7 @@ function make(over: Partial<Parameters<typeof createApplicationsService>[0]> = {
     list: vi.fn().mockResolvedValue([app]),
     get: vi.fn().mockResolvedValue(app),
     update: vi.fn().mockResolvedValue({ ...app, tailored_cv_text: 'NEW' }),
+    listForAnalytics: vi.fn(),
   };
   const deps = {
     repo,
@@ -30,8 +31,16 @@ describe('applications service', () => {
     expect((await svc.get('u1', 'a1'))!.cv_pdf_url).toBe('https://signed/url');
   });
 
+  it('get() returns the application with a null pdf url when signing fails', async () => {
+    const { svc } = make({ signUrl: vi.fn().mockRejectedValue(new Error('storage down')) });
+    const result = await svc.get('u1', 'a1');
+    expect(result).not.toBeNull();
+    expect(result!.cv_pdf_url).toBeNull();
+    expect(result!.id).toBe('a1');
+  });
+
   it('get() returns null for an unknown application and does not sign', async () => {
-    const { svc, deps } = make({ repo: { list: vi.fn(), get: vi.fn().mockResolvedValue(null), update: vi.fn() } });
+    const { svc, deps } = make({ repo: { list: vi.fn(), get: vi.fn().mockResolvedValue(null), update: vi.fn(), listForAnalytics: vi.fn() } });
     expect(await svc.get('u1', 'nope')).toBeNull();
     expect(deps.signUrl).not.toHaveBeenCalled();
   });
@@ -58,7 +67,7 @@ describe('applications service', () => {
   });
 
   it('update() on an unknown application returns null without writing', async () => {
-    const { svc, repo } = make({ repo: { list: vi.fn(), get: vi.fn().mockResolvedValue(null), update: vi.fn() } });
+    const { svc, repo } = make({ repo: { list: vi.fn(), get: vi.fn().mockResolvedValue(null), update: vi.fn(), listForAnalytics: vi.fn() } });
     expect(await svc.update('u1', 'nope', { cover_letter_text: 'x' })).toBeNull();
     expect(repo.update).not.toHaveBeenCalled();
   });
