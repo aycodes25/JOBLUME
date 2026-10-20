@@ -1,6 +1,5 @@
-import { Screen } from '@/components/ui/Screen';
+import { QueueScreen } from '@/components/queue/QueueScreen';
 
-/** Temporary: replaced by the real screen in a later task. */
 export default function QueueTab() {
-  return <Screen title="Queue" />;
+  return <QueueScreen />;
 }
