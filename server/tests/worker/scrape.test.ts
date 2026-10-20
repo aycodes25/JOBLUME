@@ -3,6 +3,9 @@ import type { JobStub, NormalisedJob } from '../../src/domain/jobs.js';
 import type { Scraper } from '../../src/scrapers/types.js';
 import type { ScanRunInput } from '../../src/services/scan/runs.js';
 import type { MatchCandidate } from '../../src/worker/match.js';
+import { HttpError } from '../../src/lib/http.js';
+import { JSearchError } from '../../src/scrapers/jsearch-client.js';
+import { scanFailureReason } from '../../src/services/scan/runs.js';
 import { countRejections, runRecordedScrape, runScrape, type RecordedScrapeDeps, type ScrapeDeps } from '../../src/worker/scrape.js';
 
 const stub = (n: number): JobStub => ({
@@ -168,19 +171,46 @@ describe('runRecordedScrape', () => {
 
   it('records a failed run with the reason, then rethrows the error', async () => {
     const { deps, runs } = recorded();
-    vi.mocked(deps.scraper.list).mockImplementation(async () => { throw new Error('HTTP 403 for https://www.myjobmag.com/jobs'); });
+    vi.mocked(deps.scraper.list).mockImplementation(async () => { throw new HttpError(403, 'https://www.myjobmag.com/jobs'); });
     await expect(runRecordedScrape(deps)).rejects.toThrow('HTTP 403');
     expect(runs).toEqual([
       {
         source: 'myjobmag', started_at: '2026-10-20T10:00:00.000Z', finished_at: '2026-10-20T10:00:09.000Z', status: 'failed',
-        error: 'HTTP 403 for https://www.myjobmag.com/jobs', listed: 0, new_count: 0, inserted: 0, rejected_title: 0, rejected_location: 0,
+        error: 'http_403', listed: 0, new_count: 0, inserted: 0, rejected_title: 0, rejected_location: 0,
       },
     ]);
+  });
+
+  it('never stores a Himalayas query URL or a role in the error, only a fixed reason', async () => {
+    const { deps, runs } = recorded();
+    const leaky = new HttpError(500, 'https://himalayas.app/jobs/api/search?q=Secret%20Quantum%20Role&country=NG');
+    vi.mocked(deps.scraper.list).mockImplementation(async () => { throw leaky; });
+    await expect(runRecordedScrape(deps)).rejects.toBe(leaky);
+    expect(runs[0]!.error).toBe('http_500');
+    expect(JSON.stringify(runs)).not.toMatch(/himalayas|Secret|Quantum|q=/i);
+    expect(log.warn).toHaveBeenCalledWith(expect.objectContaining({ err: leaky }), expect.any(String));
   });
 
   it('does not fail the scan when the run cannot be recorded', async () => {
     const { deps } = recorded({ recordRun: vi.fn<RecordedScrapeDeps['recordRun']>().mockImplementation(async () => { throw new Error('db down'); }) });
     await expect(runRecordedScrape(deps)).resolves.toMatchObject({ inserted: 3 });
     expect(log.warn).toHaveBeenCalledWith(expect.objectContaining({ source: 'myjobmag' }), 'could not record the scan run');
+  });
+});
+
+describe('scanFailureReason', () => {
+  const named = (name: string) => Object.assign(new Error('secret detail'), { name });
+
+  it('maps errors to fixed reasons', () => {
+    expect(scanFailureReason(new HttpError(403, 'https://x/?q=role'))).toBe('http_403');
+    expect(scanFailureReason(named('TimeoutError'))).toBe('timeout');
+    expect(scanFailureReason(named('AbortError'))).toBe('timeout');
+    expect(scanFailureReason(new TypeError('fetch failed'))).toBe('network');
+    expect(scanFailureReason(new SyntaxError('Unexpected token < in JSON'))).toBe('parse');
+    expect(scanFailureReason(new JSearchError('rate_limited', 'x'))).toBe('jsearch_rate_limited');
+    expect(scanFailureReason(new JSearchError('auth'))).toBe('jsearch_auth');
+    expect(scanFailureReason({ code: '23505', message: 'duplicate key', details: 'Key (x)=(y)', hint: null })).toBe('db');
+    expect(scanFailureReason(new Error('anything else'))).toBe('unknown');
+    expect(scanFailureReason('a string')).toBe('unknown');
   });
 });

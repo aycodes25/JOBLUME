@@ -1,3 +1,5 @@
+import { HttpError } from '../../lib/http.js';
+import { JSearchError } from '../../scrapers/jsearch-client.js';
 import type { ScanRun } from '@joblume/shared';
 import type { Db } from '../../lib/supabase.js';
 
@@ -52,4 +54,22 @@ export function createScanRunsRepo(db: Db, now: () => Date = () => new Date()): 
       return latest;
     },
   };
+}
+
+/**
+ * A fixed, safe reason for a failed scan. Every signed-in user can read scan_runs.error, and a raw error message can hold
+ * another user's role (in a search URL) or database details, so only these reasons are stored; the full error goes to the log.
+ */
+export function scanFailureReason(err: unknown): string {
+  if (err instanceof HttpError) return `http_${err.status}`;
+  if (err instanceof JSearchError) return `jsearch_${err.kind}`;
+  if (err instanceof Error) {
+    if (err.name === 'TimeoutError' || err.name === 'AbortError') return 'timeout';
+    if (err instanceof SyntaxError) return 'parse';
+    if (err instanceof TypeError) return 'network';
+    return 'unknown';
+  }
+  // Supabase errors are plain objects with a Postgres code.
+  if (typeof err === 'object' && err !== null && typeof (err as { code?: unknown }).code === 'string') return 'db';
+  return 'unknown';
 }

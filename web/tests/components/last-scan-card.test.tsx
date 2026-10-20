@@ -39,8 +39,8 @@ describe('LastScanCard', () => {
   });
 
   it('shows a failed source with its reason', () => {
-    render(<LastScanCard now={NOW} status={status({ runs: [run({ status: 'failed', error: 'HTTP 403 for https://www.myjobmag.com/jobs' })] })} />);
-    expect(screen.getByText(/failed: HTTP 403 for https:\/\/www\.myjobmag\.com\/jobs/)).toBeInTheDocument();
+    render(<LastScanCard now={NOW} status={status({ runs: [run({ status: 'failed', error: 'http_403' })] })} />);
+    expect(screen.getByText(/failed: The site refused the request \(403\)/)).toBeInTheDocument();
   });
 
   it('says so when no scan has finished yet', () => {

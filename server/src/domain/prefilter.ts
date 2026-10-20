@@ -35,6 +35,12 @@ const BLOCKLIST = ['intern', 'internship', 'unpaid', 'volunteer'];
 
 const ROLE_SHARE = 0.6;
 
+/** Seniority and place words that say little about the job itself; they do not count towards the role share on either side. */
+const FILLER = new Set(['senior', 'junior', 'lead', 'principal', 'staff', 'mid', 'midlevel', 'entry', 'intermediate', 'remote', 'hybrid', 'sr', 'jr', 'ii', 'iii', 'iv']);
+
+/** Skills shorter than this ("Go", "R") match too many unrelated titles ("Go-to-Market"). */
+const MIN_SKILL_LENGTH = 3;
+
 /** Lowercase words of a title, role or skill: split on anything but letters, digits, "+" and "#". */
 export function words(text: string): string[] {
   let t = text.toLowerCase();
@@ -47,6 +53,7 @@ export function words(text: string): string[] {
 
 function titleMatches(title: string, roleWordLists: string[][], skills: string[]): boolean {
   const titleWords = new Set(words(title));
+  const significantTitle = new Set([...titleWords].filter((w) => !FILLER.has(w)));
 
   // intern, unpaid and similar titles are turned away unless the user is looking for exactly that.
   for (const blocked of BLOCKLIST) {
@@ -54,21 +61,25 @@ function titleMatches(title: string, roleWordLists: string[][], skills: string[]
   }
 
   const hasCoreNoun = [...titleWords].some((w) => CORE_NOUNS.has(w));
-  const roleFits = roleWordLists.some((role) => {
-    const found = role.filter((w) => titleWords.has(w)).length;
-    return found === role.length || (hasCoreNoun && found / role.length >= ROLE_SHARE);
+  const roleFits = roleWordLists.some((list) => {
+    const role = list.filter((w) => !FILLER.has(w));
+    if (role.length === 0) return false;
+    const matched = role.filter((w) => significantTitle.has(w));
+    if (matched.length === role.length) return true;
+    return hasCoreNoun && matched.length / role.length >= ROLE_SHARE && matched.some((w) => !CORE_NOUNS.has(w));
   });
   if (roleFits) return true;
 
   if (!hasCoreNoun) return false;
   return skills.some((skill) => {
+    if (skill.trim().length < MIN_SKILL_LENGTH) return false;
     const skillWords = words(skill);
     return skillWords.length > 0 && skillWords.every((w) => titleWords.has(w));
   });
 }
 
 // Boards that only list remote work. Their location is the region the employer hires from.
-const REMOTE_BOARDS = new Set<JobSource>(['remotive', 'remoteok', 'weworkremotely', 'himalayas']);
+const REMOTE_BOARDS = new Set<JobSource>(['remotive', 'remoteok', 'weworkremotely', 'himalayas', 'arbeitnow']);
 const OPEN_REGION = /worldwide|anywhere|global|africa|emea|nigeria|^remote$/i;
 const SAYS_REMOTE = /remote|work from home|anywhere/i;
 

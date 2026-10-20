@@ -159,6 +159,31 @@ describe('real roles table', () => {
     expect(prefilterJob({ title: 'Senior Backend Analyst', location: '', source: 'myjobmag' }, senior)).toEqual({ ok: false, reason: 'title' });
   });
 
+  it('ignores seniority and location filler words when counting role words', () => {
+    const seniorSw: MatchProfile = { desired_roles: ['Senior Software Engineer'], location: null };
+    const m = (title: string) => prefilterJob({ title, location: '', source: 'myjobmag' }, seniorSw);
+    expect(m('Senior Sales Engineer')).toEqual({ ok: false, reason: 'title' });
+    expect(m('Senior Civil Engineer')).toEqual({ ok: false, reason: 'title' });
+    expect(m('Software Engineer')).toEqual({ ok: true });
+    expect(m('Junior Software Developer')).toEqual({ ok: true });
+    const remoteBackend: MatchProfile = { desired_roles: ['Remote Backend Developer'], location: null };
+    const r = (title: string) => prefilterJob({ title, location: '', source: 'myjobmag' }, remoteBackend);
+    expect(r('Remote Mechanical Engineer')).toEqual({ ok: false, reason: 'title' });
+    expect(r('Backend Engineer')).toEqual({ ok: true });
+  });
+
+  it('needs a non-core-noun role word to match, not just the core noun', () => {
+    const p: MatchProfile = { desired_roles: ['Lead Engineer Manager Engineer'], location: null };
+    expect(prefilterJob({ title: 'Engineer', location: '', source: 'myjobmag' }, p)).toEqual({ ok: false, reason: 'title' });
+  });
+
+  it('ignores skills shorter than 3 letters', () => {
+    const go: MatchProfile = { desired_roles: ['Platform Specialist'], skills: ['Go'], location: null };
+    expect(prefilterJob({ title: 'Go-to-Market Engineer', location: '', source: 'myjobmag' }, go)).toEqual({ ok: false, reason: 'title' });
+    const react: MatchProfile = { ...go, skills: ['React'] };
+    expect(prefilterJob({ title: 'React Engineer', location: '', source: 'myjobmag' }, react)).toEqual({ ok: true });
+  });
+
   it('needs the core noun for a skill match', () => {
     expect(prefilterJob(remote('React Designer'), user)).toEqual({ ok: false, reason: 'title' });
     expect(prefilterJob(remote('React Architect'), user)).toEqual({ ok: true });
@@ -173,7 +198,7 @@ describe('real roles table, places', () => {
   it('a Lagos user keeps Lagos jobs and any remote job, and drops other cities', () => {
     expect(prefilterJob(job('Lagos', 'myjobmag'), lagos)).toEqual({ ok: true });
     expect(prefilterJob(job('Lagos, Nigeria', 'myjobmag'), lagos)).toEqual({ ok: true });
-    expect(prefilterJob(job('Remote, Germany', 'arbeitnow'), lagos)).toEqual({ ok: true });
+    expect(prefilterJob(job('Remote, EMEA', 'arbeitnow'), lagos)).toEqual({ ok: true });
     expect(prefilterJob(job('Abuja', 'myjobmag'), lagos)).toEqual({ ok: false, reason: 'location' });
     expect(prefilterJob(job('Port Harcourt', 'myjobmag'), lagos)).toEqual({ ok: false, reason: 'location' });
   });
@@ -186,7 +211,7 @@ describe('real roles table, places', () => {
   });
 
   it('remote boards keep open regions and drop region-locked jobs for every preference', () => {
-    for (const source of ['remoteok', 'weworkremotely', 'himalayas'] as const) {
+    for (const source of ['remoteok', 'weworkremotely', 'himalayas', 'arbeitnow'] as const) {
       for (const preference of [lagos, remote]) {
         expect(prefilterJob(job('Anywhere in the World', source), preference)).toEqual({ ok: true });
         expect(prefilterJob(job('India, Nigeria, Philippines', source), preference)).toEqual({ ok: true });
@@ -196,6 +221,15 @@ describe('real roles table, places', () => {
         expect(prefilterJob(job('North America Only', source), preference)).toEqual({ ok: false, reason: 'location' });
         expect(prefilterJob(job('Copenhagen', source), preference)).toEqual({ ok: false, reason: 'location' });
       }
+    }
+  });
+
+  it('Arbeitnow Germany-only remote jobs do not pass for Remote or Lagos users', () => {
+    for (const preference of [lagos, remote]) {
+      expect(prefilterJob(job('Remote, Berlin', 'arbeitnow'), preference)).toEqual({ ok: false, reason: 'location' });
+      expect(prefilterJob(job('Remote, Germany', 'arbeitnow'), preference)).toEqual({ ok: false, reason: 'location' });
+      expect(prefilterJob(job('Worldwide', 'arbeitnow'), preference)).toEqual({ ok: true });
+      expect(prefilterJob(job('Remote, EMEA', 'arbeitnow'), preference)).toEqual({ ok: true });
     }
   });
 

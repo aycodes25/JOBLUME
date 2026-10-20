@@ -17,11 +17,20 @@ describe('describeScanRun', () => {
     expect(describeScanRun(run({ rejected_title: 0, rejected_location: 0 }), NOW)).toBe('12 min ago · 35 listed · 6 new · 6 added');
   });
 
-  it('says why a scan failed', () => {
-    expect(describeScanRun(run({ status: 'failed', error: 'HTTP 403 for https://www.myjobmag.com/jobs' }), NOW)).toBe(
-      '12 min ago · failed: HTTP 403 for https://www.myjobmag.com/jobs',
-    );
-    expect(describeScanRun(run({ status: 'failed', error: null }), NOW)).toBe('12 min ago · failed: unknown error');
+  it('says why a scan failed, in plain language', () => {
+    const failed = (error: string | null) => describeScanRun(run({ status: 'failed', error }), NOW);
+    expect(failed('http_403')).toBe('12 min ago · failed: The site refused the request (403)');
+    expect(failed('http_503')).toBe('12 min ago · failed: The site had a problem (503)');
+    expect(failed('http_429')).toBe('12 min ago · failed: The site asked us to slow down (429)');
+    expect(failed('timeout')).toBe('12 min ago · failed: The site took too long');
+    expect(failed('network')).toBe('12 min ago · failed: Could not reach the site');
+    expect(failed('parse')).toBe('12 min ago · failed: The site sent something unreadable');
+    expect(failed('jsearch_auth')).toBe('12 min ago · failed: JSearch refused the API key');
+    expect(failed('jsearch_rate_limited')).toBe('12 min ago · failed: JSearch rate limit reached');
+    expect(failed('db')).toBe('12 min ago · failed: Could not save the results');
+    expect(failed('unknown')).toBe('12 min ago · failed: Something went wrong');
+    expect(failed('weird old text')).toBe('12 min ago · failed: Something went wrong');
+    expect(failed(null)).toBe('12 min ago · failed: Something went wrong');
   });
 
   it('copes with a time it cannot read', () => {

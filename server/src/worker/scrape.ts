@@ -3,7 +3,7 @@ import { prefilterJob } from '../domain/prefilter.js';
 import type { Logger } from '../lib/logger.js';
 import { randomBetween } from '../lib/http.js';
 import type { Scraper } from '../scrapers/types.js';
-import type { ScanRunInput } from '../services/scan/runs.js';
+import { scanFailureReason, type ScanRunInput } from '../services/scan/runs.js';
 import type { MatchCandidate } from './match.js';
 
 export interface ScrapeDeps {
@@ -112,9 +112,10 @@ export async function runRecordedScrape(d: RecordedScrapeDeps): Promise<ScrapeRe
     });
     return result;
   } catch (err) {
+    d.log.warn({ err, source: d.scraper.source }, 'scan failed');
     await save({
       source: d.scraper.source, started_at: startedAt.toISOString(), finished_at: d.now().toISOString(), status: 'failed',
-      error: err instanceof Error ? err.message : 'Scan failed', ...zero,
+      error: scanFailureReason(err), ...zero,
     });
     throw err;
   }

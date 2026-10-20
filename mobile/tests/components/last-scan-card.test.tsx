@@ -37,8 +37,8 @@ describe('LastScanCard', () => {
   });
 
   it('shows a failed source with its reason', async () => {
-    await render(<LastScanCard now={NOW} status={status({ runs: [run({ status: 'failed', error: 'HTTP 403 for https://www.myjobmag.com/jobs' })] })} />);
-    expect(screen.getByText('12 min ago · failed: HTTP 403 for https://www.myjobmag.com/jobs')).toBeOnTheScreen();
+    await render(<LastScanCard now={NOW} status={status({ runs: [run({ status: 'failed', error: 'http_403' })] })} />);
+    expect(screen.getByText('12 min ago · failed: The site refused the request (403)')).toBeOnTheScreen();
   });
 
   it('says so when no scan has finished yet', async () => {
