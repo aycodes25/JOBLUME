@@ -38,6 +38,14 @@ nslookup jsearch.p.rapidapi.com
 - **The connection timed out** (`network_timeout`): nothing came back in time. Port 443 may be blocked, or the network is very slow.
 - **Secure connection failed** (`network_tls`): the secure (HTTPS) check failed. Antivirus HTTPS scanning or a company proxy is the usual cause; also check the PC date and time.
 - **Could not reach the site** (`network`): a network error with no known code. The worker log has a line "JSearch could not be reached" with the full cause (no key).
+- **JSearch says that request was not found** (`jsearch_http_404`) or **JSearch answered with an error (NNN)** (`jsearch_http_NNN`): JSearch was reached and answered with that HTTP status. A 404 means the request path or your subscription is wrong; it is not a network problem, so the DNS and port tests above will pass. The worker log line "JSearch answered with an error status" shows the status, the request path and the first 200 characters of the reply (never the key).
 - **JSearch refused the API key** means the key reached JSearch but was rejected: check the key and that you subscribed to the JSearch API on RapidAPI.
+
+### Two ways to get a JSearch key
+JSearch is run by OpenWeb Ninja (formerly Letscrape) and is sold in two places. The key only works with the provider it came from:
+- **RapidAPI** (default): open the JSearch API on rapidapi.com, subscribe your app to a plan (Basic is the free one), and copy the app's `X-RapidAPI-Key`. Use `JSEARCH_PROVIDER=rapidapi` (or leave it unset). The worker calls `https://jsearch.p.rapidapi.com/search` with the `x-rapidapi-key` and `x-rapidapi-host` headers.
+- **OpenWeb Ninja**: create an account on openwebninja.com, subscribe to JSearch and copy the API key from the developer portal. Set `JSEARCH_PROVIDER=openwebninja`. The worker then calls `https://api.openwebninja.com/jsearch/search` with an `x-api-key` header. Unverified: the URL path (it answers 401 to an unknown key) and the `x-api-key` header (shown in OpenWeb Ninja's own sample) are confirmed, but the exact query parameters and response fields of that `/search` endpoint could not be checked against its docs (the docs show a newer `/search-v2`). If it fails, read the status in the scan line and the worker log, then switch back.
+
+Check the RapidAPI subscription: on rapidapi.com open the JSearch API, go to Pricing and confirm your plan (Basic) shows as "Subscribed" for the same app whose key you pasted (My Apps, then the app, then Authorization). A key from an app that is not subscribed to JSearch, or a key from OpenWeb Ninja used with `JSEARCH_PROVIDER=rapidapi` (or the reverse), gives a 401, 403 or 404.
 
 Restarting `npm run dev` retries a failed source after 10 minutes (a refused key is not retried until its normal interval).

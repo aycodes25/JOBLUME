@@ -32,6 +32,8 @@ export class JSearchError extends Error {
     public readonly neverSent: boolean = false,
     /** The system error code behind a network failure (ENOTFOUND, ECONNREFUSED, ...). Only a plain code word: never a URL, key or message. */
     public readonly networkCode?: string,
+    /** The HTTP status of a non-OK answer other than 401/403/429. Only a number: the response body never goes into an error. */
+    public readonly httpStatus?: number,
   ) {
     super(message ?? kind);
     this.name = 'JSearchError';
@@ -84,8 +86,33 @@ function describeCause(err: unknown, apiKey: string): Record<string, unknown> {
   };
 }
 
-export function createJSearchClient(cfg: { apiKey: string; timeoutMs?: number; log?: Pick<Logger, 'warn'> }, fetchImpl: typeof fetch = fetch) {
+export type JSearchProvider = 'rapidapi' | 'openwebninja';
+
+/** A short, safe piece of an error body for the log: the JSON message/error field if there is one, else the start of the text. */
+async function bodySnippet(res: Response, apiKey: string): Promise<string | undefined> {
+  const text = await res.text().catch(() => '');
+  if (!text) return undefined;
+  let snippet = text;
+  try {
+    const parsed = JSON.parse(text) as { message?: unknown; error?: unknown } | null;
+    const field = parsed?.message ?? parsed?.error;
+    if (typeof field === 'string') snippet = field;
+  } catch {
+    // not JSON: use the raw text
+  }
+  return (apiKey ? snippet.split(apiKey).join('[key]') : snippet).slice(0, 200);
+}
+
+export function createJSearchClient(
+  cfg: { apiKey: string; provider?: JSearchProvider; timeoutMs?: number; log?: Pick<Logger, 'warn'> },
+  fetchImpl: typeof fetch = fetch,
+) {
   const timeoutMs = cfg.timeoutMs ?? 20_000;
+  const openWebNinja = cfg.provider === 'openwebninja';
+  const base = openWebNinja ? 'https://api.openwebninja.com/jsearch/search' : `https://${JSEARCH_HOST}/search`;
+  const headers: Record<string, string> = openWebNinja
+    ? { 'x-api-key': cfg.apiKey }
+    : { 'x-rapidapi-key': cfg.apiKey, 'x-rapidapi-host': JSEARCH_HOST };
   return {
     async search(q: JSearchQuery): Promise<JSearchJob[]> {
       const params = new URLSearchParams({ query: q.query, page: '1', num_pages: '1', date_posted: 'week' });
@@ -95,8 +122,8 @@ export function createJSearchClient(cfg: { apiKey: string; timeoutMs?: number; l
       let res: Response;
       try {
         // The key goes only in a header: never in the URL, an error message or a log line.
-        res = await fetchImpl(`https://${JSEARCH_HOST}/search?${params.toString()}`, {
-          headers: { 'x-rapidapi-key': cfg.apiKey, 'x-rapidapi-host': JSEARCH_HOST },
+        res = await fetchImpl(`${base}?${params.toString()}`, {
+          headers,
           signal: AbortSignal.timeout(timeoutMs),
         });
       } catch (err) {
@@ -108,7 +135,11 @@ export function createJSearchClient(cfg: { apiKey: string; timeoutMs?: number; l
       }
       if (res.status === 401 || res.status === 403) throw new JSearchError('auth', `JSearch refused the key (${res.status})`);
       if (res.status === 429) throw new JSearchError('rate_limited', 'JSearch rate limit reached');
-      if (!res.ok) throw new JSearchError('failed', `JSearch answered ${res.status}`);
+      if (!res.ok) {
+        const body = await bodySnippet(res, cfg.apiKey);
+        cfg.log?.warn({ source: 'jsearch', status: res.status, path: new URL(base).pathname, body }, 'JSearch answered with an error status');
+        throw new JSearchError('failed', `JSearch answered ${res.status}`, false, undefined, res.status);
+      }
 
       const body = (await res.json().catch(() => null)) as { status?: unknown; data?: unknown } | null;
       // A 200 without a job list is not a real answer: fail so it is never read as "no jobs".

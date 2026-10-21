@@ -59,7 +59,7 @@ async function main() {
   const repos = createWorkerRepos(db);
   const scanRuns = createScanRunsRepo(db, () => new Date(), SCRAPE_SOURCES);
   const queues = createQueues(createRedis(env.UPSTASH_REDIS_URL));
-  const jsearchClient = env.JSEARCH_API_KEY ? createJSearchClient({ apiKey: env.JSEARCH_API_KEY, log: logger }) : null;
+  const jsearchClient = env.JSEARCH_API_KEY ? createJSearchClient({ apiKey: env.JSEARCH_API_KEY, provider: env.JSEARCH_PROVIDER, log: logger }) : null;
   const scrapers = createScrapers(fetchText, {
     loadHimalayasQueries: async () => buildHimalayasQueries(await repos.loadCandidates()),
     jsearch: createJSearchScraper({

@@ -161,3 +161,88 @@ describe('createJSearchClient network failures', () => {
     expect(JSON.stringify(log.warn.mock.calls[0]![0])).not.toContain('SECRET-KEY');
   });
 });
+
+describe('createJSearchClient HTTP diagnostics', () => {
+  function withLog(impl: () => Promise<Response>, extra: { provider?: 'rapidapi' | 'openwebninja' } = {}) {
+    const log = { warn: vi.fn() };
+    const fetchImpl = vi.fn<typeof fetch>().mockImplementation(impl);
+    return { log, fetchImpl, api: createJSearchClient({ apiKey: 'SECRET-KEY', log, ...extra }, fetchImpl) };
+  }
+
+  it('keeps the error message fixed, adds httpStatus and logs a short body snippet with the path only', async () => {
+    const { api, log } = withLog(async () => json({ message: 'Endpoint does not exist SECRET-KEY' }, 404));
+    const err = await api.search(onsite).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(JSearchError);
+    expect((err as JSearchError).message).toBe('JSearch answered 404');
+    expect((err as JSearchError).httpStatus).toBe(404);
+    expect((err as JSearchError).neverSent).toBe(false);
+    expect(log.warn).toHaveBeenCalledTimes(1);
+    const [obj, msg] = log.warn.mock.calls[0]! as [Record<string, unknown>, string];
+    expect(msg).toBe('JSearch answered with an error status');
+    expect(obj).toMatchObject({ source: 'jsearch', status: 404, path: '/search', body: 'Endpoint does not exist [key]' });
+    const text = JSON.stringify(obj);
+    expect(text).not.toContain('SECRET-KEY');
+    expect(text).not.toContain('query=');
+    expect(text).not.toContain('x-rapidapi-key');
+  });
+
+  it('truncates a non-JSON body to 200 characters', async () => {
+    const { api, log } = withLog(async () => new Response('x'.repeat(500), { status: 502 }));
+    await api.search(onsite).catch(() => undefined);
+    expect((log.warn.mock.calls[0]![0] as { body: string }).body).toHaveLength(200);
+  });
+
+  it('prefers the error field when there is no message', async () => {
+    const { api, log } = withLog(async () => json({ error: 'bad plan' }, 400));
+    await api.search(onsite).catch(() => undefined);
+    expect((log.warn.mock.calls[0]![0] as { body: string }).body).toBe('bad plan');
+  });
+
+  it.each([401, 403, 429])('does not log a body for %i', async (status) => {
+    const { api, log } = withLog(async () => json({ message: 'x' }, status));
+    await api.search(onsite).catch(() => undefined);
+    expect(log.warn).not.toHaveBeenCalled();
+  });
+
+  it('still throws without a logger or with an unreadable body', async () => {
+    const { api } = client(async () => new Response(null, { status: 404 }));
+    await expect(api.search(onsite)).rejects.toMatchObject({ kind: 'failed', httpStatus: 404 });
+  });
+});
+
+describe('createJSearchClient provider', () => {
+  const run = async (provider?: 'rapidapi' | 'openwebninja') => {
+    const fetchImpl = vi.fn<typeof fetch>().mockImplementation(async () => json(ok));
+    const log = { warn: vi.fn() };
+    const api = createJSearchClient({ apiKey: 'SECRET-KEY', log, ...(provider ? { provider } : {}) }, fetchImpl);
+    await api.search(onsite);
+    return fetchImpl.mock.calls[0]!;
+  };
+
+  it('uses OpenWeb Ninja with only an x-api-key header', async () => {
+    const [url, init] = await run('openwebninja');
+    const u = new URL(String(url));
+    expect(u.origin + u.pathname).toBe('https://api.openwebninja.com/jsearch/search');
+    expect(Object.fromEntries(u.searchParams)).toEqual({
+      query: 'data analyst in Lagos, Nigeria', page: '1', num_pages: '1', date_posted: 'week', country: 'ng',
+    });
+    expect(String(url)).not.toContain('SECRET-KEY');
+    expect(init?.headers).toEqual({ 'x-api-key': 'SECRET-KEY' });
+  });
+
+  it('defaults to RapidAPI headers', async () => {
+    const [url, init] = await run();
+    expect(String(url).startsWith('https://jsearch.p.rapidapi.com/search?')).toBe(true);
+    expect(init?.headers).toEqual({ 'x-rapidapi-key': 'SECRET-KEY', 'x-rapidapi-host': 'jsearch.p.rapidapi.com' });
+    expect((await run('rapidapi'))[1]?.headers).toEqual(init?.headers);
+  });
+
+  it('logs the OpenWeb Ninja path on an error and keeps the strict parser', async () => {
+    const log = { warn: vi.fn() };
+    const bad = createJSearchClient({ apiKey: 'SECRET-KEY', log, provider: 'openwebninja' }, vi.fn<typeof fetch>().mockImplementation(async () => json({ message: 'nope' }, 404)));
+    await bad.search(onsite).catch(() => undefined);
+    expect(log.warn.mock.calls[0]![0]).toMatchObject({ path: '/jsearch/search', status: 404 });
+    const malformed = createJSearchClient({ apiKey: 'SECRET-KEY', provider: 'openwebninja' }, vi.fn<typeof fetch>().mockImplementation(async () => json({ status: 'OK' })));
+    await expect(malformed.search(onsite)).rejects.toMatchObject({ kind: 'malformed' });
+  });
+});

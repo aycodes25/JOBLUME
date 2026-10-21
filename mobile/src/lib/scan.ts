@@ -32,6 +32,12 @@ export function describeScanError(error: string | null): string {
     const status = Number(http[1]);
     return `${HTTP_TEXT.find(([test]) => test(status))![1]} (${status})`;
   }
+  const js = /^jsearch_http_(\d{3})$/.exec(error);
+  if (js) {
+    return js[1] === '404'
+      ? 'JSearch says that request was not found. Check that your JSearch subscription is active and the key belongs to JSearch (see the checklist).'
+      : `JSearch answered with an error (${js[1]}). See the checklist.`;
+  }
   return Object.hasOwn(REASON_TEXT, error) ? REASON_TEXT[error]! : 'Something went wrong';
 }
 
