@@ -1,0 +1,23 @@
+{
+  "name": "joblume-extension",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "pretypecheck": "npm run build:shared --prefix ..",
+    "typecheck": "tsc -p tsconfig.json",
+    "prebuild": "npm run build:shared --prefix ..",
+    "build": "node build.mjs",
+    "pretest": "npm run build:shared --prefix ..",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@joblume/shared": "*",
+    "@types/chrome": "^0.3.6",
+    "@types/node": "^26.6.5",
+    "esbuild": "^0.28.2",
+    "jsdom": "^30.1.3",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.5"
+  }
+}
