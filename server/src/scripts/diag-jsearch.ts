@@ -6,7 +6,7 @@ import { keyNames, parseDiagArgs } from './diag-jsearch-args.js';
 
 /**
  * One-off check: sends ONE JSearch request (uses one request of the monthly allowance), then prints what came back:
- * how many results, which publishers, which hosts the apply links point to, and how many JobLume would keep.
+ * how many results, which publishers, which hosts the apply links point to, and how many JobLume would keep per category (linkedin, indeed, jsearch-direct, dropped).
  * Nothing is saved. The API key is never printed.
  *
  *   npm run diag:jsearch -w server -- "full stack developer remote"
@@ -41,7 +41,7 @@ async function main(): Promise<void> {
 
   const publishers = new Map<string, number>();
   const hosts = new Map<string, number>();
-  let kept = 0;
+  const categories = { linkedin: 0, indeed: 0, 'jsearch-direct': 0, dropped: 0 };
   for (const raw of results) {
     const p = typeof raw.job_publisher === 'string' ? raw.job_publisher : '(none)';
     publishers.set(p, (publishers.get(p) ?? 0) + 1);
@@ -51,12 +51,15 @@ async function main(): Promise<void> {
     } catch {
       hosts.set('(no valid apply link)', (hosts.get('(no valid apply link)') ?? 0) + 1);
     }
-    if (parseJSearchJob(raw)) kept++;
+    const job = parseJSearchJob(raw);
+    if (!job) categories.dropped++;
+    else if (job.source === 'linkedin' || job.source === 'indeed') categories[job.source]++;
+    else categories['jsearch-direct']++;
   }
   const top = (m: Map<string, number>) => [...m.entries()].sort((a, b) => b[1] - a[1]).slice(0, 12).map(([k, n]) => `  ${n}  ${k}`).join('\n');
   console.log('publishers:\n' + (top(publishers) || '  (none)'));
   console.log('apply link hosts:\n' + (top(hosts) || '  (none)'));
-  console.log(`JobLume would keep (LinkedIn/Indeed with a LinkedIn/Indeed link): ${kept} of ${results.length}`);
+  console.log(`JobLume would keep ${results.length - categories.dropped} of ${results.length}: linkedin ${categories.linkedin} | indeed ${categories.indeed} | jsearch-direct (employer link) ${categories['jsearch-direct']} | dropped ${categories.dropped}`);
 }
 
 main().catch((err: unknown) => {

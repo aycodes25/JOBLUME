@@ -13,7 +13,7 @@ describe('sourceLabel', () => {
     expect(sourceLabel('himalayas')).toBe('Himalayas');
     expect(sourceLabel('arbeitnow')).toBe('Arbeitnow');
     expect(sourceLabel('workingnomads')).toBe('Working Nomads');
-    expect(sourceLabel('jsearch')).toBe('JSearch (LinkedIn, Indeed)');
+    expect(sourceLabel('jsearch')).toBe('Employer link (JSearch)');
     expect(sourceLabel('somewhere')).toBe('somewhere');
   });
 });

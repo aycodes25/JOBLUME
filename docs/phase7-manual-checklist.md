@@ -5,6 +5,7 @@ The automated tests use fakes only. This checklist uses your real Supabase proje
 ## Before starting (do these in order)
 - [ ] **Update the database first.** Open your Supabase project, go to the SQL editor, paste the whole of `supabase/migrations/0005_contacts.sql` and run it. It must finish without errors.
 - [ ] Do the same with `supabase/migrations/0006_workingnomads.sql`. Do both BEFORE you start or restart the server or worker. The worker reads `applications.whatsapp_number`, and without 0006 every Working Nomads job fails to save.
+- [ ] Also run `supabase/migrations/0008_jsearch_source.sql` (it lets jobs with source `jsearch` save). Run it BEFORE restarting the worker, or JSearch jobs with a direct employer link fail to save.
 - [ ] In Table editor check that `applications` has a `whatsapp_number` column.
 - [ ] Run `npm install` and then `npm run dev:server`.
 
@@ -22,6 +23,13 @@ The automated tests use fakes only. This checklist uses your real Supabase proje
 
 ## After a restart
 - [ ] When the worker starts, any source that has not scanned recently gets one extra scan. A source whose own scheduled scan is due within about five minutes is skipped.
+
+## JSearch: which jobs are kept
+JobLume keeps a JSearch result in two cases:
+- **LinkedIn or Indeed:** the publisher is LinkedIn or Indeed and the link is that site's own job page (source `linkedin` / `indeed`, as before).
+- **Direct employer link:** any other publisher, when JSearch marks an application link as direct (the first `apply_options` entry with `is_direct: true`, else `job_apply_link` when `job_apply_is_direct` is true) and that link is `https`, is not on LinkedIn or Indeed, and is not a known aggregator (JobLeads, Jobright, Glassdoor, ZipRecruiter, Jooble, Adzuna, Talent.com, Careerjet, Neuvoo, Learn4Good, bebee). These jobs get source `jsearch` and show the label "Employer link (JSearch)". The job link is the employer's own page.
+- Everything else is dropped. Auto mode never sends `jsearch` jobs (you apply yourself, like LinkedIn and Indeed).
+- [ ] Run `npm run diag:jsearch -w server -- "full stack developer remote"` (uses one request). The last line shows how many would be kept per category: linkedin, indeed, jsearch-direct, dropped. If jsearch-direct is 0 for every query, JSearch is not marking any link as direct for your searches.
 
 ## Troubleshooting JSearch
 If a JSearch scan shows "failed", the scan status line now says why. Test the connection from your PC in PowerShell:

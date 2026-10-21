@@ -11,7 +11,7 @@ const SOURCES: Record<string, string> = {
   himalayas: 'Himalayas',
   arbeitnow: 'Arbeitnow',
   workingnomads: 'Working Nomads',
-  jsearch: 'JSearch (LinkedIn, Indeed)',
+  jsearch: 'Employer link (JSearch)',
 };
 
 export const sourceLabel = (source: string): string => SOURCES[source] ?? source;

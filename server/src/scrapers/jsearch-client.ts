@@ -21,6 +21,7 @@ export interface JSearchJob {
   job_country?: unknown;
   job_is_remote?: unknown;
   job_posted_at_datetime_utc?: unknown;
+  job_apply_is_direct?: unknown;
   apply_options?: unknown;
 }
 
