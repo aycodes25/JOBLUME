@@ -10,6 +10,8 @@
     "dev:worker": "nodemon --config nodemon.worker.json",
     "dev": "concurrently -n api,worker -c blue,magenta \"npm:dev:api\" \"npm:dev:worker\"",
     "build": "tsc -p tsconfig.build.json",
+    "start": "node dist/start-all.js",
+    "start:all": "node dist/start-all.js",
     "start:api": "node dist/api/index.js",
     "start:worker": "node dist/worker/index.js",
     "pretest": "npm run build:shared --prefix ..",
