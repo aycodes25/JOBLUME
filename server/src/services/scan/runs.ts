@@ -72,6 +72,7 @@ export function networkReason(code: string | undefined): string {
 export function scanFailureReason(err: unknown): string {
   if (err instanceof HttpError) return `http_${err.status}`;
   if (err instanceof JSearchError) {
+    if (err.kind === 'failed' && err.httpStatus === 404 && err.endpointMissing) return 'jsearch_endpoint_missing';
     if (err.kind === 'failed' && err.httpStatus) return `jsearch_http_${err.httpStatus}`;
     if (err.kind === 'failed' && err.networkCode) return networkReason(err.networkCode);
     return `jsearch_${err.kind}`;

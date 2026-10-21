@@ -22,6 +22,7 @@ const REASON_TEXT: Record<string, string> = {
   jsearch_timeout: 'JSearch took too long',
   jsearch_failed: 'JSearch could not be reached',
   jsearch_malformed: 'JSearch sent something unreadable',
+  jsearch_endpoint_missing: 'The JSearch address this app uses no longer exists. Update JobLume or switch the JSearch settings (see the checklist).',
 };
 
 /** A stored scan failure reason in plain words. Anything not recognised reads "Something went wrong". */

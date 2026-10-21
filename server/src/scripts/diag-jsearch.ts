@@ -1,7 +1,8 @@
 import { getEnv } from '../lib/env.js';
 import { logger } from '../lib/logger.js';
-import { createJSearchClient } from '../scrapers/jsearch-client.js';
+import { createJSearchClient, jsearchUrl } from '../scrapers/jsearch-client.js';
 import { parseJSearchJob } from '../scrapers/jsearch.js';
+import { keyNames, parseDiagArgs } from './diag-jsearch-args.js';
 
 /**
  * One-off check: sends ONE JSearch request (uses one request of the monthly allowance), then prints what came back:
@@ -10,6 +11,10 @@ import { parseJSearchJob } from '../scrapers/jsearch.js';
  *
  *   npm run diag:jsearch -w server -- "full stack developer remote"
  *   npm run diag:jsearch -w server -- "software engineer in Lagos, Nigeria" --onsite
+ *   npm run diag:jsearch -w server -- --path=/search-v2 --provider=openwebninja
+ *
+ * --path=/search|/search-v2 and --provider=rapidapi|openwebninja override JSEARCH_SEARCH_PATH and JSEARCH_PROVIDER.
+ * Also prints the field names (never values) of the first result and, for a v2 reply, of the reply's data object.
  */
 async function main(): Promise<void> {
   const env = getEnv();
@@ -17,13 +22,22 @@ async function main(): Promise<void> {
     console.log('JSEARCH_API_KEY is not set in .env');
     return;
   }
-  const args = process.argv.slice(2);
-  const onsite = args.includes('--onsite');
-  const query = args.find((a) => !a.startsWith('--')) ?? 'full stack developer remote';
-  const client = createJSearchClient({ apiKey: env.JSEARCH_API_KEY, provider: env.JSEARCH_PROVIDER, log: logger });
-  console.log(`provider: ${env.JSEARCH_PROVIDER ?? 'rapidapi'} | query: "${query}" | ${onsite ? 'on-site (country ng)' : 'remote only'}`);
+  const { query, onsite, provider, path } = parseDiagArgs(process.argv.slice(2), { provider: env.JSEARCH_PROVIDER, path: env.JSEARCH_SEARCH_PATH });
+  let dataKeys: string[] = [];
+  const spy: typeof fetch = async (input, init) => {
+    const res = await fetch(input, init);
+    // Read a copy of the body for the key names only; nothing from it is printed except names.
+    const parsed = (await res.clone().json().catch(() => null)) as { data?: unknown } | null;
+    dataKeys = keyNames(parsed?.data);
+    console.log(`HTTP outcome: ${res.status} ${res.ok ? 'OK' : 'not OK'}`);
+    return res;
+  };
+  const client = createJSearchClient({ apiKey: env.JSEARCH_API_KEY, provider, searchPath: path, log: logger }, spy);
+  console.log(`provider: ${provider} | path: ${new URL(jsearchUrl(provider, path)).pathname} | query: "${query}" | ${onsite ? 'on-site (country ng)' : 'remote only'}`);
   const results = await client.search({ query, remote: !onsite });
   console.log(`results returned: ${results.length}`);
+  if (dataKeys.length) console.log(`data keys (v2 reply): ${dataKeys.join(', ')}`);
+  if (results[0]) console.log(`first result keys: ${keyNames(results[0]).join(', ')}`);
 
   const publishers = new Map<string, number>();
   const hosts = new Map<string, number>();

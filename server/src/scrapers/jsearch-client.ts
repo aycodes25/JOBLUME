@@ -34,6 +34,8 @@ export class JSearchError extends Error {
     public readonly networkCode?: string,
     /** The HTTP status of a non-OK answer other than 401/403/429. Only a number: the response body never goes into an error. */
     public readonly httpStatus?: number,
+    /** True when a 404 body said the endpoint "does not exist" (the address was removed). A flag only: the body never goes into an error. */
+    public readonly endpointMissing: boolean = false,
   ) {
     super(message ?? kind);
     this.name = 'JSearchError';
@@ -87,6 +89,20 @@ function describeCause(err: unknown, apiKey: string): Record<string, unknown> {
 }
 
 export type JSearchProvider = 'rapidapi' | 'openwebninja';
+/** '/search' is the legacy path (removed on RapidAPI); '/search-v2' is the current one. */
+export type JSearchPath = '/search' | '/search-v2';
+
+/** The full request URL (no query) for a provider and path. */
+export function jsearchUrl(provider: JSearchProvider | undefined, path: JSearchPath): string {
+  return provider === 'openwebninja' ? `https://api.openwebninja.com/jsearch${path}` : `https://${JSEARCH_HOST}${path}`;
+}
+
+/** The job list of a reply: a legacy array, or an object with a jobs array (v2). Anything else is undefined. */
+export function extractJobs(data: unknown): JSearchJob[] | undefined {
+  if (Array.isArray(data)) return data as JSearchJob[];
+  if (typeof data === 'object' && data !== null && Array.isArray((data as { jobs?: unknown }).jobs)) return (data as { jobs: JSearchJob[] }).jobs;
+  return undefined;
+}
 
 /** A short, safe piece of an error body for the log: the JSON message/error field if there is one, else the start of the text. */
 async function bodySnippet(res: Response, apiKey: string): Promise<string | undefined> {
@@ -104,18 +120,21 @@ async function bodySnippet(res: Response, apiKey: string): Promise<string | unde
 }
 
 export function createJSearchClient(
-  cfg: { apiKey: string; provider?: JSearchProvider; timeoutMs?: number; log?: Pick<Logger, 'warn'> },
+  cfg: { apiKey: string; provider?: JSearchProvider; searchPath?: JSearchPath; timeoutMs?: number; log?: Pick<Logger, 'warn'> },
   fetchImpl: typeof fetch = fetch,
 ) {
   const timeoutMs = cfg.timeoutMs ?? 20_000;
   const openWebNinja = cfg.provider === 'openwebninja';
-  const base = openWebNinja ? 'https://api.openwebninja.com/jsearch/search' : `https://${JSEARCH_HOST}/search`;
+  const searchPath: JSearchPath = cfg.searchPath ?? '/search-v2';
+  const base = jsearchUrl(cfg.provider, searchPath);
   const headers: Record<string, string> = openWebNinja
     ? { 'x-api-key': cfg.apiKey }
     : { 'x-rapidapi-key': cfg.apiKey, 'x-rapidapi-host': JSEARCH_HOST };
   return {
     async search(q: JSearchQuery): Promise<JSearchJob[]> {
-      const params = new URLSearchParams({ query: q.query, page: '1', num_pages: '1', date_posted: 'week' });
+      const params = new URLSearchParams({ query: q.query, num_pages: '1', date_posted: 'week' });
+      // The legacy path takes a page; v2 has no page parameter (it pages by cursor).
+      if (searchPath === '/search') params.set('page', '1');
       if (q.remote) params.set('work_from_home', 'true');
       else params.set('country', 'ng');
 
@@ -138,14 +157,16 @@ export function createJSearchClient(
       if (!res.ok) {
         const body = await bodySnippet(res, cfg.apiKey);
         cfg.log?.warn({ source: 'jsearch', status: res.status, path: new URL(base).pathname, body }, 'JSearch answered with an error status');
-        throw new JSearchError('failed', `JSearch answered ${res.status}`, false, undefined, res.status);
+        const endpointMissing = res.status === 404 && /does not exist/i.test(body ?? '');
+        throw new JSearchError('failed', `JSearch answered ${res.status}`, false, undefined, res.status, endpointMissing);
       }
 
       const body = (await res.json().catch(() => null)) as { status?: unknown; data?: unknown } | null;
       // A 200 without a job list is not a real answer: fail so it is never read as "no jobs".
-      if (!body || typeof body !== 'object' || !Array.isArray(body.data)) throw new JSearchError('malformed', 'JSearch sent no job list');
-      if (body.status !== undefined && body.status !== 'OK') throw new JSearchError('failed', 'JSearch reported an error');
-      return body.data as JSearchJob[];
+      const jobs = body && typeof body === 'object' ? extractJobs(body.data) : undefined;
+      if (!jobs) throw new JSearchError('malformed', 'JSearch sent no job list');
+      if (body!.status !== undefined && body!.status !== 'OK') throw new JSearchError('failed', 'JSearch reported an error');
+      return jobs;
     },
   };
 }
