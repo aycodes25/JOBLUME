@@ -2,8 +2,8 @@ import type { ScanStatus } from '@joblume/shared';
 import { StyleSheet, Text, View } from 'react-native';
 import { Badge } from '@/components/ui/Badge';
 import { Card } from '@/components/ui/Card';
-import { sourceLabel } from '@/lib/format';
-import { describeScanRun, describeWorker } from '@/lib/scan';
+
+import { describeScanRun, describeWorker, scanSourceLabel } from '@/lib/scan';
 import { colors, font, space } from '@/theme';
 
 export interface LastScanCardProps {
@@ -29,7 +29,7 @@ export function LastScanCard({ status, now }: LastScanCardProps) {
       ) : (
         status.runs.map((run) => (
           <View key={run.source} style={styles.run}>
-            <Text style={styles.source}>{sourceLabel(run.source)}</Text>
+            <Text style={styles.source}>{scanSourceLabel(run.source)}</Text>
             <Text style={run.status === 'failed' ? styles.failed : styles.muted}>{describeScanRun(run, now)}</Text>
           </View>
         ))
