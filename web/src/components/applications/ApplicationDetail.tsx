@@ -12,7 +12,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useApplication, useGmailStatus, useNextEmail, useSendApplication, useSetStatus, useUpdateApplicationText } from '@/hooks/api';
 import { describeApiError } from '@/lib/api/errors';
-import { APPLY_METHOD_LABELS, applyMethod, buildTextPatch, whatsappLink } from '@/lib/applications';
+import { APPLY_METHOD_LABELS, applyMethod, buildTextPatch, nextInQueue, whatsappLink } from '@/lib/applications';
 import { COLUMN_LABELS, sourceLabel } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { AssistedApplyPanel } from './AssistedApplyPanel';
@@ -22,7 +22,15 @@ import { ScoreRing } from './ScoreRing';
 const APPLIED_FAMILY: ApplicationStatus[] = ['applied', 'interviewing', 'rejected', 'offer'];
 const MOVE_OPTIONS = ['pending_review', 'applied', 'interviewing', 'rejected', 'offer'] as const;
 
-export function ApplicationDetail({ id, onClose }: { id: string | null; onClose(): void }) {
+export interface ApplicationDetailProps {
+  id: string | null;
+  onClose(): void;
+  /** The list this application was opened from, in the order shown. With it, marking applied offers the next open one. */
+  queue?: Array<{ id: string; status: ApplicationStatus }>;
+  onOpen?(id: string): void;
+}
+
+export function ApplicationDetail({ id, onClose, queue, onOpen }: ApplicationDetailProps) {
   const detail = useApplication(id);
   const updateText = useUpdateApplicationText();
   const setStatus = useSetStatus();
@@ -30,6 +38,8 @@ export function ApplicationDetail({ id, onClose }: { id: string | null; onClose(
   const sendEmail = useSendApplication();
   const nextEmail = useNextEmail();
   const [notice, setNotice] = useState<string | null>(null);
+  /** Set once marked applied from a queue: the id of the next open application, or null when there is none. */
+  const [applied, setApplied] = useState<{ nextId: string | null } | null>(null);
   const data = detail.data;
 
   const [cv, setCv] = useState('');
@@ -43,6 +53,7 @@ export function ApplicationDetail({ id, onClose }: { id: string | null; onClose(
     sendEmail.reset();
     nextEmail.reset();
     setNotice(null);
+    setApplied(null);
   }, [data?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const text = data ? buildTextPatch({ cv: data.tailored_cv_text, letter: data.cover_letter_text }, { cv, letter }) : null;
@@ -55,6 +66,10 @@ export function ApplicationDetail({ id, onClose }: { id: string | null; onClose(
   const method = data ? applyMethod(data) : null;
   const waLink = data ? whatsappLink(data.whatsapp_number, data.cover_letter_text) : null;
   const showPanel = data !== undefined && data.status === 'approved';
+  const markApplied = (appId: string) => {
+    const nextId = queue ? (nextInQueue(queue, appId)?.id ?? null) : null;
+    setStatus.mutate({ id: appId, status: 'applied' }, { onSuccess: () => (queue ? setApplied({ nextId }) : onClose()) });
+  };
 
   return (
     <Dialog open={id !== null} onOpenChange={(open) => { if (!open) onClose(); }}>
@@ -151,9 +166,9 @@ export function ApplicationDetail({ id, onClose }: { id: string | null; onClose(
               )}
             </div>
 
-            {showPanel && (
+            {(showPanel || applied) && data && (
               <>
-                <EmailSection
+                {!applied && <EmailSection
                   app={data}
                   gmail={gmail.data}
                   lockedReason={lockedReason}
@@ -166,12 +181,15 @@ export function ApplicationDetail({ id, onClose }: { id: string | null; onClose(
                       onSuccess: (result) => setNotice(result.exhausted ? 'No more suggested addresses. Paste one yourself.' : null),
                     })
                   }
-                />
+                />}
                 <AssistedApplyPanel
                   app={data}
                   pending={setStatus.isPending}
                   lockedReason={lockedReason}
-                  onMarkApplied={() => setStatus.mutate({ id: data.id, status: 'applied' }, { onSuccess: () => onClose() })}
+                  onMarkApplied={() => markApplied(data.id)}
+                  applied={applied !== null}
+                  onOpenNext={applied?.nextId && onOpen ? () => onOpen(applied.nextId!) : undefined}
+                  onDone={onClose}
                 />
               </>
             )}

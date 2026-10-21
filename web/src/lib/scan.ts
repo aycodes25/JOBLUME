@@ -10,6 +10,11 @@ const HTTP_TEXT: Array<[(n: number) => boolean, string]> = [
 const REASON_TEXT: Record<string, string> = {
   timeout: 'The site took too long',
   network: 'Could not reach the site',
+  network_dns: "Could not find the site's address (DNS). Check your internet or DNS settings.",
+  network_refused: 'The site refused the connection.',
+  network_reset: 'The connection was cut off.',
+  network_timeout: 'The connection timed out.',
+  network_tls: 'Secure connection failed (check antivirus or proxy).',
   parse: 'The site sent something unreadable',
   db: 'Could not save the results',
   jsearch_auth: 'JSearch refused the API key',

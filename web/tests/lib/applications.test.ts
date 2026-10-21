@@ -1,7 +1,7 @@
 import type { Application } from '@joblume/shared';
 import { describe, expect, it } from 'vitest';
 import {
-  applyStatusLocal, buildTextPatch, groupByColumn, postedKey, previewText, queueTab, resolveDrop, scoreTone, sortByScore, sortNewest, splitQueue,
+  applyStatusLocal, buildTextPatch, groupByColumn, postedKey, previewText, queueTab, resolveDrop, scoreTone, sortByScore, sortContactFirst, sortNewest, splitQueue, nextInQueue,
 } from '@/lib/applications';
 
 const app = (over: Partial<Application> = {}): Application => ({
@@ -215,5 +215,72 @@ describe('sortNewest', () => {
     ]);
     expect(groups.pending.map((a) => a.id)).toEqual(['p-new', 'p-old']);
     expect(groups.ready.map((a) => a.id)).toEqual(['r-new', 'r-old']);
+  });
+});
+
+
+describe('nextInQueue', () => {
+  const list = [
+    app({ id: 'a', status: 'approved' }),
+    app({ id: 'b', status: 'applied' }),
+    app({ id: 'c', status: 'skipped' }),
+    app({ id: 'd', status: 'approved' }),
+    app({ id: 'e', status: 'pending_review' }),
+  ];
+
+  it('returns the next item after the current one', () => {
+    expect(nextInQueue([app({ id: 'x' }), app({ id: 'y' })], 'x')?.id).toBe('y');
+  });
+
+  it('skips applications that are already applied or skipped', () => {
+    expect(nextInQueue(list, 'a')?.id).toBe('d');
+  });
+
+  it('works when the current one has just been marked applied in the list', () => {
+    expect(nextInQueue(list.map((a) => (a.id === 'a' ? { ...a, status: 'applied' as const } : a)), 'a')?.id).toBe('d');
+  });
+
+  it('returns null at the end of the queue, for an unknown id and for an empty list', () => {
+    expect(nextInQueue(list, 'e')).toBeNull();
+    expect(nextInQueue(list, 'nope')).toBeNull();
+    expect(nextInQueue([], 'a')).toBeNull();
+  });
+
+  it('returns null when everything after the current one is done', () => {
+    expect(nextInQueue(list.slice(0, 3), 'a')).toBeNull();
+  });
+
+  it('does not mutate the list', () => {
+    const copy = [...list];
+    nextInQueue(list, 'a');
+    expect(list).toEqual(copy);
+  });
+});
+
+describe('pending order puts contactable applications first', () => {
+  it('sortContactFirst keeps the existing order inside each group', () => {
+    const items = [
+      app({ id: 'site1' }),
+      app({ id: 'mail1', email_candidates: [{ email: 'a@b.co', source: 'posting' }] as never }),
+      app({ id: 'site2' }),
+      app({ id: 'wa1', whatsapp_number: '2348012345678' }),
+      app({ id: 'mail2', hiring_manager_email: 'hr@acme.com' }),
+    ];
+    expect(sortContactFirst(items).map((a) => a.id)).toEqual(['mail1', 'wa1', 'mail2', 'site1', 'site2']);
+    expect(items.map((a) => a.id)).toEqual(['site1', 'mail1', 'site2', 'wa1', 'mail2']);
+  });
+
+  it('splitQueue lists contactable pending applications first, newest first within each group', () => {
+    const groups = splitQueue([
+      app({ id: 'site-new', created_at: '2026-10-09T00:00:00.000Z' }),
+      app({ id: 'wa-old', created_at: '2026-10-01T00:00:00.000Z', whatsapp_number: '2348012345678' }),
+      app({ id: 'mail-mid', created_at: '2026-10-05T00:00:00.000Z', hiring_manager_email: 'hr@acme.com' }),
+      app({ id: 'site-old', created_at: '2026-10-02T00:00:00.000Z' }),
+      app({ id: 'r-site', status: 'approved', created_at: '2026-10-08T00:00:00.000Z' }),
+      app({ id: 'r-mail', status: 'approved', created_at: '2026-10-01T00:00:00.000Z', hiring_manager_email: 'hr@acme.com' }),
+    ]);
+    expect(groups.pending.map((a) => a.id)).toEqual(['mail-mid', 'wa-old', 'site-new', 'site-old']);
+    // Only Pending is reordered by contact; Ready stays newest first.
+    expect(groups.ready.map((a) => a.id)).toEqual(['r-site', 'r-mail']);
   });
 });

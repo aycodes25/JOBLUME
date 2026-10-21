@@ -86,3 +86,78 @@ describe('createJSearchClient.search', () => {
     await expect(api.search(onsite)).rejects.toMatchObject({ kind: 'failed' });
   });
 });
+
+describe('createJSearchClient network failures', () => {
+  const sysError = (code: string, extra: Record<string, unknown> = {}) =>
+    Object.assign(new Error(`connect failed ${code}`), { code, ...extra });
+  const fetchFailed = (cause: unknown) => new TypeError('fetch failed', { cause });
+
+  function withLog(impl: () => Promise<Response>) {
+    const log = { warn: vi.fn() };
+    const fetchImpl = vi.fn<typeof fetch>().mockImplementation(impl);
+    return { log, api: createJSearchClient({ apiKey: 'SECRET-KEY', log }, fetchImpl) };
+  }
+
+  it.each(['ENOTFOUND', 'EAI_AGAIN', 'ECONNREFUSED', 'ECONNRESET', 'ETIMEDOUT', 'UND_ERR_CONNECT_TIMEOUT', 'UNABLE_TO_VERIFY_LEAF_SIGNATURE', 'CERT_HAS_EXPIRED'])(
+    'keeps the cause code %s on the error',
+    async (code) => {
+      const { api } = withLog(async () => {
+        throw fetchFailed(sysError(code, { syscall: 'getaddrinfo', hostname: 'jsearch.p.rapidapi.com' }));
+      });
+      const err = (await api.search(onsite).catch((e: unknown) => e)) as JSearchError;
+      expect(err).toBeInstanceOf(JSearchError);
+      expect(err.kind).toBe('failed');
+      expect(err.neverSent).toBe(true);
+      expect(err.networkCode).toBe(code);
+      expect(err.message).toBe('Could not reach JSearch');
+    },
+  );
+
+  it('finds the code inside an AggregateError cause', async () => {
+    const { api } = withLog(async () => {
+      throw fetchFailed(Object.assign(new AggregateError([sysError('ECONNREFUSED')], 'multi'), {}));
+    });
+    const err = (await api.search(onsite).catch((e: unknown) => e)) as JSearchError;
+    expect(err.networkCode).toBe('ECONNREFUSED');
+  });
+
+  it('has no networkCode when the error carries no cause code', async () => {
+    const { api } = withLog(async () => {
+      throw new TypeError('fetch failed');
+    });
+    const err = (await api.search(onsite).catch((e: unknown) => e)) as JSearchError;
+    expect(err.networkCode).toBeUndefined();
+  });
+
+  it('ignores a code that is not a plain code word (never a URL or key)', async () => {
+    const { api } = withLog(async () => {
+      throw fetchFailed(sysError('https://jsearch.p.rapidapi.com/search?x=SECRET-KEY'));
+    });
+    const err = (await api.search(onsite).catch((e: unknown) => e)) as JSearchError;
+    expect(err.networkCode).toBeUndefined();
+    expect(JSON.stringify(err)).not.toContain('SECRET-KEY');
+  });
+
+  it('logs the cause at warn without the key, URL query or headers', async () => {
+    const { api, log } = withLog(async () => {
+      throw fetchFailed(sysError('ENOTFOUND', { syscall: 'getaddrinfo', hostname: 'jsearch.p.rapidapi.com' }));
+    });
+    await api.search(onsite).catch(() => undefined);
+    expect(log.warn).toHaveBeenCalledTimes(1);
+    const [obj, msg] = log.warn.mock.calls[0]! as [object, string];
+    expect(msg).toBe('JSearch could not be reached');
+    expect(obj).toMatchObject({ source: 'jsearch', networkCode: 'ENOTFOUND', cause: { code: 'ENOTFOUND', syscall: 'getaddrinfo', hostname: 'jsearch.p.rapidapi.com' } });
+    const text = JSON.stringify(obj);
+    expect(text).not.toContain('SECRET-KEY');
+    expect(text).not.toContain('x-rapidapi-key');
+    expect(text).not.toContain('query=');
+  });
+
+  it('scrubs the key from a logged cause message', async () => {
+    const { api, log } = withLog(async () => {
+      throw fetchFailed(Object.assign(new Error('boom SECRET-KEY'), { code: 'ECONNRESET' }));
+    });
+    await api.search(onsite).catch(() => undefined);
+    expect(JSON.stringify(log.warn.mock.calls[0]![0])).not.toContain('SECRET-KEY');
+  });
+});

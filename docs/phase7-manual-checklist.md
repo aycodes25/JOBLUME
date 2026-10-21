@@ -22,3 +22,20 @@ The automated tests use fakes only. This checklist uses your real Supabase proje
 
 ## After a restart
 - [ ] When the worker starts, any source that has not scanned recently gets one extra scan. A source whose own scheduled scan is due within about five minutes is skipped.
+
+## Troubleshooting JSearch
+If a JSearch scan shows "failed", the scan status line now says why. Test the connection from your PC in PowerShell:
+
+```
+Test-NetConnection jsearch.p.rapidapi.com -Port 443
+nslookup jsearch.p.rapidapi.com
+```
+
+`TcpTestSucceeded : True` and an address from nslookup mean the network is fine. The reasons mean:
+- **Could not find the site's address (DNS)** (`network_dns`): your PC cannot look up jsearch.p.rapidapi.com. Check the internet, try another DNS (for example 1.1.1.1 or 8.8.8.8), or turn off a VPN or filter.
+- **The site refused the connection** (`network_refused`): something answered but would not accept it, usually a firewall or proxy.
+- **The connection was cut off** (`network_reset`): the connection dropped part way, often a firewall, antivirus or flaky network.
+- **The connection timed out** (`network_timeout`): nothing came back in time. Port 443 may be blocked, or the network is very slow.
+- **Secure connection failed** (`network_tls`): the secure (HTTPS) check failed. Antivirus HTTPS scanning or a company proxy is the usual cause; also check the PC date and time.
+- **Could not reach the site** (`network`): a network error with no known code. The worker log has a line "JSearch could not be reached" with the full cause (no key).
+- **JSearch refused the API key** means the key reached JSearch but was rejected: check the key and that you subscribed to the JSearch API on RapidAPI.

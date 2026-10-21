@@ -22,23 +22,25 @@ export class HttpError extends Error {
 }
 
 /** Fetches a page or feed as text. `timeoutMs` overrides the 30 second default for a feed that is slow to send. */
-export type FetchText = (url: string, opts?: { timeoutMs?: number }) => Promise<string>;
+export type FetchText = (url: string, opts?: { timeoutMs?: number; userAgent?: string }) => Promise<string>;
 
 interface FetchOptions {
   retries?: number;
   backoffMs?: number;
   timeoutMs?: number;
+  /** Sent instead of a rotating browser user agent, for a site that is scraped under an honest, identifying one. */
+  userAgent?: string;
 }
 
 const retryable = (status: number) => status === 429 || status >= 500;
 
 export async function fetchText(url: string, opts: FetchOptions = {}): Promise<string> {
-  const { retries = 2, backoffMs = 1500, timeoutMs = 30_000 } = opts;
+  const { retries = 2, backoffMs = 1500, timeoutMs = 30_000, userAgent } = opts;
   let lastError: unknown;
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
       const res = await fetch(url, {
-        headers: { 'user-agent': pickUserAgent(), accept: 'text/html,application/json;q=0.9,*/*;q=0.8' },
+        headers: { 'user-agent': userAgent ?? pickUserAgent(), accept: 'text/html,application/json;q=0.9,*/*;q=0.8' },
         redirect: 'follow',
         signal: AbortSignal.timeout(timeoutMs),
       });

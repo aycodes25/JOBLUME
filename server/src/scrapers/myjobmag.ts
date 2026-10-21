@@ -8,6 +8,22 @@ import type { Scraper } from './types.js';
 const BASE = 'https://www.myjobmag.com';
 const LIST_URL = `${BASE}/jobs`;
 
+/** MyJobMag blocks browser-looking agents from some networks but allows /jobs and /job/ to an honest bot, so it is asked that way. */
+export const MYJOBMAG_USER_AGENT = 'JobLumeBot/1.0 (personal job-search tool)';
+
+const ALLOWED_PATH = /^\/(?:jobs(?:\/page\/\d{1,3})?|job\/[^/?#\s]+)$/;
+
+/** True for the only URLs this scraper may request: /jobs, /jobs/page/N and /job/<slug>, with no query string (robots.txt disallows those). */
+export function isAllowedMyJobMagUrl(url: string): boolean {
+  let u: URL;
+  try {
+    u = new URL(url);
+  } catch {
+    return false;
+  }
+  return u.origin === BASE && u.search === '' && u.hash === '' && ALLOWED_PATH.test(u.pathname);
+}
+
 export function parseMyJobMagList(html: string): JobStub[] {
   const $ = cheerio.load(html);
   const stubs: JobStub[] = [];
@@ -15,7 +31,7 @@ export function parseMyJobMagList(html: string): JobStub[] {
     const a = $(el);
     const li = a.closest('li.job-list-li');
     const href = a.attr('href');
-    if (!href) return;
+    if (!href || !isAllowedMyJobMagUrl(new URL(href, BASE).toString())) return;
     const text = a.text().replace(/\s+/g, ' ').trim();
     const idx = text.lastIndexOf(' at ');
     if (idx <= 0) return;
@@ -59,14 +75,16 @@ export const MYJOBMAG_PAGES = 3;
 const pageUrl = (page: number) => (page === 1 ? LIST_URL : `${LIST_URL}/page/${page}`);
 
 export function createMyJobMagScraper(fetchText: FetchText, opts: { pages?: number; pause?: () => Promise<void> } = {}): Scraper {
+  const get = (url: string) => fetchText(url, { userAgent: MYJOBMAG_USER_AGENT });
   return {
     source: 'myjobmag',
     detailDelayMs: [1000, 3000],
     async list() {
-      return listPages({ fetchText, pageUrl, parse: parseMyJobMagList, pages: opts.pages ?? MYJOBMAG_PAGES, pause: opts.pause });
+      return listPages({ fetchText: get, pageUrl, parse: parseMyJobMagList, pages: opts.pages ?? MYJOBMAG_PAGES, pause: opts.pause });
     },
     async detail(stub) {
-      const { description, location, postedAt } = parseMyJobMagDetail(await fetchText(stub.url));
+      if (!isAllowedMyJobMagUrl(stub.url)) throw new Error('MyJobMag URL not allowed by robots.txt');
+      const { description, location, postedAt } = parseMyJobMagDetail(await get(stub.url));
       return {
         title: stub.title,
         company: stub.company,

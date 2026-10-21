@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it, vi } from 'vitest';
-import { createMyJobMagScraper, parseMyJobMagDetail, parseMyJobMagList } from '../../src/scrapers/myjobmag.js';
+import { createMyJobMagScraper, isAllowedMyJobMagUrl, MYJOBMAG_USER_AGENT, parseMyJobMagDetail, parseMyJobMagList } from '../../src/scrapers/myjobmag.js';
 
 const read = (name: string) => readFileSync(new URL(`../fixtures/${name}`, import.meta.url), 'utf8');
 
@@ -75,7 +75,7 @@ describe('createMyJobMagScraper', () => {
     const scraper = createMyJobMagScraper(fetchText);
     const stub = parseMyJobMagList(LIST_SNIPPET)[0]!;
     const job = await scraper.detail(stub);
-    expect(fetchText).toHaveBeenCalledWith(stub.url);
+    expect(fetchText).toHaveBeenCalledWith(stub.url, { userAgent: MYJOBMAG_USER_AGENT });
     expect(job).toMatchObject({ location: 'Abuja, Ogun', source: 'myjobmag', companyDomain: null });
     expect(job.description).toContain('Run lab tests');
     expect(scraper.detailDelayMs).toEqual([1000, 3000]);
@@ -85,5 +85,75 @@ describe('createMyJobMagScraper', () => {
     const scraper = createMyJobMagScraper(vi.fn().mockResolvedValue('<html></html>'));
     const job = await scraper.detail(parseMyJobMagList(LIST_SNIPPET)[0]!);
     expect(job.description).toBe('A leading firm in the beverage production industry');
+  });
+});
+
+describe('MyJobMag honest user agent and robots.txt-allowed URLs', () => {
+  const noPause = async () => {};
+
+  it('identifies itself as JobLumeBot', () => {
+    expect(MYJOBMAG_USER_AGENT).toBe('JobLumeBot/1.0 (personal job-search tool)');
+  });
+
+  it('sends the bot user agent on every list and detail request, and only requests allowed URLs', async () => {
+    const calls: Array<{ url: string; opts: { userAgent?: string } | undefined }> = [];
+    const fetchText = vi.fn<(url: string, opts?: { timeoutMs?: number; userAgent?: string }) => Promise<string>>(async (url, opts) => {
+      calls.push({ url, opts });
+      return url.endsWith('/jobs') || url.includes('/jobs/page/') ? LIST_SNIPPET : DETAIL_SNIPPET;
+    });
+    const scraper = createMyJobMagScraper(fetchText, { pause: noPause });
+    const stubs = await scraper.list();
+    await scraper.detail(stubs[0]!);
+    expect(calls.length).toBeGreaterThanOrEqual(2);
+    for (const c of calls) {
+      expect(c.opts?.userAgent).toBe(MYJOBMAG_USER_AGENT);
+      expect(isAllowedMyJobMagUrl(c.url)).toBe(true);
+      expect(c.url).not.toContain('?');
+    }
+  });
+
+  it('builds list pages /jobs, /jobs/page/2, /jobs/page/3', async () => {
+    const urls: string[] = [];
+    const scraper = createMyJobMagScraper(
+      vi.fn(async (url: string) => {
+        urls.push(url);
+        return LIST_SNIPPET.replace('quality-assurance-viju', `qa-${urls.length}`);
+      }),
+      { pause: noPause },
+    );
+    await scraper.list();
+    expect(urls).toEqual(['https://www.myjobmag.com/jobs', 'https://www.myjobmag.com/jobs/page/2', 'https://www.myjobmag.com/jobs/page/3']);
+  });
+
+  it('isAllowedMyJobMagUrl accepts only the allowed shapes', () => {
+    for (const ok of ['https://www.myjobmag.com/jobs', 'https://www.myjobmag.com/jobs/page/2', 'https://www.myjobmag.com/jobs/page/12', 'https://www.myjobmag.com/job/some-slug-1']) {
+      expect(isAllowedMyJobMagUrl(ok)).toBe(true);
+    }
+    for (const bad of [
+      'https://www.myjobmag.com/jobs?page=2',
+      'https://www.myjobmag.com/job/slug?x=1',
+      'https://www.myjobmag.com/apply-now/slug',
+      'https://www.myjobmag.com/search/jobs?q=a',
+      'https://www.myjobmag.com/jobs-at/viju',
+      'https://www.myjobmag.com/job/',
+      'https://www.myjobmag.com/job/a/b',
+      'https://other.example/job/slug',
+      'not a url',
+    ]) {
+      expect(isAllowedMyJobMagUrl(bad)).toBe(false);
+    }
+  });
+
+  it('detail() refuses a stub whose url robots.txt disallows, without requesting it', async () => {
+    const fetchText = vi.fn().mockResolvedValue(DETAIL_SNIPPET);
+    const scraper = createMyJobMagScraper(fetchText);
+    const stub = { ...parseMyJobMagList(LIST_SNIPPET)[0]!, url: 'https://www.myjobmag.com/apply-now/x' };
+    await expect(scraper.detail(stub)).rejects.toThrow(/robots/);
+    expect(fetchText).not.toHaveBeenCalled();
+  });
+
+  it('the list parser drops links that are not /job/<slug>', () => {
+    const html = LIST_SNIPPET.replace('/job/quality-assurance-viju-industries-nigeria-limited', '/job/quality?ref=1');
+    expect(parseMyJobMagList(html)).toEqual([]);
   });
 });

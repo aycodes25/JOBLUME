@@ -24,6 +24,14 @@ describe('fetchText', () => {
     expect(USER_AGENTS).toContain(headers['user-agent']);
   });
 
+  it('sends the given user agent instead of a rotating one when asked', async () => {
+    const fn = vi.fn().mockResolvedValue(new Response('hello', { status: 200 }));
+    vi.stubGlobal('fetch', fn);
+    await fetchText('https://example.com', { userAgent: 'JobLumeBot/1.0 (personal job-search tool)' });
+    const headers = (fn.mock.calls[0]![1] as RequestInit).headers as Record<string, string>;
+    expect(headers['user-agent']).toBe('JobLumeBot/1.0 (personal job-search tool)');
+  });
+
   it('retries on 429 then succeeds', async () => {
     const fn = vi
       .fn()

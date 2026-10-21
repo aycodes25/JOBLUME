@@ -64,6 +64,8 @@ export default function QueuePage() {
     () => (hasEmail ? Object.fromEntries(TABS.map((t) => [t, withEmail(groups[t])])) as typeof groups : groups),
     [groups, hasEmail],
   );
+  // The list the open application came from, in the order shown, so "open next job" follows the same segment and ordering.
+  const openQueue = openId ? TABS.map((t) => shown[t]).find((list) => list.some((a) => a.id === openId)) : undefined;
   const avg = useMemo(() => averageScore(apps.data ?? []), [apps.data]);
 
   if (apps.isLoading) return <PageSkeleton />;
@@ -167,7 +169,7 @@ export default function QueuePage() {
         </TabsContent>
       </Tabs>
 
-      <ApplicationDetail id={openId} onClose={() => setOpenId(null)} />
+      <ApplicationDetail id={openId} onClose={() => setOpenId(null)} queue={openQueue} onOpen={setOpenId} />
     </div>
   );
 }
