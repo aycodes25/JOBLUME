@@ -1,4 +1,4 @@
-import type { ApplicationStatus, EmailCandidate, JobSource } from '@joblume/shared';
+import type { ApplicationStatus, EmailCandidate, EmailSource, JobSource } from '@joblume/shared';
 export type { ApplicationStatus };
 
 export type JobSourceName = JobSource;
@@ -49,8 +49,9 @@ export interface ApplicationRow {
   missing_keywords: string[];
   hiring_manager_email: string | null;
   email_confidence: number | null;
-  email_source: 'hunter' | 'guess' | 'manual' | null;
+  email_source: EmailSource | null;
   email_candidates: EmailCandidate[];
+  whatsapp_number: string | null;
   apply_method: 'email' | 'assisted' | 'auto' | null;
   status: ApplicationStatus;
   applied_at: string | null;

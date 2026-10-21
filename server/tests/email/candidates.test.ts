@@ -78,3 +78,16 @@ describe('buildCandidates', () => {
     expect(buildCandidates('acme.com', many)).toHaveLength(6);
   });
 });
+
+describe('postingCandidates', () => {
+  it('labels addresses from the posting at confidence 95, below nothing, and caps them', async () => {
+    const { postingCandidates, POSTING_CONFIDENCE } = await import('../../src/services/email/candidates.js');
+    const list = postingCandidates(['a@acme.com', 'b@acme.com']);
+    expect(list).toEqual([
+      { email: 'a@acme.com', confidence: 95, source: 'posting', label: 'Published in the job post' },
+      { email: 'b@acme.com', confidence: 95, source: 'posting', label: 'Published in the job post' },
+    ]);
+    expect(POSTING_CONFIDENCE).toBeGreaterThanOrEqual(TRUSTED_CONFIDENCE);
+    expect(postingCandidates(Array.from({ length: 9 }, (_, i) => `p${i}@acme.com`))).toHaveLength(MAX_CANDIDATES);
+  });
+});

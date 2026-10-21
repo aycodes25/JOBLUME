@@ -39,6 +39,18 @@ export function guessCandidates(domain: string): EmailCandidate[] {
   }));
 }
 
+export const POSTING_CONFIDENCE = 95;
+
+/** Addresses the employer printed in the posting. Not guesses, but never Auto-eligible (Auto needs a Hunter source). */
+export function postingCandidates(emails: string[]): EmailCandidate[] {
+  return emails.slice(0, MAX_CANDIDATES).map((email) => ({
+    email,
+    confidence: POSTING_CONFIDENCE,
+    source: 'posting' as const,
+    label: 'Published in the job post',
+  }));
+}
+
 export function buildCandidates(domain: string | null, contacts: HunterContact[]): EmailCandidate[] {
   const ranked = rankContacts(contacts);
   const all = domain && !ranked.some((c) => c.confidence >= TRUSTED_CONFIDENCE) ? [...ranked, ...guessCandidates(domain)] : ranked;

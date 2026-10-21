@@ -70,7 +70,7 @@ export function createWorkerRepos(db: Db) {
     async loadApplicationForEmail(id: string) {
       const { data, error } = await db
         .from('applications')
-        .select('id, user_id, status, email_candidates, job:jobs(company, company_domain)')
+        .select('id, user_id, status, email_candidates, email_source, whatsapp_number, job:jobs(company, company_domain, description)')
         .eq('id', id)
         .maybeSingle();
       if (error) throw error;
