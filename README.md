@@ -70,6 +70,15 @@ An Android-first Expo app in `mobile/` (Expo SDK 57, Expo Router, React Native 0
 - **Backfill:** `npm run backfill:contacts -w server -- --dry` shows what would change without writing anything. When the numbers look right, run `npm run backfill:contacts -w server` (no `--dry`) to apply it. It re-reads the saved job posting of each application waiting for review and stores any email address or WhatsApp number the employer printed there. It needs the full `.env` (Supabase URL and service-role key) and only fills applications that have no email yet or only a guessed one; it never overwrites a published, Hunter or manual address, and never touches applications you already sent.
 - **Test it:** work through `docs/phase7-manual-checklist.md`.
 
+## Autofill extension (Phase 8)
+
+- **What it does:** a Chrome (also Edge and Brave) extension that fills the standard fields of Greenhouse, Lever, Ashby and Workable application forms from your JobLume details and your tailored CV. It never submits, never answers custom or demographic questions and never overwrites text that is already there. You review everything and press Submit yourself.
+- **Database:** apply `supabase/migrations/0007_contact_profile.sql` in the Supabase SQL editor BEFORE starting the new server (and 0005 and 0006 first if you have not applied them yet). Then fill in Settings, "Contact details for application forms" (web or phone app).
+- **Install:** `npm install`, `npm run build:extension`, then load `extension/dist` unpacked at `chrome://extensions` with Developer mode on. To use a deployed web address, set `EXTENSION_JOBLUME_ORIGINS` and `EXTENSION_STORAGE_HOST` before building. Full steps: `docs/extension-setup.md`.
+- **Use:** in an application's "apply on the employer's site" panel press "Fill the form with the JobLume extension", check every answer on the employer's form, submit it yourself, then press Mark as applied in JobLume.
+- **Limits:** form markup changes over time, so adapters need occasional updates; other systems (Workday, iCIMS, SmartRecruiters and so on) and custom forms are not covered; the extension is loaded unpacked, not from the Chrome Web Store; it has not been tested in a real browser by its author, so follow the checklist.
+- **Test it:** work through `docs/phase8-manual-checklist.md`.
+
 ## Getting a test token (API only, without the web app)
 
 1. In the Supabase dashboard open Authentication > Users and create a user (email and password).
