@@ -47,8 +47,34 @@ describe('extractContacts: emails', () => {
     expect(emails('privacy@acme.com support@acme.com careers@acme.com abuse@acme.com')).toEqual(['careers@acme.com']);
   });
 
-  it('keeps privacy/support/abuse mailboxes when nothing else exists', () => {
-    expect(emails('support@acme.com, privacy@acme.com, noreply@acme.com')).toEqual(['support@acme.com', 'privacy@acme.com']);
+  it('keeps a support mailbox when nothing else exists, but never a compliance one', () => {
+    expect(emails('support@acme.com, privacy@acme.com, noreply@acme.com')).toEqual(['support@acme.com']);
+  });
+
+  it.each([
+    'accommodation', 'accommodations', 'eeo', 'disability', 'fraud', 'recruiting-fraud', 'privacy', 'legal', 'abuse', 'dpo', 'security', 'compliance', 'press', 'media', 'billing',
+  ])('drops the %s mailbox outright, even when it is the only address', (local) => {
+    expect(emails(`Contact ${local}@acme.com`)).toEqual([]);
+  });
+
+  it.each(['careers', 'jobs', 'hr', 'recruitment', 'talent', 'apply', 'hiring'])('keeps the %s mailbox', (local) => {
+    expect(emails(`Write to ${local}@acme.com`)).toEqual([`${local}@acme.com`]);
+  });
+
+  it.each([
+    'greenhouse.io', 'greenhouse-mail.io', 'lever.co', 'workablemail.com', 'ashbyhq.com', 'smartrecruiters.com', 'myworkdayjobs.com', 'icims.com',
+    'workingnomads.com', 'remoteok.com', 'remoteok.io', 'remotive.com', 'remotive.io', 'weworkremotely.com', 'himalayas.app', 'arbeitnow.com', 'jobberman.com', 'myjobmag.com',
+  ])('ignores addresses at %s and its subdomains', (domain) => {
+    expect(emails(`mail jobs@${domain} or hr@eu.${domain}`)).toEqual([]);
+  });
+
+  it('does not treat a lookalike domain as a job board', () => {
+    expect(emails('hr@notlever.co and hr@lever.com')).toEqual(['hr@notlever.co', 'hr@lever.com']);
+  });
+
+  it('drops an over-long local part instead of keeping its last 64 characters', () => {
+    expect(emails(`${'a'.repeat(100)}@acme.com`)).toEqual([]);
+    expect(emails(`${'a'.repeat(64)}@acme.com`)).toEqual([`${'a'.repeat(64)}@acme.com`]);
   });
 
   it('returns nothing for empty or non-string input', () => {
@@ -71,6 +97,11 @@ describe('extractContacts: WhatsApp numbers', () => {
     ['a 0090 style international number', 'WhatsApp 00441234567890', ['441234567890']],
     ['a number with dashes and brackets', 'WhatsApp (0805) 123-4567', ['2348051234567']],
     ['a lowercase keyword', 'reach us on whatsapp 07031234567', ['2347031234567']],
+    ['a number cut by the end of the search window', 'Send your CV via WhatsApp to our recruitment team on +2348031234567', ['2348031234567']],
+    ['a number cut by the start of the search window', `0803 123 4567${' call or message us on the'.padEnd(32, '.')}WhatsApp line`,['2348031234567']],
+    ['+234 (0) 803 123 4567', 'WhatsApp: +234 (0) 803 123 4567', ['2348031234567']],
+    ['a plus number with a stray trunk zero', 'WhatsApp +2340 803 123 4567', ['2348031234567']],
+    ['a 2340 number with no plus', 'whatsapp 23408031234567', ['2348031234567']],
   ])('finds %s', (_n, text, expected) => {
     expect(wa(text)).toEqual(expected);
   });
@@ -83,6 +114,7 @@ describe('extractContacts: WhatsApp numbers', () => {
     ['a wa.me business link with no number', 'https://wa.me/message/ABCDEF123'],
     ['a too long digit run', 'WhatsApp 0803123456789012345'],
     ['a landline-like number without a plus', 'WhatsApp 012345678'],
+    ['a long digit run that still touches the window edge', `WhatsApp ${'1 '.repeat(60)}`],
   ])('ignores %s', (_n, text) => {
     expect(wa(text)).toEqual([]);
   });

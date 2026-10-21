@@ -2,6 +2,7 @@
 export type LatestRuns = Partial<Record<string, { started_at: string }>>;
 
 const HOUR_MS = 3_600_000;
+export const DUE_SOON_MS = 5 * 60_000;
 
 /**
  * Sources that are scheduled but have no recorded scan newer than their interval, in the order given. A source with
@@ -31,6 +32,8 @@ interface CatchUpLog {
 export interface CatchUpDeps<S extends string> {
   readLatest(): Promise<LatestRuns>;
   enqueue(source: S, jobId: string): Promise<void>;
+  /** When the source's own schedule fires next (epoch ms), or null when unknown. A source due within DUE_SOON_MS is not caught up. */
+  readNextRunMs?(source: S): Promise<number | null>;
   sources: readonly S[];
   intervals: Record<S, number>;
   nowMs: number;
@@ -48,6 +51,15 @@ export async function runCatchUp<S extends string>(d: CatchUpDeps<S>): Promise<S
   }
   const queued: S[] = [];
   for (const source of stale) {
+    if (d.readNextRunMs) {
+      try {
+        const next = await d.readNextRunMs(source);
+        // Its scheduled run is due now or very soon: a second scan would only duplicate it.
+        if (typeof next === 'number' && Number.isFinite(next) && next <= d.nowMs + DUE_SOON_MS) continue;
+      } catch (err) {
+        d.log.warn({ err, source }, 'catch-up could not read the schedule; scanning anyway');
+      }
+    }
     try {
       await d.enqueue(source, catchUpJobId(source, d.nowMs));
       queued.push(source);

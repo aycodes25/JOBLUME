@@ -64,6 +64,12 @@ An Android-first Expo app in `mobile/` (Expo SDK 57, Expo Router, React Native 0
 - **Database:** apply `supabase/migrations/0004_discovery.sql` before starting the new server and worker.
 - **Test it:** work through `docs/phase6-manual-checklist.md`.
 
+## Reaching the employer (Phase 7)
+
+- **Database:** apply `supabase/migrations/0005_contacts.sql` and `supabase/migrations/0006_workingnomads.sql` in the Supabase SQL editor BEFORE starting the server and worker. The worker reads `applications.whatsapp_number` (added by 0005); without 0006 every Working Nomads insert fails.
+- **Backfill:** `npm run backfill:contacts -w server -- --dry` shows what would change without writing anything. When the numbers look right, run `npm run backfill:contacts -w server` (no `--dry`) to apply it. It re-reads the saved job posting of each application waiting for review and stores any email address or WhatsApp number the employer printed there. It needs the full `.env` (Supabase URL and service-role key) and only fills applications that have no email yet or only a guessed one; it never overwrites a published, Hunter or manual address, and never touches applications you already sent.
+- **Test it:** work through `docs/phase7-manual-checklist.md`.
+
 ## Getting a test token (API only, without the web app)
 
 1. In the Supabase dashboard open Authentication > Users and create a user (email and password).

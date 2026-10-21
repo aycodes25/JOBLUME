@@ -152,8 +152,13 @@ const WHATSAPP_MESSAGE_CHARS = 300;
 /** A wa.me chat link with the start of the cover letter as the message, or null unless the number is 7 to 15 digits only. Never sends anything. */
 export function whatsappLink(number: string | null | undefined, coverLetter: string | null | undefined): string | null {
   if (!number || !/^\d{7,15}$/.test(number)) return null;
-  const text = (coverLetter ?? '').replace(/\s+/g, ' ').trim().slice(0, WHATSAPP_MESSAGE_CHARS);
-  return `https://wa.me/${number}?text=${encodeURIComponent(text)}`;
+  // Cut by code points, so an emoji is never split; a lone surrogate would make encodeURIComponent throw.
+  const text = Array.from((coverLetter ?? '').replace(/\s+/g, ' ').trim()).slice(0, WHATSAPP_MESSAGE_CHARS).join('');
+  try {
+    return `https://wa.me/${number}?text=${encodeURIComponent(text)}`;
+  } catch {
+    return `https://wa.me/${number}`;
+  }
 }
 
 /** The "Has email" queue chip: keeps applications whose apply method is email. */

@@ -67,4 +67,36 @@ describe('runCatchUp', () => {
     });
     expect(result).toEqual(['remoteok']);
   });
+
+  describe('when the schedule is already due soon', () => {
+    const MIN = 60_000;
+    it('skips a source whose scheduled run is due now or within 5 minutes', async () => {
+      const enqueue = vi.fn<(source: string, jobId: string) => Promise<void>>().mockResolvedValue(undefined);
+      const next: Record<string, number> = { remotive: NOW - MIN, remoteok: NOW + 4 * MIN, jsearch: NOW + 30 * MIN };
+      const result = await runCatchUp({
+        readLatest: async () => ({}), readNextRunMs: async (s) => next[s] ?? null,
+        enqueue, sources: ['remotive', 'remoteok', 'jsearch'], intervals, nowMs: NOW, log: log(),
+      });
+      expect(result).toEqual(['jsearch']);
+      expect(enqueue).toHaveBeenCalledTimes(1);
+    });
+
+    it('falls back to the old behaviour when there is no scheduler info', async () => {
+      const enqueue = vi.fn<(source: string, jobId: string) => Promise<void>>().mockResolvedValue(undefined);
+      const result = await runCatchUp({
+        readLatest: async () => ({}), readNextRunMs: async () => null,
+        enqueue, sources: ['remotive', 'remoteok'], intervals, nowMs: NOW, log: log(),
+      });
+      expect(result).toEqual(['remotive', 'remoteok']);
+    });
+
+    it('falls back to the old behaviour when reading the scheduler throws', async () => {
+      const enqueue = vi.fn<(source: string, jobId: string) => Promise<void>>().mockResolvedValue(undefined);
+      const result = await runCatchUp({
+        readLatest: async () => ({}), readNextRunMs: async () => { throw new Error('redis'); },
+        enqueue, sources: ['remotive'], intervals, nowMs: NOW, log: log(),
+      });
+      expect(result).toEqual(['remotive']);
+    });
+  });
 });

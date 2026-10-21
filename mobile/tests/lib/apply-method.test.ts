@@ -29,6 +29,13 @@ describe('whatsappLink', () => {
     const url = whatsappLink('2348031234567', 'x'.repeat(500))!;
     expect(decodeURIComponent(url.split('?text=')[1]!)).toHaveLength(300);
   });
+  it('never splits an emoji at the 300 character cut', () => {
+    const url = whatsappLink('2348031234567', `${'x'.repeat(299)}\u{1F600}tail`)!;
+    expect(decodeURIComponent(url.split('?text=')[1]!)).toBe(`${'x'.repeat(299)}\u{1F600}`);
+  });
+  it('falls back to a link without text when the letter holds a lone surrogate', () => {
+    expect(whatsappLink('2348031234567', 'hello \uD83D world')).toBe('https://wa.me/2348031234567');
+  });
   it('allows an empty letter', () => {
     expect(whatsappLink('2348031234567', null)).toBe('https://wa.me/2348031234567?text=');
   });

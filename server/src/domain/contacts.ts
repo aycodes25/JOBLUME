@@ -11,6 +11,7 @@ const MAX_HITS = 500;
 const MAX_LOCAL = 64;
 const MAX_DOMAIN = 190;
 const NEAR_WHATSAPP = 40;
+const MAX_GROW = 30;
 
 export interface ExtractedContacts {
   emails: string[];
@@ -18,11 +19,14 @@ export interface ExtractedContacts {
 }
 
 const NOT_A_CONTACT_LOCAL = /^(?:no[-_.]?reply|do[-_.]?not[-_.]?reply|donotreply|mailer-daemon|postmaster|bounce[s]?|unsubscribe)(?:[-_.+].*)?$/;
-const NOT_A_CONTACT_DOMAIN = /(?:^|\.)(?:example\.(?:com|org|net)|domain\.com|yourcompany\.com|yourdomain\.com|sentry\.io|wixpress\.com|localhost)$/;
+const NOT_A_CONTACT_DOMAIN = /(?:^|\.)(?:example\.(?:com|org|net)|domain\.com|yourcompany\.com|yourdomain\.com|sentry\.io|wixpress\.com|localhost|greenhouse\.io|greenhouse-mail\.io|lever\.co|workablemail\.com|ashbyhq\.com|smartrecruiters\.com|myworkdayjobs\.com|icims\.com|workingnomads\.com|remoteok\.com|remoteok\.io|remotive\.com|remotive\.io|weworkremotely\.com|himalayas\.app|arbeitnow\.com|jobberman\.com|myjobmag\.com)$/;
 const FILE_TLDS = new Set([
   'png', 'jpg', 'jpeg', 'gif', 'svg', 'webp', 'bmp', 'ico', 'avif', 'tif', 'tiff', 'heic', 'css', 'js', 'mjs', 'json', 'woff', 'woff2', 'ttf', 'otf', 'eot', 'map', 'pdf', 'html', 'htm',
 ]);
-const LOW_PRIORITY_LOCAL = /^(?:privacy|support|abuse|legal|dpo|security|webmaster|help|info-?security|compliance|gdpr|press|media|billing|sales)$/;
+/** Compliance and footer mailboxes are never application contacts: dropped outright, with no fallback. */
+const COMPLIANCE_LOCAL = /^(?:accommodations?|eeo|disability|fraud|recruiting-?fraud|privacy|legal|abuse|dpo|security|info-?security|gdpr|compliance|press|media|billing)$/;
+/** Generic mailboxes: used only when nothing better was found. */
+const LOW_PRIORITY_LOCAL = /^(?:support|webmaster|help|sales)$/;
 
 const isLocalChar = (c: string) => /[a-z0-9._%+-]/.test(c);
 const isDomainChar = (c: string) => /[a-z0-9.-]/.test(c);
@@ -45,7 +49,7 @@ function cleanEmail(local: string, domain: string): string | null {
   if (email.length > 254 || !EMAIL.test(email)) return null;
   const tld = d.slice(d.lastIndexOf('.') + 1);
   if (FILE_TLDS.has(tld)) return null;
-  if (NOT_A_CONTACT_LOCAL.test(l) || NOT_A_CONTACT_DOMAIN.test(d)) return null;
+  if (NOT_A_CONTACT_LOCAL.test(l) || COMPLIANCE_LOCAL.test(l) || NOT_A_CONTACT_DOMAIN.test(d)) return null;
   return email;
 }
 
@@ -58,6 +62,11 @@ function extractEmails(raw: string): string[] {
     hits += 1;
     let start = at;
     while (start > 0 && at - start < MAX_LOCAL && isLocalChar(text[start - 1] as string)) start -= 1;
+    // A local part longer than the limit is not a real address: drop it rather than keep its last characters.
+    if (start > 0 && at - start >= MAX_LOCAL && isLocalChar(text[start - 1] as string)) {
+      at = text.indexOf('@', at + 1);
+      continue;
+    }
     let end = at + 1;
     while (end < text.length && end - at <= MAX_DOMAIN && isDomainChar(text[end] as string)) end += 1;
     const email = cleanEmail(text.slice(start, at), text.slice(at + 1, end));
@@ -71,7 +80,9 @@ function extractEmails(raw: string): string[] {
 /** Digits with country code, or null when the text does not look like a phone number. */
 function normalisePhone(raw: string): string | null {
   const plus = raw.trim().startsWith('+');
-  const digits = raw.replace(/\D/g, '');
+  // "+234 (0) 803 ..." and "2340803...": the trunk zero is not part of the international number.
+  let digits = raw.replace(/\(0\)/g, '').replace(/\D/g, '');
+  if (/^2340[789]\d{9}$/.test(digits)) digits = `234${digits.slice(4)}`;
   if (plus) return /^\d{8,15}$/.test(digits) ? digits : null;
   if (digits.startsWith('00') && /^\d{10,17}$/.test(digits)) return digits.slice(2);
   if (/^0[789]\d{9}$/.test(digits)) return `234${digits.slice(1)}`;
@@ -81,7 +92,8 @@ function normalisePhone(raw: string): string | null {
 
 const LINK_WA_ME = /\bwa\.me\/\+?(\d{7,15})(?!\d)/gi;
 const LINK_API = /whatsapp\.com\/send\/?\?[^\s"'<>]{0,200}?phone=(?:\+|%2[bB])?(\d{7,15})(?!\d)/gi;
-const PHONE_IN_WINDOW = /\+?\d[\d\s().-]{5,18}\d/g;
+const PHONE_IN_WINDOW = /\+?\d[\d\s().-]{5,20}\d/g;
+const PHONE_CHAR = /[\d\s().+-]/;
 
 function extractWhatsapp(text: string): string[] {
   const found: string[] = [];
@@ -102,8 +114,17 @@ function extractWhatsapp(text: string): string[] {
   let hits = 0;
   while (idx !== -1 && hits < MAX_HITS && found.length < MAX_WHATSAPP) {
     hits += 1;
-    const window = text.slice(Math.max(0, idx - NEAR_WHATSAPP), idx + 'whatsapp'.length + NEAR_WHATSAPP);
-    for (const m of window.matchAll(PHONE_IN_WINDOW)) add(normalisePhone(m[0]));
+    // Grow the window while the next character could still belong to a phone number, so one is never cut in half.
+    let from = Math.max(0, idx - NEAR_WHATSAPP);
+    let to = Math.min(text.length, idx + 'whatsapp'.length + NEAR_WHATSAPP);
+    for (let g = 0; g < MAX_GROW && from > 0 && PHONE_CHAR.test(text[from - 1] as string); g += 1) from -= 1;
+    for (let g = 0; g < MAX_GROW && to < text.length && PHONE_CHAR.test(text[to] as string); g += 1) to += 1;
+    const window = text.slice(from, to);
+    for (const m of window.matchAll(PHONE_IN_WINDOW)) {
+      // A match still touching a cut edge may be only part of a longer number.
+      if ((m.index === 0 && from > 0) || (m.index + m[0].length === window.length && to < text.length)) continue;
+      add(normalisePhone(m[0]));
+    }
     idx = lower.indexOf('whatsapp', idx + 8);
   }
   return found.slice(0, MAX_WHATSAPP);

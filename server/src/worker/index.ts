@@ -57,7 +57,7 @@ async function main() {
   const env = getEnv();
   const db = createSupabaseAdmin(env);
   const repos = createWorkerRepos(db);
-  const scanRuns = createScanRunsRepo(db);
+  const scanRuns = createScanRunsRepo(db, () => new Date(), SCRAPE_SOURCES);
   const queues = createQueues(createRedis(env.UPSTASH_REDIS_URL));
   const jsearchClient = env.JSEARCH_API_KEY ? createJSearchClient({ apiKey: env.JSEARCH_API_KEY }) : null;
   const scrapers = createScrapers(fetchText, {
@@ -321,6 +321,7 @@ async function main() {
     enqueue: async (source, jobId) => {
       await queues.scrape.add('scrape', { source }, { jobId });
     },
+    readNextRunMs: async (source) => (await queues.scrape.getJobScheduler(`scrape-${source}`))?.next ?? null,
     sources: scheduled,
     intervals: Object.fromEntries(scheduled.map((s) => [s, scrapeIntervalMs(s, env.SCRAPE_EVERY_MINUTES)])) as Record<(typeof scheduled)[number], number>,
     nowMs: Date.now(),
