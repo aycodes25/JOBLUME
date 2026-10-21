@@ -3,25 +3,31 @@ import type { Db } from '../lib/supabase.js';
 import type { AnalyticsRow } from '../services/analytics.js';
 export { createGmailTokenStore } from '../services/gmail/store.js';
 import type { ApplicationWithJob, ApplicationsRepo, ProfilePatch, ProfileRepo } from './deps.js';
+import { PROFILE_SELECT, flattenProfile, splitProfilePatch } from './profile-merge.js';
 
 const APP_SELECT = '*, job:jobs(title, company, location, source, url, company_domain, posted_at)';
 
 export function createProfileRepo(db: Db): ProfileRepo {
   return {
     async get(userId) {
-      const { data, error } = await db.from('profiles').select('*').eq('user_id', userId).maybeSingle();
+      const { data, error } = await db.from('profiles').select(PROFILE_SELECT).eq('user_id', userId).maybeSingle();
       if (error) throw error;
-      return (data as ProfileRow | null) ?? null;
+      return data ? flattenProfile(data as unknown as Record<string, unknown>) : null;
     },
     async update(userId, patch: ProfilePatch) {
+      const { profile, fullName } = splitProfilePatch(patch);
+      if (fullName !== undefined) {
+        const { error: nameError } = await db.from('users').update({ full_name: fullName }).eq('id', userId);
+        if (nameError) throw nameError;
+      }
       const { data, error } = await db
         .from('profiles')
-        .update({ ...patch, updated_at: new Date().toISOString() })
+        .update({ ...profile, updated_at: new Date().toISOString() })
         .eq('user_id', userId)
-        .select('*')
+        .select(PROFILE_SELECT)
         .single();
       if (error) throw error;
-      return data as ProfileRow;
+      return flattenProfile(data as unknown as Record<string, unknown>);
     },
   };
 }

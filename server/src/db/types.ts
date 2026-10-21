@@ -35,6 +35,13 @@ export interface ProfileRow {
   daily_cap: number;
   auto_followup: boolean;
   notify_new_matches: boolean;
+  /** users.full_name, joined in by the profile repo (not a profiles column). */
+  full_name: string | null;
+  phone: string | null;
+  city: string | null;
+  linkedin_url: string | null;
+  github_url: string | null;
+  portfolio_url: string | null;
   updated_at: string;
 }
 

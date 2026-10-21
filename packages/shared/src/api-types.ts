@@ -17,6 +17,14 @@ export interface Profile {
   daily_cap: number;
   auto_followup: boolean;
   notify_new_matches: boolean;
+  /** users.full_name, joined in by the API. */
+  full_name: string | null;
+  /** Contact details the browser extension fills into employer forms. */
+  phone: string | null;
+  city: string | null;
+  linkedin_url: string | null;
+  github_url: string | null;
+  portfolio_url: string | null;
   updated_at: string;
 }
 
@@ -139,4 +147,20 @@ export interface ScanStatus {
   worker_alive: boolean;
   worker_last_seen: string | null;
   runs: ScanRun[];
+}
+
+/** GET /applications/:id/autofill: exactly what the browser extension may fill into an employer form, nothing else. */
+export interface AutofillPayload {
+  job_url: string;
+  full_name: string | null;
+  first_name: string | null;
+  last_name: string | null;
+  email: string | null;
+  phone: string | null;
+  city: string | null;
+  linkedin_url: string | null;
+  github_url: string | null;
+  portfolio_url: string | null;
+  cover_letter: string | null;
+  cv: { url: string; filename: string } | null;
 }
