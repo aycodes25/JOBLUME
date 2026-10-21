@@ -9,7 +9,7 @@ describe('migration 0004_discovery.sql', () => {
     const check = sql.match(/add constraint jobs_source_check\s+check \(source in \(([^)]*)\)\)/);
     expect(check).not.toBeNull();
     const allowed = [...check![1]!.matchAll(/'([a-z]+)'/g)].map((m) => m[1]);
-    expect(allowed).toEqual(JOB_SOURCES.filter((s) => s !== 'workingnomads'));
+    expect(allowed).toEqual(JOB_SOURCES.filter((s) => s !== 'workingnomads' && s !== 'jsearch'));
   });
 
   it('adds the nullable posted_at, the opt-in flag (default off) and the notified marker', () => {
