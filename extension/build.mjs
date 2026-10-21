@@ -21,15 +21,11 @@ await build({
   platform: 'node',
   logLevel: 'silent',
 });
-const { buildManifest, parseBuildConfig } = await import(pathToFileURL(resolve(tmp, 'manifest.mjs')).href);
+const { buildManifest, parseBuildConfig, configWarnings } = await import(pathToFileURL(resolve(tmp, 'manifest.mjs')).href);
 rmSync(tmp, { recursive: true, force: true });
 
 const cfg = parseBuildConfig(process.env);
-if (!process.env.EXTENSION_STORAGE_HOST) {
-  console.warn(
-    'EXTENSION_STORAGE_HOST is not set: the CV download is allowed from any *.supabase.co host. Set it to your project host (for example abcd1234.supabase.co).',
-  );
-}
+for (const w of configWarnings(cfg, process.env)) console.warn(w);
 
 await build({
   entryPoints: {

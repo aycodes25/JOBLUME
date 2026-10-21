@@ -36,9 +36,12 @@ For each platform, open a real, public job in JobLume's queue if you have one, o
 - [ ] A Workday, iCIMS or SmartRecruiters posting: nothing is filled and nothing breaks (not covered).
 
 ## Safety spot checks
-- [ ] On a form with a "Gender", "Race", "Veteran", "Disability", "visa sponsorship", "salary" or "How did you hear about us" box, that box stays empty.
+- [ ] Open a job from JobLume, then in the same tab go to a different company's posting on the same platform (for example change the company in the address): nothing is filled there and the popup still shows the original job waiting (until it expires or you clear it).
+- [ ] Attaching the CV uploads it to the employer's form before you press Submit: check the company on the page before pressing the button in JobLume.
+- [ ] The signed CV link is not strictly single use on the server (valid for about an hour); do not share it. A localhost build trusts any local app on port 3000 (low impact); the build prints a warning for it.
+- [ ] On a form with a "Gender", "Race", "Veteran", "Disability", "visa sponsorship", "work authorization", "citizenship", "date of birth", "criminal record", "salary" or "How did you hear about us" box, that box stays empty.
 - [ ] No button was clicked for you (the Submit button is still waiting for you).
-- [ ] In `chrome://extensions` the card's "Details" page lists site access only for the five employer hosts, your JobLume address and your Supabase host.
+- [ ] In `chrome://extensions` the card's "Details" page lists site access only for the five employer hosts, your JobLume address and your Supabase host, and the permissions list shows only "storage" (no "Read your browsing history" / tabs permission).
 
 ## What to do when a platform changes
 Employer sites change their forms from time to time. If a platform stops filling a box that used to work:

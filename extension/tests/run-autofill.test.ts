@@ -36,6 +36,25 @@ afterEach(() => {
 });
 
 describe('runAutofill', () => {
+  it('asks once more when the background has nothing yet (load race) and then fills', async () => {
+    let n = 0;
+    const send = vi.fn<Send>().mockImplementation(async (msg) => {
+      const type = (msg as { type: string }).type;
+      if (type === 'joblume:get-payload') return { payload: ++n === 1 ? null : payload() };
+      if (type === 'joblume:fetch-cv') return { ok: false, error: 'x' };
+      return { ok: true };
+    });
+    const res = await runAutofill({ ...deps(send as ReturnType<typeof scriptedSend>), retryMs: 5 });
+    expect(res.filled).toBeGreaterThan(0);
+    expect(n).toBe(2);
+  });
+
+  it('gives up after the single retry', async () => {
+    const send = scriptedSend({});
+    expect(await runAutofill({ ...deps(send), retryMs: 5 })).toEqual({ filled: 0 });
+    expect(send).toHaveBeenCalledTimes(2);
+  });
+
   it('fills the form, downloads the CV through the background, shows the banner and reports the count', async () => {
     const send = scriptedSend({ payload: payload(), cv: pdfReply });
     const res = await runAutofill(deps(send));

@@ -33,7 +33,7 @@ export function labelText(el: Element): string {
 
 /** Questions the extension must never answer, whatever field they sit in. */
 const SENSITIVE =
-  /password|gender|\brace\b|racial|ethnic|veteran|disabilit|sponsor|salary|compensation|referr|hear about|hispanic|latino/;
+  /password|gender|\brace\b|racial|ethnic|veteran|disabilit|sponsor|salary|compensation|referr|hear about|hispanic|latino|\bvisa\b|work authori[sz]ation|authori[sz]ed to work|citizenship|nationality|pronoun|sexual orientation|date of birth|birth date|\bage\b|criminal|convict|religio|\bssn\b|social security|national id/;
 
 /** Label plus name and id, so a control with a telling name but no label is still caught. */
 export function isSensitive(el: Element): boolean {

@@ -16,6 +16,12 @@ describe('decideRedirect', () => {
     expect(decideRedirect('/login', true)).toBe('/queue');
   });
 
+  it('lets signed-out visitors read the static extension setup page', () => {
+    expect(decideRedirect('/extension-setup.html', false)).toBeNull();
+    expect(decideRedirect('/extension-setup.html', true)).toBeNull();
+    expect(decideRedirect('/extension-setup.html/x', false)).toBe('/login');
+  });
+
   it('lets signed-in users through everywhere else', () => {
     expect(decideRedirect('/queue', true)).toBeNull();
     expect(decideRedirect('/onboarding', true)).toBeNull();

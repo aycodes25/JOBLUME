@@ -2,7 +2,7 @@
 
 The extension fills the standard fields of employer application forms from the details in JobLume: name, email, phone, city, LinkedIn, GitHub and website links, your tailored CV and your cover letter. It works on Greenhouse, Lever, Ashby and Workable forms in Chrome, Edge and Brave on a computer. **It never submits anything.** You review every answer and press Submit yourself.
 
-It never fills custom questions, passwords, or anything about gender, race, ethnicity, veterans, disability, visa sponsorship, salary or referrals, and it never overwrites a box that already has text.
+It never fills custom questions, passwords, or anything about gender, race, ethnicity, veterans, disability, visa or work authorization, citizenship, pronouns, sexual orientation, age or date of birth, criminal history, religion, ID numbers, salary or referrals, and it never overwrites a box that already has text.
 
 ## 0. Update the database first
 In your Supabase project open the SQL editor and run, in this order, any of these you have not run yet: `supabase/migrations/0005_contacts.sql`, `0006_workingnomads.sql`, and then `0007_contact_profile.sql` (paste the whole file and run it). Do this before starting the server.
@@ -21,7 +21,7 @@ npm run build:extension
 This creates the folder `extension/dist`. (It is rebuilt from scratch every time and is not stored in git.)
 
 ### Tell the extension where your JobLume lives
-By default it only trusts `http://localhost:3000` (the app on your own computer) and allows the CV to be downloaded from any `*.supabase.co` host (the build prints a warning about this). When you use the app at a web address, set both values before building:
+By default it only trusts `http://localhost:3000` (the app on your own computer) and allows the CV to be downloaded from any `*.supabase.co` host (the build prints a warning about this). Trusting `localhost` also means any local app running on port 3000 on your computer could ask the extension to open a job and fill it; the impact is low, but the build warns about it and you should leave `localhost` out of builds you use for real applications once your app has a web address. When you use the app at a web address, set both values before building:
 
 ```powershell
 # PowerShell (Windows)
@@ -53,7 +53,9 @@ These values only last for the current terminal window. After changing either on
 4. Check every answer, answer the custom questions yourself, then submit on the employer's site.
 5. Back in JobLume press **Mark as applied**. The extension never does this for you.
 
-The extension remembers what to fill for 30 minutes, only in the tab it opened, and forgets it after a fill or when the tab closes. The toolbar icon shows what is waiting in the current tab and has a **Clear** button.
+The extension remembers what to fill for 30 minutes, only in the tab it opened, and forgets it after a fill or when the tab closes. The form is only filled for the job the extension opened, and for the same company: if you move that tab to another employer's posting, nothing is filled there. (When the job is on the employer's own website, the extension fills the first Greenhouse, Lever, Ashby or Workable form that tab reaches and then sticks to that company.)
+
+**Before you press Submit:** attaching the CV uploads the file to the employer's form straight away, not when you submit. Check the page is the right company before the extension finishes, and remove the file yourself if you do not want to apply. The toolbar icon shows what is waiting in the current tab and has a **Clear** button.
 
 ## Honest limits
 - The extension has not been loaded into a real Chrome by the person who built it. Follow `docs/phase8-manual-checklist.md` and report anything that fails.
@@ -67,4 +69,4 @@ The extension remembers what to fill for 30 minutes, only in the tab it opened, 
 - **No button in JobLume:** reload the page; check the build used your app's address (`EXTENSION_JOBLUME_ORIGINS`); check the extension is switched on at `chrome://extensions`.
 - **Nothing is filled:** the page may not be one of the four supported forms (many "Apply" links go to Workday, iCIMS and others, which are not covered). Open the form's own page and wait up to 15 seconds.
 - **Some boxes stay empty:** the form may have changed its markup, or the box is a custom question. Fill those yourself. If a whole platform stops working, see "What to do when a platform changes" in `docs/phase8-manual-checklist.md`.
-- **The CV was not attached:** the signed CV link lasts one hour; press the button again from JobLume.
+- **The CV was not attached:** the signed CV link lasts one hour; press the button again from JobLume. Note the link is not strictly single use on the server: anyone who holds it can download your CV for about an hour. The extension itself fetches it only once.

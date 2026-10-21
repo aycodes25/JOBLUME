@@ -3,6 +3,7 @@ import { runAutofill } from '../run-autofill';
 
 const WAIT_MS = 15_000;
 const SETTLE_MS = 400;
+const RETRY_MS = 1000;
 
 async function send<T>(msg: unknown): Promise<T | undefined> {
   try {
@@ -20,7 +21,7 @@ if (adapterForHost(location.hostname)) {
     if (running || finished) return;
     running = true;
     try {
-      const { filled } = await runAutofill({ doc: document, host: location.hostname, send, waitMs: WAIT_MS, settleMs: SETTLE_MS });
+      const { filled } = await runAutofill({ doc: document, host: location.hostname, send, waitMs: WAIT_MS, settleMs: SETTLE_MS, retryMs: RETRY_MS });
       if (filled > 0) finished = true;
     } finally {
       running = false;

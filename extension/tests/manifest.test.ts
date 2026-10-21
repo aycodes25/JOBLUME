@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildManifest, parseBuildConfig } from '../src/manifest';
+import { buildManifest, configWarnings, parseBuildConfig } from '../src/manifest';
 
 describe('parseBuildConfig', () => {
   it('defaults to localhost:3000 and the Supabase wildcard host', () => {
@@ -30,10 +30,10 @@ describe('parseBuildConfig', () => {
 describe('buildManifest', () => {
   const manifest = buildManifest({ origins: ['http://localhost:3000'], storageHost: 'abcd1234.supabase.co' });
 
-  it('is a Manifest V3 service-worker extension with the two permissions only', () => {
+  it('is a Manifest V3 service-worker extension with the storage permission only (no tabs)', () => {
     expect(manifest.manifest_version).toBe(3);
     expect(manifest.background).toEqual({ service_worker: 'background.js' });
-    expect([...manifest.permissions].sort()).toEqual(['storage', 'tabs']);
+    expect([...manifest.permissions].sort()).toEqual(['storage']);
   });
 
   it('limits host permissions to the five form hosts, the JobLume origins and the storage host', () => {
@@ -61,5 +61,24 @@ describe('buildManifest', () => {
     expect(JSON.parse(text)).toEqual(manifest);
     expect(text).not.toContain('<all_urls>');
     expect(text).not.toContain('"*://*/*"');
+  });
+});
+
+describe('configWarnings', () => {
+  it('warns about a missing storage host and about a localhost origin', () => {
+    const w = configWarnings(parseBuildConfig({}), {});
+    expect(w).toHaveLength(2);
+    expect(w[0]).toContain('EXTENSION_STORAGE_HOST');
+    expect(w[1]).toContain('http://localhost:3000');
+  });
+
+  it('is quiet for a pinned storage host and https-only origins', () => {
+    const env = { EXTENSION_JOBLUME_ORIGINS: 'https://app.joblume.example', EXTENSION_STORAGE_HOST: 'abcd1234.supabase.co' };
+    expect(configWarnings(parseBuildConfig(env), env)).toEqual([]);
+  });
+
+  it('warns about 127.0.0.1 too', () => {
+    const env = { EXTENSION_JOBLUME_ORIGINS: 'https://app.joblume.example,http://127.0.0.1:3000', EXTENSION_STORAGE_HOST: 'abcd1234.supabase.co' };
+    expect(configWarnings(parseBuildConfig(env), env)).toEqual([expect.stringContaining('http://127.0.0.1:3000')]);
   });
 });

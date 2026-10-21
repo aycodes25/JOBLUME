@@ -14,13 +14,19 @@ export interface RunDeps {
   waitMs: number;
   /** Pause after the form appears, so a framework finishes its first render before values are set. */
   settleMs: number;
+  /** When the background has nothing yet (the tab can load before the fill is stored), ask once more after this long. */
+  retryMs?: number;
 }
 
 /** One attempt on the current page. Returns how many fields were filled (0 when nothing applies). */
 export async function runAutofill(d: RunDeps): Promise<{ filled: number }> {
   const adapter = adapterForHost(d.host);
   if (!adapter) return { filled: 0 };
-  const reply = await d.send<PayloadReply>({ type: 'joblume:get-payload' });
+  let reply = await d.send<PayloadReply>({ type: 'joblume:get-payload' });
+  if (!reply?.payload && d.retryMs) {
+    await sleep(d.retryMs);
+    reply = await d.send<PayloadReply>({ type: 'joblume:get-payload' });
+  }
   const payload = reply?.payload;
   if (!payload) return { filled: 0 };
 

@@ -37,9 +37,9 @@ export async function routeMessage(core: Background, cfg: RouterConfig, msg: unk
       return core.arm(m.payload, m.label, senderTab);
     }
     case 'joblume:get-payload':
-      return senderTab === undefined ? null : { payload: await core.getPayload(senderTab) };
+      return senderTab === undefined ? null : { payload: await core.getPayload(senderTab, sender.url) };
     case 'joblume:fetch-cv':
-      return senderTab === undefined || typeof m.url !== 'string' ? null : core.fetchCv(senderTab, m.url);
+      return senderTab === undefined || typeof m.url !== 'string' ? null : core.fetchCv(senderTab, m.url, sender.url);
     case 'joblume:done':
       if (senderTab === undefined || typeof m.filled !== 'number' || !Number.isInteger(m.filled) || m.filled < 0) return null;
       await core.complete(senderTab, m.filled);

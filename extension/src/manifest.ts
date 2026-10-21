@@ -39,6 +39,23 @@ export function parseBuildConfig(env: Record<string, string | undefined>): Build
   return { origins: [...new Set(rawOrigins)], storageHost };
 }
 
+/** Build-time warnings about settings that widen what the extension trusts. */
+export function configWarnings(cfg: BuildConfig, env: Record<string, string | undefined>): string[] {
+  const warnings: string[] = [];
+  if (!env.EXTENSION_STORAGE_HOST) {
+    warnings.push(
+      'EXTENSION_STORAGE_HOST is not set: the CV download is allowed from any *.supabase.co host. Set it to your project host (for example abcd1234.supabase.co).',
+    );
+  }
+  const local = cfg.origins.filter((o) => /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(o));
+  if (local.length > 0) {
+    warnings.push(
+      `EXTENSION_JOBLUME_ORIGINS includes ${local.join(', ')}: the extension will trust any app running on that local address, not only JobLume. Low impact, but remove it from builds you use on a shared computer.`,
+    );
+  }
+  return warnings;
+}
+
 export function buildManifest(cfg: BuildConfig) {
   const webMatches = cfg.origins.map((o) => `${o}/*`);
   return {
@@ -47,7 +64,7 @@ export function buildManifest(cfg: BuildConfig) {
     version: '0.1.0',
     description: 'Fills the standard fields of employer application forms from JobLume. It never submits anything.',
     minimum_chrome_version: '116',
-    permissions: ['storage', 'tabs'],
+    permissions: ['storage'],
     host_permissions: [...FORM_MATCHES, ...webMatches, `https://${cfg.storageHost}/*`],
     background: { service_worker: 'background.js' },
     content_scripts: [

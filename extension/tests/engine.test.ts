@@ -38,6 +38,9 @@ describe('labels', () => {
   it.each([
     'Password', 'Gender', 'What is your race?', 'Race & Ethnicity', 'Are you Hispanic/Latino?', 'Veteran Status', 'Disability status',
     'Will you require visa sponsorship?', 'Expected salary', 'Salary expectations', 'Referral source', 'How did you hear about us?',
+    'Are you legally authorized to work in the US?', 'Work authorisation', 'Do you need a visa?', 'Citizenship', 'Nationality', 'Preferred pronouns',
+    'Sexual orientation', 'Date of birth', 'Birth date', 'Age', 'Have you been convicted of a crime?', 'Criminal record', 'Religion', 'SSN',
+    'Social Security number', 'National ID number',
   ])('treats "%s" as sensitive', (text) => {
     document.body.innerHTML = `<label for="x">${text}</label><input id="x">`;
     expect(isSensitive(document.getElementById('x')!)).toBe(true);
@@ -47,6 +50,12 @@ describe('labels', () => {
     document.body.innerHTML = '<input name="veteran_status"><input id="gender">';
     expect(isSensitive(document.querySelector('[name="veteran_status"]')!)).toBe(true);
     expect(isSensitive(document.getElementById('gender')!)).toBe(true);
+  });
+
+  it('does not flag words that merely contain a sensitive one', () => {
+    document.body.innerHTML = '<label for="x">Message</label><input id="x"><label for="y">Your page or website</label><input id="y">';
+    expect(isSensitive(document.getElementById('x')!)).toBe(false);
+    expect(isSensitive(document.getElementById('y')!)).toBe(false);
   });
 
   it('does not flag ordinary contact fields', () => {

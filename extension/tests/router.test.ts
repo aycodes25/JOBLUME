@@ -37,9 +37,9 @@ describe('routeMessage', () => {
     const core = fakeCore();
     const from = { tab: { id: 7 }, url: 'https://jobs.lever.co/x' };
     expect((await routeMessage(core, cfg, { type: 'joblume:get-payload' }, from) as { payload: unknown }).payload).toEqual(payload());
-    expect(core.getPayload).toHaveBeenCalledWith(7);
+    expect(core.getPayload).toHaveBeenCalledWith(7, 'https://jobs.lever.co/x');
     await routeMessage(core, cfg, { type: 'joblume:fetch-cv', url: 'https://abcd1234.supabase.co/x.pdf' }, from);
-    expect(core.fetchCv).toHaveBeenCalledWith(7, 'https://abcd1234.supabase.co/x.pdf');
+    expect(core.fetchCv).toHaveBeenCalledWith(7, 'https://abcd1234.supabase.co/x.pdf', 'https://jobs.lever.co/x');
     expect(await routeMessage(core, cfg, { type: 'joblume:done', filled: 4 }, from)).toEqual({ ok: true });
     expect(core.complete).toHaveBeenCalledWith(7, 4);
 
