@@ -1,8 +1,8 @@
 import type { ScanStatus } from '@joblume/shared';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
-import { sourceLabel } from '@/lib/format';
-import { describeScanRun, describeWorker } from '@/lib/scan';
+
+import { describeScanRun, describeWorker, scanSourceLabel } from '@/lib/scan';
 
 export interface LastScanCardProps {
   status: ScanStatus | undefined;
@@ -27,7 +27,7 @@ export function LastScanCard({ status, now }: LastScanCardProps) {
           <ul className="space-y-1.5 text-sm">
             {status.runs.map((run) => (
               <li key={run.source} className="flex flex-col gap-0.5 sm:flex-row sm:gap-3">
-                <span className="w-44 shrink-0 font-medium">{sourceLabel(run.source)}</span>
+                <span className="w-44 shrink-0 font-medium">{scanSourceLabel(run.source)}</span>
                 <span className={run.status === 'failed' ? 'text-destructive' : 'text-muted-foreground'}>{describeScanRun(run, now)}</span>
               </li>
             ))}

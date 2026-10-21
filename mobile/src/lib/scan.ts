@@ -1,3 +1,4 @@
+import { sourceLabel } from './format';
 import type { ScanRun, ScanStatus } from '@joblume/shared';
 import { formatRelative } from './format';
 
@@ -60,3 +61,6 @@ export function describeWorker(status: Pick<ScanStatus, 'worker_alive' | 'worker
     ? `Worker not running (last seen ${seen}). New jobs are not being checked until it is started.`
     : 'Worker not running. New jobs are not being checked until it is started.';
 }
+
+/** The name shown for a scan row: JSearch covers LinkedIn, Indeed and direct employer links. */
+export const scanSourceLabel = (source: string): string => (source === 'jsearch' ? 'JSearch (LinkedIn, Indeed, employer links)' : sourceLabel(source));
