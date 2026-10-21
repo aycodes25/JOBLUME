@@ -1,5 +1,5 @@
 import { profilePatchSchema, type ProfilePatch } from '@joblume/shared';
-import type { AddJobLinkResult, Analytics, FollowUp, FollowUpWithJob, GmailReturnTarget, GmailStatus, JobFetch, JobLink, ScanStatus } from '@joblume/shared';
+import type { AddJobLinkResult, Analytics, AutofillPayload, FollowUp, FollowUpWithJob, GmailReturnTarget, GmailStatus, JobFetch, JobLink, ScanStatus } from '@joblume/shared';
 import type { ApplicationRow, ApplicationStatus, ProfileRow } from '../db/types.js';
 import type { AnalyticsRow } from '../services/analytics.js';
 import type { GetUser } from './auth.js';
@@ -31,6 +31,12 @@ export interface ApplicationsService {
   analytics(userId: string): Promise<Analytics>;
   nextEmail(userId: string, id: string): Promise<{ exhausted: boolean; application: ApplicationWithJob } | null>;
   setEmail(userId: string, id: string, email: string): Promise<ApplicationWithJob | null>;
+}
+
+/** Builds the exact data the browser extension may fill into an employer form. */
+export interface AutofillService {
+  /** null when the application does not exist for this user or its job has no link. */
+  get(user: { id: string; email: string | null }, applicationId: string): Promise<AutofillPayload | null>;
 }
 
 export interface JobsService {
@@ -73,6 +79,7 @@ export interface AppDeps {
   profiles: ProfileRepo;
   cv: { upload(userId: string, file: { buffer: Buffer; originalname?: string }): Promise<{ characters: number }> };
   applications: ApplicationsService;
+  autofill: AutofillService;
   jobs: JobsService;
   scan: ScanService;
   jobLinks: JobLinksService;
