@@ -4,7 +4,7 @@ import type { ApplicationWithJob } from '../../src/api/deps.js';
 
 const app: ApplicationWithJob = {
   id: 'a1', user_id: 'u1', job_id: 'j1', tailored_cv_text: 'OLD', tailored_cv_url: 'u1/tailored/j1.pdf',
-  cover_letter_text: 'LETTER', match_score: 70, missing_keywords: [], hiring_manager_email: null, email_confidence: null, email_source: null, email_candidates: [],
+  cover_letter_text: 'LETTER', match_score: 70, missing_keywords: [], hiring_manager_email: null, email_confidence: null, email_source: null, email_candidates: [], whatsapp_number: null,
   apply_method: null, status: 'pending_review', applied_at: null, follow_up_at: null, created_at: '', job: null,
 };
 

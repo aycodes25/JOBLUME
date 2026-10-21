@@ -34,6 +34,7 @@ describe('checkAutoApply', () => {
     ['a guessed address', ctx({ application: { email_source: 'guess', email_confidence: 30 } }), 'no_trusted_email'],
     ['a pasted address', ctx({ application: { email_source: 'manual', email_confidence: null } }), 'no_trusted_email'],
     ['a Hunter address below 80', ctx({ application: { email_confidence: 79 } }), 'no_trusted_email'],
+    ['an address published in the posting, even at confidence 95', ctx({ application: { email_source: 'posting', email_confidence: 95 } }), 'no_trusted_email'],
     ['no address at all', ctx({ application: { hiring_manager_email: null } }), 'no_trusted_email'],
     ['a score below the threshold', ctx({ application: { match_score: 79 } }), 'score_below_threshold'],
     ['no score', ctx({ application: { match_score: null } }), 'score_below_threshold'],

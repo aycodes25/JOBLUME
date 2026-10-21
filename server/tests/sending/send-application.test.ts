@@ -9,7 +9,7 @@ const NOW = new Date('2026-10-20T10:00:00.000Z');
 const app = (over: Partial<ApplicationWithJob> = {}): ApplicationWithJob => ({
   id: 'a1', user_id: 'u1', job_id: 'j1', tailored_cv_text: 'cv text', tailored_cv_url: 'u1/tailored/j1.pdf',
   cover_letter_text: 'Dear team,\nI would like to apply.', match_score: 85, missing_keywords: [],
-  hiring_manager_email: 'hr@acme.com', email_confidence: 90, email_source: 'hunter', email_candidates: [],
+  hiring_manager_email: 'hr@acme.com', email_confidence: 90, email_source: 'hunter', email_candidates: [], whatsapp_number: null,
   apply_method: null, status: 'pending_review', applied_at: null, follow_up_at: null, created_at: '',
   job: { title: 'Data Analyst', company: 'Acme', location: 'Lagos', source: 'myjobmag', url: 'https://example.com/j', company_domain: null },
   ...over,
@@ -120,6 +120,21 @@ describe('sendApplication: checks, in order', () => {
     const confirmed = make({ loadApplication: vi.fn().mockResolvedValue(guess) });
     await send(confirmed, { confirmGuess: true });
     expect(confirmed.saveSent).toHaveBeenCalledWith('u1', 'a1', expect.objectContaining({ email_source: 'guess', email_confidence: 30 }));
+  });
+
+  it('sends to a posting address without the guess confirmation and records the source', async () => {
+    const posting = app({ hiring_manager_email: 'careers@acme.com', email_source: 'posting', email_confidence: 95 });
+    const d = make({ loadApplication: vi.fn().mockResolvedValue(posting) });
+    await expect(send(d)).resolves.toMatchObject({ status: 'applied' });
+    expect(d.sendMessage).toHaveBeenCalledTimes(1);
+    expect(d.saveSent).toHaveBeenCalledWith('u1', 'a1', expect.objectContaining({ email_source: 'posting', email_confidence: 95, apply_method: 'email' }));
+  });
+
+  it('keeps the posting source when the same address is sent back as the typed recipient', async () => {
+    const posting = app({ hiring_manager_email: 'careers@acme.com', email_source: 'posting', email_confidence: 95 });
+    const d = make({ loadApplication: vi.fn().mockResolvedValue(posting) });
+    await send(d, { to: 'Careers@Acme.com' });
+    expect(d.saveSent).toHaveBeenCalledWith('u1', 'a1', expect.objectContaining({ email_source: 'posting' }));
   });
 
   it('429 daily_cap_reached at the cap, allowed one below it', async () => {
@@ -343,6 +358,7 @@ describe('sendApplication: auto method', () => {
     ['a guess', { hiring_manager_email: 'careers@acme.com', email_source: 'guess' as const, email_confidence: 30 }],
     ['a manual address', { hiring_manager_email: 'jane@acme.com', email_source: 'manual' as const, email_confidence: null }],
     ['a low-confidence Hunter address', { email_confidence: 79 }],
+    ['a posting address, even at confidence 95', { hiring_manager_email: 'careers@acme.com', email_source: 'posting' as const, email_confidence: 95 }],
   ])('refuses to auto-send to %s', async (_n, over) => {
     const d = make({ loadApplication: vi.fn().mockResolvedValue(app(over)) });
     expect(await rejection(send(d, { method: 'auto', confirmGuess: true }))).toMatchObject({ status: 409, code: 'not_auto_eligible' });

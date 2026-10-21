@@ -1,4 +1,4 @@
-import type { ApplicationStatus } from '@joblume/shared';
+import type { ApplicationStatus, EmailSource } from '@joblume/shared';
 
 export const AUTO_SOURCES = ['remotive', 'myjobmag', 'jobberman'] as const;
 export const AUTO_MIN_CONFIDENCE = 80;
@@ -9,7 +9,7 @@ export interface AutoContext {
   application: {
     status: ApplicationStatus;
     match_score: number | null;
-    email_source: 'hunter' | 'guess' | 'manual' | null;
+    email_source: EmailSource | null;
     email_confidence: number | null;
     hiring_manager_email: string | null;
   };

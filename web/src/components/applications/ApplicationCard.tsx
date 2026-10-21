@@ -4,7 +4,7 @@ import { SafeLink } from '@/components/common/SafeLink';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { previewText, scoreTone } from '@/lib/applications';
+import { APPLY_METHOD_LABELS, applyMethod, previewText, scoreTone } from '@/lib/applications';
 import { postedLabel, sourceLabel, STATUS_LABELS } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { ScoreRing } from './ScoreRing';
@@ -72,6 +72,7 @@ export function ApplicationCard({ app, onOpen }: { app: Application; onOpen(id: 
             </span>
           )}
           {app.job && <Badge variant="outline">{sourceLabel(app.job.source)}</Badge>}
+          <Badge variant="outline">{APPLY_METHOD_LABELS[applyMethod(app)]}</Badge>
         </div>
 
         {keywords.length > 0 && (

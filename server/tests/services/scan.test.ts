@@ -61,30 +61,27 @@ describe('createScanRunsRepo', () => {
     await expect(createScanRunsRepo(db, () => NOW).record(run())).resolves.toBeUndefined();
   });
 
-  it('lists the newest run of each source', async () => {
-    const rows = [
-      run({ source: 'remoteok', started_at: '2026-10-20T11:30:00.000Z' }),
-      run({ source: 'myjobmag', started_at: '2026-10-20T11:00:00.000Z' }),
-      run({ source: 'remoteok', started_at: '2026-10-20T09:30:00.000Z' }),
-      run({ source: 'myjobmag', started_at: '2026-10-20T09:00:00.000Z', status: 'failed', error: 'HTTP 403' }),
-    ];
-    const { db, calls } = fakeDb([{ data: rows }]);
-    const latest = await createScanRunsRepo(db).latestPerSource();
+  it('reads the newest run of each source with its own query, so a rare source cannot fall out of a window', async () => {
+    const { db, calls } = fakeDb([
+      { data: [run({ source: 'remoteok', started_at: '2026-10-20T11:30:00.000Z' })] },
+      { data: [] },
+      { data: [run({ source: 'jsearch', started_at: '2026-10-19T09:00:00.000Z' })] },
+    ]);
+    const latest = await createScanRunsRepo(db, () => NOW, ['remoteok', 'myjobmag', 'jsearch']).latestPerSource();
     expect(latest.map((r) => [r.source, r.started_at])).toEqual([
       ['remoteok', '2026-10-20T11:30:00.000Z'],
-      ['myjobmag', '2026-10-20T11:00:00.000Z'],
+      ['jsearch', '2026-10-19T09:00:00.000Z'],
     ]);
-    expect(calls).toEqual([
-      ['from', 'scan_runs'],
-      ['select', 'source, started_at, finished_at, status, error, listed, new_count, inserted, rejected_title, rejected_location'],
-      ['order', 'started_at', { ascending: false }],
-      ['limit', 200],
-    ]);
+    const cols = 'source, started_at, finished_at, status, error, listed, new_count, inserted, rejected_title, rejected_location';
+    for (const source of ['remoteok', 'myjobmag', 'jsearch']) expect(calls).toContainEqual(['eq', 'source', source]);
+    expect(calls.filter((c) => c[0] === 'select')).toEqual([['select', cols], ['select', cols], ['select', cols]]);
+    expect(calls.filter((c) => c[0] === 'limit')).toEqual([['limit', 1], ['limit', 1], ['limit', 1]]);
+    expect(calls.filter((c) => c[0] === 'order')).toEqual(Array(3).fill(['order', 'started_at', { ascending: false }]));
   });
 
   it('returns an empty list before any scan, and throws a database error', async () => {
-    expect(await createScanRunsRepo(fakeDb([{ data: [] }]).db).latestPerSource()).toEqual([]);
-    await expect(createScanRunsRepo(fakeDb([{ error: { message: 'down' } }]).db).latestPerSource()).rejects.toEqual({ message: 'down' });
+    expect(await createScanRunsRepo(fakeDb([{ data: [] }]).db, () => NOW, ['remoteok']).latestPerSource()).toEqual([]);
+    await expect(createScanRunsRepo(fakeDb([{ error: { message: 'down' } }]).db, () => NOW, ['remoteok']).latestPerSource()).rejects.toEqual({ message: 'down' });
   });
 });
 

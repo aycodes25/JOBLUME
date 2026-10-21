@@ -42,8 +42,10 @@ export interface Application {
   missing_keywords: string[];
   hiring_manager_email: string | null;
   email_confidence: number | null;
-  email_source: 'hunter' | 'guess' | 'manual' | null;
+  email_source: EmailSource | null;
   email_candidates: EmailCandidate[];
+  /** Digits only, with country code; published in the job post. Opens a WhatsApp chat, never sends. */
+  whatsapp_number?: string | null;
   apply_method: 'email' | 'assisted' | 'auto' | null;
   status: ApplicationStatus;
   applied_at: string | null;
@@ -69,10 +71,12 @@ export interface CvUploadResult {
   characters: number;
 }
 
+export type EmailSource = 'hunter' | 'guess' | 'manual' | 'posting';
+
 export interface EmailCandidate {
   email: string;
   confidence: number;
-  source: 'hunter' | 'guess';
+  source: 'hunter' | 'guess' | 'posting';
   label: string;
   name?: string;
   position?: string;

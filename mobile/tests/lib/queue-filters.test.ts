@@ -1,4 +1,4 @@
-import { filterQueue, isHighMatch, matchesSearch, RECENT_MS } from '@/lib/queue-filters';
+import { filterQueue, isHighMatch, matchesSearch, QUEUE_FILTERS, RECENT_MS } from '@/lib/queue-filters';
 import { app } from '../fixtures';
 
 const NOW = Date.parse('2026-10-19T12:00:00.000Z');
@@ -45,5 +45,18 @@ describe('filterQueue', () => {
 
   it('combines the search with the chip', () => {
     expect(ids(filterQueue(apps, { filter: 'high', search: 'acme', now: NOW }))).toEqual(['top']);
+  });
+});
+
+describe('filterQueue Has email', () => {
+  it('keeps only applications with an email address or candidate', () => {
+    const list = [
+      app({ id: 'stored', hiring_manager_email: 'hr@acme.com' }),
+      app({ id: 'cand', hiring_manager_email: null, email_candidates: [{ email: 'a@b.co', confidence: 95, source: 'posting', label: 'Published in the job post' }] }),
+      app({ id: 'wa', hiring_manager_email: null, whatsapp_number: '2348031234567' }),
+      app({ id: 'site', hiring_manager_email: null }),
+    ];
+    expect(ids(filterQueue(list, { filter: 'email', search: '', now: NOW }))).toEqual(['stored', 'cand']);
+    expect(QUEUE_FILTERS.map((f) => f.label)).toContain('Has email');
   });
 });

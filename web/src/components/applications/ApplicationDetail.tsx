@@ -12,7 +12,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useApplication, useGmailStatus, useNextEmail, useSendApplication, useSetStatus, useUpdateApplicationText } from '@/hooks/api';
 import { describeApiError } from '@/lib/api/errors';
-import { buildTextPatch } from '@/lib/applications';
+import { APPLY_METHOD_LABELS, applyMethod, buildTextPatch, whatsappLink } from '@/lib/applications';
 import { COLUMN_LABELS, sourceLabel } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { AssistedApplyPanel } from './AssistedApplyPanel';
@@ -52,6 +52,8 @@ export function ApplicationDetail({ id, onClose }: { id: string | null; onClose(
   const move = (status: ApplicationStatus) => {
     if (id) setStatus.mutate({ id, status });
   };
+  const method = data ? applyMethod(data) : null;
+  const waLink = data ? whatsappLink(data.whatsapp_number, data.cover_letter_text) : null;
   const showPanel = data !== undefined && data.status === 'approved';
 
   return (
@@ -75,6 +77,7 @@ export function ApplicationDetail({ id, onClose }: { id: string | null; onClose(
                 <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Match probability</span>
               </div>
               {data.job && <Badge variant="outline">{sourceLabel(data.job.source)}</Badge>}
+              <Badge variant="outline">{APPLY_METHOD_LABELS[applyMethod(data)]}</Badge>
               <Badge variant="secondary">{data.status === 'approved' ? 'Ready to apply' : data.status.replace('_', ' ')}</Badge>
               <SafeLink href={data.job?.url} className="text-sm text-primary hover:underline">
                 View posting
@@ -83,6 +86,24 @@ export function ApplicationDetail({ id, onClose }: { id: string | null; onClose(
                 Download CV PDF
               </SafeLink>
             </div>
+
+            {waLink && (
+              <div className="space-y-2 rounded-xl border border-border/70 bg-white p-4 shadow-card">
+                <a
+                  href={waLink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={cn(buttonVariants({ variant: 'outline', size: 'sm' }))}
+                >
+                  Message on WhatsApp
+                </a>
+                <p className="text-xs text-muted-foreground">Opens WhatsApp with a message ready. You press send there.</p>
+              </div>
+            )}
+
+            {method === 'site' && (
+              <p className="text-sm text-muted-foreground">No contact email was published. Use Apply on the employer&apos;s site below.</p>
+            )}
 
             {data.missing_keywords.length > 0 && (
               <div className="space-y-2 rounded-xl border border-border/70 bg-white p-4 shadow-card">

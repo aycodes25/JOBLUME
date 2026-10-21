@@ -1,5 +1,6 @@
 import { HttpError } from '../../lib/http.js';
 import { JSearchError } from '../../scrapers/jsearch-client.js';
+import { SCRAPE_SOURCES } from '../../scrapers/index.js';
 import type { ScanRun } from '@joblume/shared';
 import type { Db } from '../../lib/supabase.js';
 
@@ -26,12 +27,10 @@ export interface ScanRunsRepo {
 const COLUMNS = 'source, started_at, finished_at, status, error, listed, new_count, inserted, rejected_title, rejected_location';
 /** Old rows are deleted as new ones arrive, so the table stays small. */
 export const KEEP_DAYS = 14;
-/** Enough recent rows to contain every source at least once, even when one source runs far more often. */
-const READ_LIMIT = 200;
 const MAX_ERROR_LENGTH = 200;
 
 /** scan_runs is server-write-only: this service-role repo is its only writer and reader. */
-export function createScanRunsRepo(db: Db, now: () => Date = () => new Date()): ScanRunsRepo {
+export function createScanRunsRepo(db: Db, now: () => Date = () => new Date(), sources: readonly string[] = SCRAPE_SOURCES): ScanRunsRepo {
   return {
     async record(run) {
       const row = { ...run, error: run.error === null ? null : run.error.slice(0, MAX_ERROR_LENGTH) };
@@ -42,16 +41,15 @@ export function createScanRunsRepo(db: Db, now: () => Date = () => new Date()): 
       await db.from('scan_runs').delete().lt('started_at', cutoff);
     },
     async latestPerSource() {
-      const { data, error } = await db.from('scan_runs').select(COLUMNS).order('started_at', { ascending: false }).limit(READ_LIMIT);
-      if (error) throw error;
-      const seen = new Set<string>();
-      const latest: ScanRun[] = [];
-      for (const row of (data ?? []) as ScanRun[]) {
-        if (seen.has(row.source)) continue;
-        seen.add(row.source);
-        latest.push(row);
-      }
-      return latest;
+      // One small query per source: a source that runs rarely (daily) cannot fall out of a shared window of recent rows.
+      const rows = await Promise.all(
+        sources.map(async (source) => {
+          const { data, error } = await db.from('scan_runs').select(COLUMNS).eq('source', source).order('started_at', { ascending: false }).limit(1);
+          if (error) throw error;
+          return ((data ?? []) as ScanRun[])[0] ?? null;
+        }),
+      );
+      return rows.filter((r): r is ScanRun => r !== null).sort((a, b) => b.started_at.localeCompare(a.started_at));
     },
   };
 }

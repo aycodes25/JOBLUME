@@ -57,12 +57,18 @@ An Android-first Expo app in `mobile/` (Expo SDK 57, Expo Router, React Native 0
 
 ## Job discovery (Phase 6)
 
-- **Sources:** MyJobMag and Jobberman (pages 1 to 3), Remotive, RemoteOK, We Work Remotely, Himalayas, Arbeitnow, plus LinkedIn and Indeed through JSearch. Nothing is sent for you unless you click, or you turn on Auto mode (which only emails eligible, non-guessed addresses and never LinkedIn or Indeed jobs); otherwise you apply on the employer's site yourself.
-- **Attribution:** RemoteOK, Remotive, Himalayas, We Work Remotely and Arbeitnow ask for a link back and naming the source. The stored job link is each board's own page and the source name is shown on every card; keep both visible if you change the UI. Do not republish these jobs to other job boards.
+- **Sources:** MyJobMag and Jobberman (pages 1 to 3), Remotive, RemoteOK, We Work Remotely, Himalayas, Arbeitnow, Working Nomads, plus LinkedIn and Indeed through JSearch. Nothing is sent for you unless you click, or you turn on Auto mode (which only emails eligible, non-guessed addresses and never LinkedIn or Indeed jobs); otherwise you apply on the employer's site yourself.
+- **Attribution:** RemoteOK, Remotive, Himalayas, We Work Remotely, Arbeitnow and Working Nomads ask for a link back and naming the source. The stored job link is each board's own page and the source name is shown on every card; keep both visible if you change the UI. Do not republish these jobs to other job boards.
 - **Last scan:** the queue shows what each source's last scan found, added and skipped (by title or place) and whether the worker is running (`GET /scan/status`).
 - **New-match email:** Settings has "Email me about new matches" (off by default). It sends at most one email an hour to your own Gmail address, with job titles, companies, scores and a link, never your CV. Gmail must be connected.
 - **Database:** apply `supabase/migrations/0004_discovery.sql` before starting the new server and worker.
 - **Test it:** work through `docs/phase6-manual-checklist.md`.
+
+## Reaching the employer (Phase 7)
+
+- **Database:** apply `supabase/migrations/0005_contacts.sql` and `supabase/migrations/0006_workingnomads.sql` in the Supabase SQL editor BEFORE starting the server and worker. The worker reads `applications.whatsapp_number` (added by 0005); without 0006 every Working Nomads insert fails.
+- **Backfill:** `npm run backfill:contacts -w server -- --dry` shows what would change without writing anything. When the numbers look right, run `npm run backfill:contacts -w server` (no `--dry`) to apply it. It re-reads the saved job posting of each application waiting for review and stores any email address or WhatsApp number the employer printed there. It needs the full `.env` (Supabase URL and service-role key) and only fills applications that have no email yet or only a guessed one; it never overwrites a published, Hunter or manual address, and never touches applications you already sent.
+- **Test it:** work through `docs/phase7-manual-checklist.md`.
 
 ## Getting a test token (API only, without the web app)
 
@@ -93,6 +99,7 @@ Deploy `web/` to Vercel. Set the project's Root Directory to `web`, enable "Incl
 
 - Nothing is sent without your click unless you turn on Auto mode, and even then only to addresses it is allowed to use (see Settings; guessed addresses and LinkedIn or Indeed jobs are never sent). The optional new-match email only goes to your own address and never applies for you.
 - Through the API, users can only edit their tailored CV text and cover letter text. Applications are written by the server only; the database denies client writes.
-- Remotive, RemoteOK, We Work Remotely, Himalayas and Arbeitnow jobs must keep their link back and source attribution when shown in the UI.
+- Remotive, RemoteOK, We Work Remotely, Himalayas, Arbeitnow and Working Nomads jobs must keep their link back and source attribution when shown in the UI.
 - Free-tier limits: Upstash counts Redis commands (the worker polls idle queues sparingly); Gemini free quota is lower than the `AI_DAILY_LIMIT` soft cap, so set the cap below your real quota.
+- Talent platforms to join once (not scannable listings): `docs/talent-platforms.md`.
 - Manual test checklist: `docs/phase2-manual-checklist.md`.

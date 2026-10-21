@@ -11,6 +11,7 @@ describe('sourceLabel', () => {
     expect(sourceLabel('weworkremotely')).toBe('We Work Remotely');
     expect(sourceLabel('himalayas')).toBe('Himalayas');
     expect(sourceLabel('arbeitnow')).toBe('Arbeitnow');
+    expect(sourceLabel('workingnomads')).toBe('Working Nomads');
     expect(sourceLabel('jsearch')).toBe('JSearch (LinkedIn, Indeed)');
     expect(sourceLabel('somewhere')).toBe('somewhere');
   });

@@ -5,11 +5,11 @@ import { describe, expect, it } from 'vitest';
 const sql = readFileSync(new URL('../../../supabase/migrations/0004_discovery.sql', import.meta.url), 'utf8');
 
 describe('migration 0004_discovery.sql', () => {
-  it('lets the jobs table accept every shared job source', () => {
+  it('lets the jobs table accept every shared job source known at that migration', () => {
     const check = sql.match(/add constraint jobs_source_check\s+check \(source in \(([^)]*)\)\)/);
     expect(check).not.toBeNull();
     const allowed = [...check![1]!.matchAll(/'([a-z]+)'/g)].map((m) => m[1]);
-    expect(allowed).toEqual([...JOB_SOURCES]);
+    expect(allowed).toEqual(JOB_SOURCES.filter((s) => s !== 'workingnomads'));
   });
 
   it('adds the nullable posted_at, the opt-in flag (default off) and the notified marker', () => {

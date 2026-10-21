@@ -1,6 +1,6 @@
 export const isValidEmail = (s: string): boolean => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s.trim());
 
-type Source = 'hunter' | 'guess' | 'manual';
+type Source = 'hunter' | 'guess' | 'manual' | 'posting';
 
 export function recipientInfo(
   stored: { hiring_manager_email: string | null; email_source: Source | null; email_confidence: number | null },
@@ -16,6 +16,7 @@ export function recipientInfo(
       ? { source, isGuess: false, badge: { label: 'Found, high confidence', tone: 'success' } }
       : { source, isGuess: false, badge: { label: 'Found, medium confidence', tone: 'warning' } };
   }
+  if (source === 'posting') return { source, isGuess: false, badge: { label: 'Published in the job post', tone: 'success' } };
   return { source, isGuess: false, badge: { label: 'Entered by you', tone: 'secondary' } };
 }
 

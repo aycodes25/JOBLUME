@@ -131,3 +131,32 @@ export function averageScore(apps: { match_score: number | null }[]): number | n
   if (scores.length === 0) return null;
   return Math.round((scores.reduce((sum, s) => sum + s, 0) / scores.length) * 10) / 10;
 }
+
+export type ApplyMethod = 'email' | 'whatsapp' | 'site';
+
+export const APPLY_METHOD_LABELS: Record<ApplyMethod, string> = { email: 'Email', whatsapp: 'WhatsApp', site: 'Employer site' };
+
+/** How the user can reach this employer: an email wins over WhatsApp, and with neither it is the employer's site. */
+export function applyMethod(app: {
+  email_candidates?: unknown[] | null;
+  hiring_manager_email?: string | null;
+  whatsapp_number?: string | null;
+}): ApplyMethod {
+  if ((app.email_candidates?.length ?? 0) > 0 || (app.hiring_manager_email ?? '').trim() !== '') return 'email';
+  if ((app.whatsapp_number ?? '').trim() !== '') return 'whatsapp';
+  return 'site';
+}
+
+const WHATSAPP_MESSAGE_CHARS = 300;
+
+/** A wa.me chat link with the start of the cover letter as the message, or null unless the number is 7 to 15 digits only. Never sends anything. */
+export function whatsappLink(number: string | null | undefined, coverLetter: string | null | undefined): string | null {
+  if (!number || !/^\d{7,15}$/.test(number)) return null;
+  // Cut by code points, so an emoji is never split; a lone surrogate would make encodeURIComponent throw.
+  const text = Array.from((coverLetter ?? '').replace(/\s+/g, ' ').trim()).slice(0, WHATSAPP_MESSAGE_CHARS).join('');
+  try {
+    return `https://wa.me/${number}?text=${encodeURIComponent(text)}`;
+  } catch {
+    return `https://wa.me/${number}`;
+  }
+}

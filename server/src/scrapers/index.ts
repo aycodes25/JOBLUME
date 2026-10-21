@@ -9,8 +9,9 @@ import { createRemoteOkScraper } from './remoteok.js';
 import { createRemotiveScraper } from './remotive.js';
 import type { Scraper } from './types.js';
 import { createWeWorkRemotelyScraper } from './weworkremotely.js';
+import { createWorkingNomadsScraper } from './workingnomads.js';
 
-export const SCRAPE_SOURCES = ['remotive', 'myjobmag', 'jobberman', 'remoteok', 'weworkremotely', 'himalayas', 'arbeitnow', 'jsearch'] as const;
+export const SCRAPE_SOURCES = ['remotive', 'myjobmag', 'jobberman', 'remoteok', 'weworkremotely', 'himalayas', 'arbeitnow', 'workingnomads', 'jsearch'] as const;
 export type ScrapeSource = (typeof SCRAPE_SOURCES)[number];
 
 /** Max NEW jobs processed per run, to keep detail requests polite. */
@@ -22,6 +23,7 @@ export const SCRAPE_LIMITS: Record<ScrapeSource, number> = {
   weworkremotely: 60,
   himalayas: 60,
   arbeitnow: 60,
+  workingnomads: 60,
   jsearch: 50,
 };
 
@@ -58,6 +60,7 @@ export function createScrapers(
     weworkremotely: createWeWorkRemotelyScraper(fetchText),
     himalayas: createHimalayasScraper(fetchText, extra.loadHimalayasQueries ? { loadQueries: extra.loadHimalayasQueries } : {}),
     arbeitnow: createArbeitnowScraper(fetchText),
+    workingnomads: createWorkingNomadsScraper(fetchText),
     jsearch: extra.jsearch ?? inertJSearch(),
   };
 }

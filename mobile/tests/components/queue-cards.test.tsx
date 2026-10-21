@@ -104,3 +104,14 @@ describe('FollowUpCard', () => {
     expect(h.onDismiss).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('ApplicationCard apply-method badge', () => {
+  it('shows Email, WhatsApp or Employer site', async () => {
+    const view = await render(<ApplicationCard app={app()} onOpen={jest.fn()} />);
+    expect(screen.getByText('Email')).toBeOnTheScreen();
+    await view.rerender(<ApplicationCard app={app({ hiring_manager_email: null, whatsapp_number: '2348031234567' })} onOpen={jest.fn()} />);
+    expect(screen.getByText('WhatsApp')).toBeOnTheScreen();
+    await view.rerender(<ApplicationCard app={app({ hiring_manager_email: null })} onOpen={jest.fn()} />);
+    expect(screen.getByText('Employer site')).toBeOnTheScreen();
+  });
+});

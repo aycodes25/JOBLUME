@@ -83,3 +83,18 @@ describe('ApplicationCard', () => {
     expect(screen.getByRole('img', { name: 'No match score' })).toBeInTheDocument();
   });
 });
+
+describe('ApplicationCard apply-method badge', () => {
+  it('says Employer site with no email or number', () => {
+    render(<ApplicationCard app={app()} onOpen={() => {}} />);
+    expect(screen.getByText('Employer site')).toBeInTheDocument();
+  });
+  it('says Email with a candidate', () => {
+    render(<ApplicationCard app={app({ email_candidates: [{ email: 'a@b.co', confidence: 95, source: 'posting', label: 'Published in the job post' }] })} onOpen={() => {}} />);
+    expect(screen.getByText('Email')).toBeInTheDocument();
+  });
+  it('says WhatsApp with a number and no email', () => {
+    render(<ApplicationCard app={app({ whatsapp_number: '2348031234567' })} onOpen={() => {}} />);
+    expect(screen.getByText('WhatsApp')).toBeInTheDocument();
+  });
+});
