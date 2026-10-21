@@ -39,6 +39,7 @@ nslookup jsearch.p.rapidapi.com
 - **Secure connection failed** (`network_tls`): the secure (HTTPS) check failed. Antivirus HTTPS scanning or a company proxy is the usual cause; also check the PC date and time.
 - **Could not reach the site** (`network`): a network error with no known code. The worker log has a line "JSearch could not be reached" with the full cause (no key).
 - **JSearch says that request was not found** (`jsearch_http_404`) or **JSearch answered with an error (NNN)** (`jsearch_http_NNN`): JSearch was reached and answered with that HTTP status. A 404 means the request path or your subscription is wrong; it is not a network problem, so the DNS and port tests above will pass. The worker log line "JSearch answered with an error status" shows the status, the request path and the first 200 characters of the reply (never the key).
+- **The JSearch address this app uses no longer exists** (`jsearch_endpoint_missing`): a 404 whose reply says the endpoint "does not exist". JSearch removed the old `/search` address (RapidAPI answers `Endpoint '/search' does not exist`). JobLume now uses `/search-v2` by default. If you see this reason, you are on the old path (`JSEARCH_SEARCH_PATH=/search`) or the provider no longer offers the path you chose. Other 404s stay `jsearch_http_404` (wrong subscription or request).
 - **JSearch refused the API key** means the key reached JSearch but was rejected: check the key and that you subscribed to the JSearch API on RapidAPI.
 
 ### Two ways to get a JSearch key
@@ -47,5 +48,22 @@ JSearch is run by OpenWeb Ninja (formerly Letscrape) and is sold in two places. 
 - **OpenWeb Ninja**: create an account on openwebninja.com, subscribe to JSearch and copy the API key from the developer portal. Set `JSEARCH_PROVIDER=openwebninja`. The worker then calls `https://api.openwebninja.com/jsearch/search` with an `x-api-key` header. Unverified: the URL path (it answers 401 to an unknown key) and the `x-api-key` header (shown in OpenWeb Ninja's own sample) are confirmed, but the exact query parameters and response fields of that `/search` endpoint could not be checked against its docs (the docs show a newer `/search-v2`). If it fails, read the status in the scan line and the worker log, then switch back.
 
 Check the RapidAPI subscription: on rapidapi.com open the JSearch API, go to Pricing and confirm your plan (Basic) shows as "Subscribed" for the same app whose key you pasted (My Apps, then the app, then Authorization). A key from an app that is not subscribed to JSearch, or a key from OpenWeb Ninja used with `JSEARCH_PROVIDER=rapidapi` (or the reverse), gives a 401, 403 or 404.
+
+### The JSearch address change (legacy /search to /search-v2)
+OpenWeb Ninja's docs call `/search` legacy and list `GET https://api.openwebninja.com/jsearch/search-v2` (header `x-api-key`) as current. `/search-v2` has no `page` parameter and returns `data` as an object holding a `jobs` list (the old reply had `data` as the list itself). JobLume reads both shapes and sends `page` only on the legacy path.
+
+Settings in `server/.env`:
+- `JSEARCH_SEARCH_PATH=/search-v2` (default) or `/search` (legacy).
+- `JSEARCH_PROVIDER=rapidapi` (default) or `openwebninja`. A key from app.openwebninja.com goes with `JSEARCH_PROVIDER=openwebninja`; a key from rapidapi.com goes with `rapidapi`. They are not interchangeable.
+
+Test one request from your PC (uses one request of the monthly allowance, saves nothing, never prints the key):
+```
+npm run diag:jsearch -w server -- --path=/search-v2
+npm run diag:jsearch -w server -- --path=/search-v2 --provider=openwebninja
+npm run diag:jsearch -w server -- --path=/search
+```
+It prints the provider, the path used, the HTTP outcome, the results summary, the field names of the first result and, for a v2 reply, the field names of the reply's `data` object (names only, never job text).
+
+**Unverified:** (1) whether the RapidAPI listing exposes `/search-v2` at all. Only the OpenWeb Ninja docs describe it; run the first command above to find out, and if RapidAPI answers 404 "does not exist" for `/search-v2`, use an OpenWeb Ninja key with `JSEARCH_PROVIDER=openwebninja`. (2) The name of the pagination cursor field inside `data`. JobLume only fetches the first page and does not use a cursor, so nothing depends on it; the diag output will show its name.
 
 Restarting `npm run dev` retries a failed source after 10 minutes (a refused key is not retried until its normal interval).

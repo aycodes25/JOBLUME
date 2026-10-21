@@ -32,6 +32,7 @@ describe('describeScanRun', () => {
     expect(failed('jsearch_auth')).toBe('12 min ago · failed: JSearch refused the API key');
     expect(failed('jsearch_rate_limited')).toBe('12 min ago · failed: JSearch rate limit reached');
     expect(failed('jsearch_http_404')).toBe('12 min ago · failed: JSearch says that request was not found. Check that your JSearch subscription is active and the key belongs to JSearch (see the checklist).');
+    expect(failed('jsearch_endpoint_missing')).toBe('12 min ago · failed: The JSearch address this app uses no longer exists. Update JobLume or switch the JSearch settings (see the checklist).');
     expect(failed('jsearch_http_500')).toBe('12 min ago · failed: JSearch answered with an error (500). See the checklist.');
     expect(failed('jsearch_http_abc')).toBe('12 min ago · failed: Something went wrong');
     expect(failed('db')).toBe('12 min ago · failed: Could not save the results');
