@@ -20,6 +20,7 @@
     "test:watch": "vitest",
     "backfill:contacts": "tsx --env-file=../.env src/scripts/backfill-contacts.ts",
     "diag:jsearch": "tsx --env-file=../.env src/scripts/diag-jsearch.ts",
+    "scan:now": "tsx --env-file=../.env src/scripts/scan-now.ts",
     "browsers:install": "playwright install chromium"
   },
   "dependencies": {
