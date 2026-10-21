@@ -39,3 +39,5 @@ nslookup jsearch.p.rapidapi.com
 - **Secure connection failed** (`network_tls`): the secure (HTTPS) check failed. Antivirus HTTPS scanning or a company proxy is the usual cause; also check the PC date and time.
 - **Could not reach the site** (`network`): a network error with no known code. The worker log has a line "JSearch could not be reached" with the full cause (no key).
 - **JSearch refused the API key** means the key reached JSearch but was rejected: check the key and that you subscribed to the JSearch API on RapidAPI.
+
+Restarting `npm run dev` retries a failed source after 10 minutes (a refused key is not retried until its normal interval).

@@ -24,6 +24,30 @@ describe('sourcesNeedingCatchUp', () => {
   it('treats an unreadable date as missing', () => {
     expect(sourcesNeedingCatchUp({ remotive: { started_at: 'nope' } }, NOW, intervals, ['remotive'])).toEqual(['remotive']);
   });
+
+  describe('a failed latest run', () => {
+    const MIN = 60_000;
+    const failed = (finishedMsAgo: number, error: string | null = 'network') => ({
+      started_at: iso(finishedMsAgo + 5_000), finished_at: iso(finishedMsAgo), status: 'failed', error,
+    });
+    const ok = (startedMsAgo: number) => ({ started_at: iso(startedMsAgo), finished_at: iso(startedMsAgo - 5_000), status: 'ok', error: null });
+    const cases: Array<[string, Record<string, object>, string[]]> = [
+      ['failed and finished over 10 minutes ago -> catch up', { jsearch: failed(2 * HOUR) }, ['jsearch']],
+      ['failed and finished exactly 10 minutes ago -> catch up', { jsearch: failed(10 * MIN) }, ['jsearch']],
+      ['failed less than 10 minutes ago -> wait', { jsearch: failed(9 * MIN) }, []],
+      ['failed with the auth reason -> wait for the interval', { jsearch: failed(2 * HOUR, 'jsearch_auth') }, []],
+      ['failed with an http 401 -> wait for the interval', { jsearch: failed(2 * HOUR, 'http_401') }, []],
+      ['failed with an http 403 -> wait for the interval', { jsearch: failed(2 * HOUR, 'http_403') }, []],
+      ['failed auth reason and older than the interval -> catch up', { jsearch: failed(25 * HOUR, 'jsearch_auth') }, ['jsearch']],
+      ['failed with a network reason -> catch up', { jsearch: failed(HOUR, 'network_dns') }, ['jsearch']],
+      ['failed with no readable finish time -> wait for the interval', { jsearch: { started_at: iso(2 * HOUR), finished_at: 'nope', status: 'failed', error: 'network' } }, []],
+      ['ok and recent -> no', { jsearch: ok(2 * HOUR) }, []],
+      ['ok and stale -> yes', { jsearch: ok(25 * HOUR) }, ['jsearch']],
+    ];
+    it.each(cases)('%s', (_name, latest, expected) => {
+      expect(sourcesNeedingCatchUp(latest as never, NOW, intervals, ['jsearch'])).toEqual(expected);
+    });
+  });
 });
 
 describe('catchUpJobId', () => {
