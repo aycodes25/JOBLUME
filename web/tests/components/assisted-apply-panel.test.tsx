@@ -55,6 +55,14 @@ describe('AssistedApplyPanel', () => {
     expect(await screen.findByText(/could not copy/i)).toBeInTheDocument();
   });
 
+  it('shows an optional autofill action above the manual steps, and nothing when it is omitted', () => {
+    const { rerender } = render(<AssistedApplyPanel app={detail()} onMarkApplied={() => {}} />);
+    expect(screen.queryByText('Fill it for me')).toBeNull();
+    rerender(<AssistedApplyPanel app={detail()} onMarkApplied={() => {}} fillAction={<button type="button">Fill it for me</button>} />);
+    expect(screen.getByRole('button', { name: 'Fill it for me' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Open job link' })).toBeInTheDocument();
+  });
+
   it('marks the application as applied', async () => {
     const onMarkApplied = vi.fn();
     render(<AssistedApplyPanel app={detail()} onMarkApplied={onMarkApplied} />);

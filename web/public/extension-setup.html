@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>JobLume Autofill extension: setup</title>
+    <style>
+      body { max-width: 40rem; margin: 2rem auto; padding: 0 1rem; font: 16px/1.5 system-ui, sans-serif; color: #0f172a; }
+      code { background: #f1f5f9; padding: 0.1rem 0.3rem; border-radius: 4px; }
+    </style>
+  </head>
+  <body>
+    <h1>JobLume Autofill extension</h1>
+    <p>The extension fills the standard fields of employer application forms (Greenhouse, Lever, Ashby and Workable) from your JobLume details. It never submits anything: you review every answer and press Submit yourself.</p>
+    <h2>Install it (Chrome, Edge or Brave on a computer)</h2>
+    <ol>
+      <li>Ask whoever runs your JobLume for the <code>extension/dist</code> folder, or build it: in the JobLume folder run <code>npm run build -w joblume-extension</code>.</li>
+      <li>Open <code>chrome://extensions</code> in the browser and switch on <strong>Developer mode</strong> (top right).</li>
+      <li>Press <strong>Load unpacked</strong> and choose the <code>extension/dist</code> folder.</li>
+      <li>Come back to JobLume and reload this page. Open an application: a <strong>Fill the form with the JobLume extension</strong> button appears.</li>
+    </ol>
+    <p>Fill in <strong>Settings, Contact details for application forms</strong> first so there is something to fill.</p>
+    <p>Full guide: <code>docs/extension-setup.md</code> in the JobLume project.</p>
+  </body>
+</html>
