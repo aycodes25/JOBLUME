@@ -160,6 +160,15 @@ describe('createJSearchScraper', () => {
     expect(quota.refund).toHaveBeenCalledTimes(1);
   });
 
+  it('refunds a request answered with a missing endpoint (404), which returns no jobs', async () => {
+    const { scraper, search, quota } = make();
+    search.mockImplementation(async () => {
+      throw new JSearchError('failed', 'JSearch answered 404', false, undefined, 404, true);
+    });
+    await expect(scraper.list()).rejects.toMatchObject({ kind: 'failed', endpointMissing: true });
+    expect(quota.refund).toHaveBeenCalled();
+  });
+
   it.each([['timeout'], ['rate_limited'], ['failed']] as const)('does not refund a %s that was sent', async (kind) => {
     const { scraper, search, quota } = make();
     search.mockImplementation(async () => {

@@ -102,8 +102,8 @@ export function createJSearchScraper(d: JSearchScraperDeps): Scraper {
         try {
           results = await d.client.search(q);
         } catch (err) {
-          // Only a request that never reached RapidAPI used no budget; anything that was sent counts.
-          if (err instanceof JSearchError && err.neverSent) {
+          // A request that never reached RapidAPI, or that hit an endpoint that no longer exists, used no budget; anything else that was sent counts.
+          if (err instanceof JSearchError && (err.neverSent || err.endpointMissing)) {
             try {
               await d.quota.refund();
             } catch (refundErr) {
