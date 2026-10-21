@@ -1,13 +1,15 @@
 import type { Application } from '@joblume/shared';
+import { applyMethod } from './applications';
 import { sourceLabel } from './format';
 
 /** The queue's filter chips (mobile home mockup): All, 90%+ and Recent. */
-export type QueueFilter = 'all' | 'high' | 'recent';
+export type QueueFilter = 'all' | 'high' | 'recent' | 'email';
 
 export const QUEUE_FILTERS: readonly { value: QueueFilter; label: string }[] = [
   { value: 'all', label: 'All' },
   { value: 'high', label: '90%+' },
   { value: 'recent', label: 'Recent' },
+  { value: 'email', label: 'Has email' },
 ];
 
 export const HIGH_MATCH = 90;
@@ -30,6 +32,7 @@ export function filterQueue(apps: Application[], opts: { filter: QueueFilter; se
   const now = opts.now ?? Date.now();
   const searched = apps.filter((a) => matchesSearch(a, opts.search));
   if (opts.filter === 'high') return searched.filter(isHighMatch);
+  if (opts.filter === 'email') return searched.filter((a) => applyMethod(a) === 'email');
   if (opts.filter === 'recent') {
     return searched
       .filter((a) => {

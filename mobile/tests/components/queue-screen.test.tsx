@@ -134,3 +134,37 @@ describe('QueueScreen filters', () => {
     expect(screen.getByRole('button', { name: 'Try again' })).toBeOnTheScreen();
   });
 });
+
+describe('QueueScreen Has email chip', () => {
+  it('is offered next to the other chips', async () => {
+    await setup();
+    expect(screen.getByRole('button', { name: 'Has email' })).toBeOnTheScreen();
+  });
+});
+
+describe('QueueScreen Has email filtering', () => {
+  it('keeps only applications with an email', async () => {
+    mockHooks.useApplications.mockReturnValue(
+      ok([
+        app({ id: 'e', match_score: 90, job: job('Emailable Role', 'Acme') }),
+        app({ id: 'w', match_score: 80, hiring_manager_email: null, whatsapp_number: '2348031234567', job: job('WhatsApp Role', 'Beta') }),
+        app({ id: 's', match_score: 70, hiring_manager_email: null, job: job('Site Role', 'Gamma') }),
+      ]),
+    );
+    mockHooks.useFollowUps.mockReturnValue(ok([]));
+    mockHooks.useJobFetches.mockReturnValue(ok([]));
+    mockHooks.useScanStatus.mockReturnValue(ok(undefined));
+    for (const k of ['useAddJobLink', 'useRefreshJobs', 'useUpdateFollowUp', 'useSendFollowUp', 'useDismissFollowUp'] as const) {
+      mockHooks[k].mockReturnValue(mutation());
+    }
+    await render(
+      <StaticSession value={{ status: 'signedIn', email: 'me@example.com' }}>
+        <QueueScreen />
+      </StaticSession>,
+    );
+    await fireEvent.press(screen.getByRole('button', { name: 'Has email' }));
+    expect(screen.getByText('Emailable Role')).toBeOnTheScreen();
+    expect(screen.queryByText('WhatsApp Role')).toBeNull();
+    expect(screen.queryByText('Site Role')).toBeNull();
+  });
+});

@@ -12,7 +12,7 @@ import { ErrorState, Loading, Message } from '@/components/ui/States';
 import { TextField } from '@/components/ui/TextField';
 import { useApplication, useFollowUps, useGmailStatus, useNextEmail, useSendApplication, useSetStatus, useUpdateApplicationText } from '@/hooks/api';
 import { describeApiError } from '@/lib/api/errors';
-import { buildTextPatch } from '@/lib/applications';
+import { APPLY_METHOD_LABELS, applyMethod, buildTextPatch, whatsappLink } from '@/lib/applications';
 import { openExternalUrl } from '@/lib/external';
 import { sourceLabel, STATUS_LABELS } from '@/lib/format';
 import { colors, font, space } from '@/theme';
@@ -50,6 +50,8 @@ export function ApplicationDetailScreen({ id }: { id: string }) {
   const lockedReason = text.dirty ? 'You have unsaved changes. Save them first so the copied letter and the PDF match.' : undefined;
   const emailError = sendEmail.error ?? nextEmail.error;
   const mutationError = updateText.error ?? setStatus.error;
+  const method = applyMethod(data);
+  const waLink = whatsappLink(data.whatsapp_number, data.cover_letter_text);
   const draft = (followUps.data ?? []).find((f) => f.application_id === data.id);
   const move = (status: ApplicationStatus) => setStatus.mutate({ id: data.id, status });
   const leave = () => {
@@ -73,12 +75,22 @@ export function ApplicationDetailScreen({ id }: { id: string }) {
             <Text style={styles.label}>MATCH PROBABILITY</Text>
             <View style={styles.row}>
               {data.job ? <Badge label={sourceLabel(data.job.source)} tone="outline" /> : null}
+              <Badge label={APPLY_METHOD_LABELS[applyMethod(data)]} tone="outline" />
               <Badge label={STATUS_LABELS[data.status]} tone={data.status === 'approved' ? 'primary' : 'secondary'} />
             </View>
           </View>
         </View>
         <Button label="View posting" variant="ghost" size="sm" onPress={() => void openExternalUrl(data.job?.url)} disabled={!data.job?.url} />
       </Card>
+
+      {waLink ? (
+        <Card>
+          <Button label="Message on WhatsApp" variant="outline" size="sm" onPress={() => void openExternalUrl(waLink)} />
+          <Text style={styles.muted}>Opens WhatsApp with a message ready. You press send there.</Text>
+        </Card>
+      ) : null}
+
+      {method === 'site' ? <Text style={styles.muted}>No contact email was published. Use Apply on the employer's site below.</Text> : null}
 
       {data.missing_keywords.length > 0 ? (
         <Card>

@@ -60,3 +60,12 @@ describe('sendDisabledReason', () => {
     expect(sendDisabledReason({ ...ok, gmailConnected: false, email: '' })).toBe('Connect Gmail to send emails.');
   });
 });
+
+describe('recipientInfo posting source', () => {
+  it('labels an address published in the job post', async () => {
+    const { recipientInfo } = await import('@/lib/email-send');
+    expect(recipientInfo({ hiring_manager_email: 'hr@acme.com', email_source: 'posting', email_confidence: 95 }, 'hr@acme.com')).toEqual({
+      source: 'posting', isGuess: false, badge: { label: 'Published in the job post', tone: 'success' },
+    });
+  });
+});
