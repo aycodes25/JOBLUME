@@ -37,6 +37,7 @@ import { sendGmailMessage } from '../services/gmail/send.js';
 import { findJobIdByUrl, findSeenUrls, insertJobs, saveJob } from '../services/jobs/repo.js';
 import { createJobFetchesRepo } from '../services/jobs/fetches-repo.js';
 import { createHeartbeat, HEARTBEAT_EVERY_MS } from '../services/scan/heartbeat.js';
+import { runCatchUp } from '../services/scan/catchup.js';
 import { createScanRunsRepo } from '../services/scan/runs.js';
 import { uploadFile } from '../services/storage.js';
 import { matchJob, matchUser, matchUserJob } from './match.js';
@@ -312,6 +313,19 @@ async function main() {
     // upsertJobScheduler enqueues the first run immediately, so no separate boot job is needed
     await queues.scrape.upsertJobScheduler(`scrape-${source}`, { every: scrapeIntervalMs(source, env.SCRAPE_EVERY_MINUTES) }, { name: 'scrape', data: { source } });
   }
+  // A restart or outage can leave a source unscanned for longer than its interval: queue one scan now for each.
+  // JSearch counts against its monthly quota inside its scraper, exactly like a scheduled run.
+  const scheduled = SCRAPE_SOURCES.filter((s) => s !== 'jsearch' || jsearchClient);
+  await runCatchUp({
+    readLatest: async () => Object.fromEntries((await scanRuns.latestPerSource()).map((r) => [r.source, r])),
+    enqueue: async (source, jobId) => {
+      await queues.scrape.add('scrape', { source }, { jobId });
+    },
+    sources: scheduled,
+    intervals: Object.fromEntries(scheduled.map((s) => [s, scrapeIntervalMs(s, env.SCRAPE_EVERY_MINUTES)])) as Record<(typeof scheduled)[number], number>,
+    nowMs: Date.now(),
+    log: logger,
+  });
   // Look for new matches to email about every 15 minutes; each user still gets at most one email an hour.
   await queues.alerts.upsertJobScheduler('alert-digest', { every: 15 * 60 * 1000 }, { name: 'alerts', data: { kind: 'digest' } });
   await queues.followups.upsertJobScheduler('followup-scan', { every: 60 * 60 * 1000 }, { name: 'followups', data: { kind: 'scan' } });

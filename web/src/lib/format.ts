@@ -10,6 +10,7 @@ const SOURCES: Record<string, string> = {
   weworkremotely: 'We Work Remotely',
   himalayas: 'Himalayas',
   arbeitnow: 'Arbeitnow',
+  workingnomads: 'Working Nomads',
   jsearch: 'JSearch (LinkedIn, Indeed)',
 };
 

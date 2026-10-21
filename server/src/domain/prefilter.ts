@@ -79,7 +79,7 @@ function titleMatches(title: string, roleWordLists: string[][], skills: string[]
 }
 
 // Boards that only list remote work. Their location is the region the employer hires from.
-const REMOTE_BOARDS = new Set<JobSource>(['remotive', 'remoteok', 'weworkremotely', 'himalayas', 'arbeitnow']);
+const REMOTE_BOARDS = new Set<JobSource>(['remotive', 'remoteok', 'weworkremotely', 'himalayas', 'arbeitnow', 'workingnomads']);
 const OPEN_REGION = /worldwide|anywhere|global|africa|emea|nigeria|^remote$/i;
 const SAYS_REMOTE = /remote|work from home|anywhere/i;
 

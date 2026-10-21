@@ -4,7 +4,7 @@ import type { Scraper } from '../../src/scrapers/types.js';
 
 describe('scraper registry', () => {
   it('lists the sources in the order the scheduler starts them', () => {
-    expect(SCRAPE_SOURCES).toEqual(['remotive', 'myjobmag', 'jobberman', 'remoteok', 'weworkremotely', 'himalayas', 'arbeitnow', 'jsearch']);
+    expect(SCRAPE_SOURCES).toEqual(['remotive', 'myjobmag', 'jobberman', 'remoteok', 'weworkremotely', 'himalayas', 'arbeitnow', 'workingnomads', 'jsearch']);
   });
 
   it('caps MyJobMag and Jobberman at 60 new jobs a run, and keeps the other limits', () => {
@@ -15,6 +15,7 @@ describe('scraper registry', () => {
     expect(SCRAPE_LIMITS.weworkremotely).toBe(60);
     expect(SCRAPE_LIMITS.himalayas).toBe(60);
     expect(SCRAPE_LIMITS.arbeitnow).toBe(60);
+    expect(SCRAPE_LIMITS.workingnomads).toBe(60);
     expect(SCRAPE_LIMITS.jsearch).toBe(50);
   });
 
@@ -25,6 +26,7 @@ describe('scraper registry', () => {
     expect(scrapeIntervalMs('weworkremotely', 60)).toBe(60 * 60 * 1000);
     expect(scrapeIntervalMs('himalayas', 120)).toBe(2 * 60 * 60 * 1000);
     expect(scrapeIntervalMs('arbeitnow', 90)).toBe(90 * 60 * 1000);
+    expect(scrapeIntervalMs('workingnomads', 120)).toBe(2 * 60 * 60 * 1000);
     expect(scrapeIntervalMs('jsearch', 120)).toBe(24 * 60 * 60 * 1000);
     expect(scrapeIntervalMs('remotive', 30)).toBe(6 * 60 * 60 * 1000);
   });
