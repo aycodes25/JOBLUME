@@ -10,9 +10,14 @@ export interface AssistedApplyPanelProps {
   onMarkApplied(): void;
   pending?: boolean;
   lockedReason?: string;
+  /** True once the application has been marked applied: the panel then offers to move on instead of the steps. */
+  applied?: boolean;
+  /** Opens the next application in the queue. Only navigates. Omit when there is none. */
+  onOpenNext?(): void;
+  onDone?(): void;
 }
 
-export function AssistedApplyPanel({ app, onMarkApplied, pending = false, lockedReason }: AssistedApplyPanelProps) {
+export function AssistedApplyPanel({ app, onMarkApplied, pending = false, lockedReason, applied = false, onOpenNext, onDone }: AssistedApplyPanelProps) {
   const [copy, setCopy] = useState<'idle' | 'copied' | 'failed'>('idle');
   const jobUrl = safeHttpUrl(app.job?.url);
   const pdfUrl = safeHttpUrl(app.cv_pdf_url);
@@ -25,6 +30,18 @@ export function AssistedApplyPanel({ app, onMarkApplied, pending = false, locked
     } catch {
       setCopy('failed');
     }
+  }
+
+  if (applied) {
+    return (
+      <section aria-label="Apply" className="space-y-3 rounded-xl border border-primary/30 bg-blue-50 p-4">
+        <p role="status" className="font-semibold text-emerald-600">Marked as applied.</p>
+        <div className="flex flex-wrap items-center gap-3">
+          {onOpenNext && <Button size="sm" onClick={onOpenNext}>Applied: open next job</Button>}
+          {onDone && <Button variant="outline" size="sm" onClick={onDone}>Done</Button>}
+        </div>
+      </section>
+    );
   }
 
   if (lockedReason) {

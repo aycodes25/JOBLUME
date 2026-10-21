@@ -64,4 +64,23 @@ describe('AssistedApplyPanel', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('You have unsaved changes.');
     expect(screen.queryByRole('button', { name: '4. Mark as applied' })).toBeNull();
   });
+
+  it('after marking applied, offers "Applied: open next job" that only navigates', async () => {
+    const onOpenNext = jest.fn();
+    const onMarkApplied = jest.fn();
+    await render(<AssistedApplyPanel app={detail({ status: 'applied' })} onMarkApplied={onMarkApplied} actions={actions()} applied onOpenNext={onOpenNext} />);
+    expect(screen.getByText('Marked as applied.')).toBeOnTheScreen();
+    await fireEvent.press(screen.getByRole('button', { name: 'Applied: open next job' }));
+    expect(onOpenNext).toHaveBeenCalledTimes(1);
+    expect(onMarkApplied).not.toHaveBeenCalled();
+    expect(screen.queryByRole('button', { name: '4. Mark as applied' })).toBeNull();
+  });
+
+  it('shows no next button when there is no next job, and Done leaves', async () => {
+    const onDone = jest.fn();
+    await render(<AssistedApplyPanel app={detail({ status: 'applied' })} onMarkApplied={jest.fn()} actions={actions()} applied onDone={onDone} />);
+    expect(screen.queryByRole('button', { name: 'Applied: open next job' })).toBeNull();
+    await fireEvent.press(screen.getByRole('button', { name: 'Done' }));
+    expect(onDone).toHaveBeenCalledTimes(1);
+  });
 });

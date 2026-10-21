@@ -45,7 +45,20 @@ export function splitQueue(apps: Application[]): Record<QueueTab, Application[]>
     const tab = queueTab(app.status);
     if (tab) out[tab].push(app);
   }
+  // Pending is the long list to work through: ones with an email or WhatsApp number to reach come first (the newest-first order is the tiebreaker).
+  out.pending = sortContactFirst(out.pending);
   return out;
+}
+
+/** The application after `currentId` in `list` that is still open (waiting for review or ready to apply), or null. Only reads: it never changes anything. */
+export function nextInQueue<T extends { id: string; status: ApplicationStatus }>(list: T[], currentId: string): T | null {
+  const at = list.findIndex((a) => a.id === currentId);
+  if (at < 0) return null;
+  for (let i = at + 1; i < list.length; i++) {
+    const item = list[i]!;
+    if (item.status === 'pending_review' || item.status === 'approved') return item;
+  }
+  return null;
 }
 
 export function groupByColumn(apps: Application[]): Record<KanbanColumn, Application[]> {
@@ -163,3 +176,8 @@ export function whatsappLink(number: string | null | undefined, coverLetter: str
 
 /** The "Has email" queue chip: keeps applications whose apply method is email. */
 export const withEmail = <T extends Parameters<typeof applyMethod>[0]>(apps: T[]): T[] => apps.filter((a) => applyMethod(a) === 'email');
+
+/** Moves applications that have an email or WhatsApp number ahead of the rest. Stable: each group keeps its incoming order. Does not change the input. */
+export function sortContactFirst<T extends Parameters<typeof applyMethod>[0]>(items: T[]): T[] {
+  return [...items.filter((a) => applyMethod(a) !== 'site'), ...items.filter((a) => applyMethod(a) === 'site')];
+}

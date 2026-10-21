@@ -12,7 +12,7 @@ import { ErrorState, Loading, Message } from '@/components/ui/States';
 import { TextField } from '@/components/ui/TextField';
 import { useApplication, useFollowUps, useGmailStatus, useNextEmail, useSendApplication, useSetStatus, useUpdateApplicationText } from '@/hooks/api';
 import { describeApiError } from '@/lib/api/errors';
-import { APPLY_METHOD_LABELS, applyMethod, buildTextPatch, whatsappLink } from '@/lib/applications';
+import { APPLY_METHOD_LABELS, applyMethod, buildTextPatch, nextInQueue, whatsappLink } from '@/lib/applications';
 import { openExternalUrl } from '@/lib/external';
 import { sourceLabel, STATUS_LABELS } from '@/lib/format';
 import { colors, font, space } from '@/theme';
@@ -21,7 +21,7 @@ import { EmailSection } from './EmailSection';
 import { StatusActions } from './StatusActions';
 
 /** Job detail: match, keywords, status actions, email send, assisted apply, the CV and letter editors and any follow-up draft. */
-export function ApplicationDetailScreen({ id }: { id: string }) {
+export function ApplicationDetailScreen({ id, queue }: { id: string; queue?: Array<{ id: string; status: ApplicationStatus }> }) {
   const router = useRouter();
   const detail = useApplication(id);
   const updateText = useUpdateApplicationText();
@@ -33,6 +33,8 @@ export function ApplicationDetailScreen({ id }: { id: string }) {
   const [notice, setNotice] = useState<string | null>(null);
   const [cv, setCv] = useState('');
   const [letter, setLetter] = useState('');
+  /** Set once marked applied from a queue: the id of the next open application, or null when there is none. */
+  const [applied, setApplied] = useState<{ nextId: string | null } | null>(null);
   const data = detail.data;
 
   useEffect(() => {
@@ -40,6 +42,10 @@ export function ApplicationDetailScreen({ id }: { id: string }) {
     setLetter(data?.cover_letter_text ?? '');
     setNotice(null);
   }, [data?.id, data?.tailored_cv_text, data?.cover_letter_text]);
+
+  useEffect(() => {
+    setApplied(null);
+  }, [id]);
 
   if (detail.isLoading) return <Loading />;
   if (detail.error || !data) {
@@ -111,9 +117,9 @@ export function ApplicationDetailScreen({ id }: { id: string }) {
         onSkip={() => setStatus.mutate({ id: data.id, status: 'skipped' }, { onSuccess: leave })}
       />
 
-      {data.status === 'approved' ? (
+      {data.status === 'approved' || applied ? (
         <>
-          <EmailSection
+          {applied ? null : <EmailSection
             app={data}
             gmail={gmail.data}
             lockedReason={lockedReason}
@@ -127,12 +133,18 @@ export function ApplicationDetailScreen({ id }: { id: string }) {
               })
             }
             onOpenSettings={() => router.push('/settings')}
-          />
+          />}
           <AssistedApplyPanel
             app={data}
             pending={setStatus.isPending}
             lockedReason={lockedReason}
-            onMarkApplied={() => setStatus.mutate({ id: data.id, status: 'applied' }, { onSuccess: leave })}
+            onMarkApplied={() => {
+              const nextId = queue ? (nextInQueue(queue, data.id)?.id ?? null) : null;
+              setStatus.mutate({ id: data.id, status: 'applied' }, { onSuccess: queue ? () => setApplied({ nextId }) : leave });
+            }}
+            applied={applied !== null}
+            onOpenNext={applied?.nextId ? () => router.replace(`/application/${applied.nextId}`) : undefined}
+            onDone={leave}
           />
         </>
       ) : null}
