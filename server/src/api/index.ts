@@ -4,6 +4,7 @@ import { createRedis } from '../lib/redis.js';
 import { createSupabaseAdmin } from '../lib/supabase.js';
 import { createQueues, enqueueFetchJob } from '../queues.js';
 import { createApplicationsService } from '../services/applications.js';
+import { createAutofillService } from '../services/autofill.js';
 import { renderCvPdf } from '../services/cv/pdf.js';
 import { createCvService } from '../services/cv/upload.js';
 import { gmailConfig } from '../services/gmail/config.js';
@@ -28,6 +29,7 @@ const db = createSupabaseAdmin(env);
 const redis = createRedis(env.UPSTASH_REDIS_URL);
 const queues = createQueues(redis);
 const applicationsRepo = createApplicationsRepo(db);
+const profileRepo = createProfileRepo(db);
 const gmailCfg = gmailConfig(env);
 const gmailTokens = createGmailTokens({ store: createGmailTokenStore(db), cfg: gmailCfg, encryptionKey: env.ENCRYPTION_KEY });
 const gmail = createGmailService({ cfg: gmailCfg, tokens: gmailTokens, encryptionKey: env.ENCRYPTION_KEY, redis });
@@ -45,7 +47,7 @@ const app = createApp({
     if (error || !data.user) return null;
     return { id: data.user.id, email: data.user.email ?? null };
   },
-  profiles: createProfileRepo(db),
+  profiles: profileRepo,
   cv: createCvService({
     upload: (path, bytes, contentType) => uploadFile(db, path, bytes, contentType),
     setCv: (userId, v) => setCv(db, userId, v),
@@ -54,6 +56,11 @@ const app = createApp({
     repo: applicationsRepo,
     renderPdf: renderCvPdf,
     uploadPdf: (path, bytes) => uploadFile(db, path, bytes, 'application/pdf'),
+    signUrl: (path) => createSignedUrl(db, path),
+  }),
+  autofill: createAutofillService({
+    applications: applicationsRepo,
+    profiles: profileRepo,
     signUrl: (path) => createSignedUrl(db, path),
   }),
   jobs: createJobsService(queues),

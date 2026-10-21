@@ -57,6 +57,12 @@ export const profile = (over: Partial<Profile> = {}): Profile => ({
   daily_cap: 10,
   auto_followup: false,
   notify_new_matches: false,
+  full_name: 'Ada Lovelace',
+  phone: null,
+  city: null,
+  linkedin_url: null,
+  github_url: null,
+  portfolio_url: null,
   updated_at: '2026-10-18T10:00:00.000Z',
   ...over,
 });

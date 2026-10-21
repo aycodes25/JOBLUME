@@ -89,6 +89,8 @@ describe('SettingsScreen', () => {
     await setup().view;
     expect(screen.getByText('Current CV: My CV.pdf')).toBeOnTheScreen();
     expect(screen.getByLabelText('Roles you want')).toHaveDisplayValue('Data Analyst');
+    expect(screen.getByText('Contact details for application forms')).toBeOnTheScreen();
+    expect(screen.getByLabelText('Full name')).toHaveDisplayValue('Ada Lovelace');
     expect(screen.getByText('Signed in as me@example.com')).toBeOnTheScreen();
   });
 

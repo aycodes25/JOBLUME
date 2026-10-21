@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { CvUpload } from '@/components/cv/CvUpload';
 import { PageSkeleton } from '@/components/common/PageSkeleton';
+import { ContactForm } from '@/components/profile/ContactForm';
 import { ProfileForm } from '@/components/profile/ProfileForm';
 import { SettingsForm } from '@/components/profile/SettingsForm';
 import { GmailCard } from '@/components/settings/GmailCard';
@@ -11,7 +12,7 @@ import { useConnectGmail, useDisconnectGmail, useGmailStatus, useProfile, useUpd
 import { describeApiError } from '@/lib/api/errors';
 import { parseGmailReturn, type GmailReturn } from '@/lib/gmail-return';
 import { displayCvName } from '@/lib/cv-name';
-import { profileToFormValues, profileToSettingsValues } from '@/lib/profile-form';
+import { profileToContactValues, profileToFormValues, profileToSettingsValues } from '@/lib/profile-form';
 
 export default function SettingsPage() {
   const profile = useProfile();
@@ -70,6 +71,19 @@ export default function SettingsPage() {
           <ProfileForm
             initial={profileToFormValues(data)}
             submitLabel="Save preferences"
+            onSubmit={async (patch) => { await updateProfile.mutateAsync(patch); }}
+          />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Contact details for application forms</CardTitle>
+          <CardDescription>Used by the JobLume browser extension to fill the standard fields of employer forms. Nothing is submitted for you.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ContactForm
+            initial={profileToContactValues(data)}
             onSubmit={async (patch) => { await updateProfile.mutateAsync(patch); }}
           />
         </CardContent>

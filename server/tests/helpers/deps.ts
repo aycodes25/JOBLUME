@@ -9,6 +9,7 @@ export function makeDeps(over: Partial<AppDeps> = {}): AppDeps {
     profiles: { get: vi.fn(), update: vi.fn() },
     cv: { upload: vi.fn() },
     applications: { list: vi.fn(), get: vi.fn(), update: vi.fn(), setStatus: vi.fn(), analytics: vi.fn(), nextEmail: vi.fn(), setEmail: vi.fn() },
+    autofill: { get: vi.fn() },
     jobs: { refresh: vi.fn(), rematch: vi.fn() },
     scan: { status: vi.fn() },
     jobLinks: { addFromUrl: vi.fn(), listFetches: vi.fn() },

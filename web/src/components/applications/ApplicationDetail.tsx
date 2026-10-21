@@ -15,7 +15,9 @@ import { describeApiError } from '@/lib/api/errors';
 import { APPLY_METHOD_LABELS, applyMethod, buildTextPatch, nextInQueue, whatsappLink } from '@/lib/applications';
 import { COLUMN_LABELS, sourceLabel } from '@/lib/format';
 import { cn } from '@/lib/utils';
+import { getApi } from '@/lib/api/runtime';
 import { AssistedApplyPanel } from './AssistedApplyPanel';
+import { FillWithExtension } from './FillWithExtension';
 import { EmailSection } from './EmailSection';
 import { ScoreRing } from './ScoreRing';
 
@@ -190,6 +192,7 @@ export function ApplicationDetail({ id, onClose, queue, onOpen }: ApplicationDet
                   applied={applied !== null}
                   onOpenNext={applied?.nextId && onOpen ? () => onOpen(applied.nextId!) : undefined}
                   onDone={onClose}
+                  fillAction={<FillWithExtension app={data} loadPayload={(appId) => getApi().getAutofill(appId)} />}
                 />
               </>
             )}

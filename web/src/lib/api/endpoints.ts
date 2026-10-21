@@ -4,6 +4,7 @@ import type {
   Application,
   ApplicationDetail,
   ApplicationStatus,
+  AutofillPayload,
   CvUploadResult,
   FollowUp,
   FollowUpWithJob,
@@ -27,6 +28,7 @@ export function createApi(request: ApiClient) {
     listApplications: (status?: ApplicationStatus) =>
       request<Application[]>(status ? `/applications?status=${encodeURIComponent(status)}` : '/applications'),
     getApplication: (id: string) => request<ApplicationDetail>(`/applications/${encodeURIComponent(id)}`),
+    getAutofill: (id: string) => request<AutofillPayload>(`/applications/${encodeURIComponent(id)}/autofill`),
     updateApplicationText: (id: string, patch: { tailored_cv_text?: string; cover_letter_text?: string }) =>
       request<Application>(`/applications/${encodeURIComponent(id)}`, { method: 'PATCH', json: patch }),
     setApplicationStatus: (id: string, status: ApplicationStatus) =>

@@ -122,6 +122,74 @@ export function profileToFormValues(profile: Profile): ProfileFormValues {
   };
 }
 
+export interface ContactValues {
+  fullName: string;
+  phone: string;
+  city: string;
+  linkedinUrl: string;
+  githubUrl: string;
+  portfolioUrl: string;
+}
+export type ContactField = keyof ContactValues;
+
+const CONTACT_FIELD: Record<string, ContactField> = {
+  full_name: 'fullName',
+  phone: 'phone',
+  city: 'city',
+  linkedin_url: 'linkedinUrl',
+  github_url: 'githubUrl',
+  portfolio_url: 'portfolioUrl',
+};
+
+const CONTACT_MESSAGE: Record<ContactField, string> = {
+  fullName: 'Enter your full name (2 to 120 characters).',
+  phone: 'Use 7 to 20 characters: digits, spaces, + - ( ).',
+  city: 'Use 1 to 80 characters.',
+  linkedinUrl: 'Enter a full link that starts with https://',
+  githubUrl: 'Enter a full link that starts with https://',
+  portfolioUrl: 'Enter a full link that starts with https://',
+};
+
+const blankToNull = (s: string): string | null => {
+  const t = s.trim();
+  return t === '' ? null : t;
+};
+
+/** Blank contact fields clear the stored value; a blank name is left out because the name cannot be cleared. */
+export function buildContactPatch(values: ContactValues): BuildResult<ContactField> {
+  const patch: Record<string, unknown> = {
+    phone: blankToNull(values.phone),
+    city: blankToNull(values.city),
+    linkedin_url: blankToNull(values.linkedinUrl),
+    github_url: blankToNull(values.githubUrl),
+    portfolio_url: blankToNull(values.portfolioUrl),
+  };
+  const name = blankToNull(values.fullName);
+  if (name !== null) patch.full_name = name;
+
+  const parsed = profilePatchSchema.safeParse(patch);
+  if (parsed.success) return { ok: true, patch: parsed.data };
+
+  const errors: Partial<Record<ContactField, string>> = {};
+  for (const issue of parsed.error.issues) {
+    const field = CONTACT_FIELD[String(issue.path[0])];
+    if (field && !errors[field]) errors[field] = CONTACT_MESSAGE[field];
+  }
+  if (Object.keys(errors).length === 0) errors.fullName = 'Check the form and try again.';
+  return { ok: false, errors };
+}
+
+export function profileToContactValues(profile: Profile): ContactValues {
+  return {
+    fullName: profile.full_name ?? '',
+    phone: profile.phone ?? '',
+    city: profile.city ?? '',
+    linkedinUrl: profile.linkedin_url ?? '',
+    githubUrl: profile.github_url ?? '',
+    portfolioUrl: profile.portfolio_url ?? '',
+  };
+}
+
 export function profileToSettingsValues(profile: Profile): SettingsValues {
   return {
     applyMode: profile.apply_mode,
