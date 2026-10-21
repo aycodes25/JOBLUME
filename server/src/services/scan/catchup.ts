@@ -1,11 +1,17 @@
-/** The newest scan_runs row of each source (only its start time is needed). */
-export type LatestRuns = Partial<Record<string, { started_at: string }>>;
+/** The newest scan_runs row of each source. Only the start time is required; a failed run also uses its finish time and reason. */
+export type LatestRuns = Partial<Record<string, { started_at: string; finished_at?: string; status?: string; error?: string | null }>>;
 
 const HOUR_MS = 3_600_000;
 export const DUE_SOON_MS = 5 * 60_000;
+/** A failed source is retried at worker start once its failure is at least this old. */
+export const RETRY_FAILED_AFTER_MS = 10 * 60_000;
+
+/** Failure reasons (scanFailureReason) that a retry cannot fix, so they wait for the normal interval and do not spam a bad key. */
+const NO_QUICK_RETRY_REASONS: ReadonlySet<string> = new Set(['jsearch_auth', 'http_401', 'http_403']);
 
 /**
- * Sources that are scheduled but have no recorded scan newer than their interval, in the order given. A source with
+ * Sources that are scheduled but have no recorded scan newer than their interval, or whose latest scan failed over 10 minutes
+ * ago for a reason a retry could fix, in the order given. A source with
  * no row, or an unreadable date, needs one. Pass only the sources that are really scheduled (JSearch only with a key).
  */
 export function sourcesNeedingCatchUp<S extends string>(
@@ -17,7 +23,11 @@ export function sourcesNeedingCatchUp<S extends string>(
   return enabledSources.filter((source) => {
     const startedAt = Date.parse(latestRunsBySource[source]?.started_at ?? '');
     if (!Number.isFinite(startedAt)) return true;
-    return nowMs - startedAt >= intervals[source];
+    if (nowMs - startedAt >= intervals[source]) return true;
+    const latest = latestRunsBySource[source];
+    if (latest?.status !== 'failed' || NO_QUICK_RETRY_REASONS.has(latest.error ?? '')) return false;
+    const finishedAt = Date.parse(latest.finished_at ?? '');
+    return Number.isFinite(finishedAt) && nowMs - finishedAt >= RETRY_FAILED_AFTER_MS;
   });
 }
 
