@@ -221,6 +221,8 @@ describe('scanFailureReason', () => {
     expect(scanFailureReason(new JSearchError('failed', 'x'))).toBe('jsearch_failed');
     expect(scanFailureReason(new JSearchError('failed', 'x', true))).toBe('jsearch_failed');
     expect(scanFailureReason(new JSearchError('timeout', 'x', false, 'ENOTFOUND'))).toBe('jsearch_timeout');
+    expect(scanFailureReason(new JSearchError('failed', 'JSearch answered 404', false, undefined, 404))).toBe('jsearch_http_404');
+    expect(scanFailureReason(new JSearchError('failed', 'JSearch answered 503', false, undefined, 503))).toBe('jsearch_http_503');
   });
 
   it('stores only a fixed reason, never the url or key', () => {
