@@ -6,8 +6,8 @@
     "node": ">=20.6"
   },
   "scripts": {
-    "dev:api": "tsx watch --env-file=../.env src/api/index.ts",
-    "dev:worker": "tsx watch --env-file=../.env src/worker/index.ts",
+    "dev:api": "nodemon --config nodemon.api.json",
+    "dev:worker": "nodemon --config nodemon.worker.json",
     "dev": "concurrently -n api,worker -c blue,magenta \"npm:dev:api\" \"npm:dev:worker\"",
     "build": "tsc -p tsconfig.build.json",
     "start:api": "node dist/api/index.js",
@@ -50,6 +50,7 @@
     "@types/pdf-parse": "^1.1.5",
     "@types/supertest": "^7.2.1",
     "concurrently": "^10.0.6",
+    "nodemon": "^3.1.14",
     "supertest": "^7.3.1",
     "tsx": "^4.23.15",
     "typescript": "^7.0.2",

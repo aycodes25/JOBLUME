@@ -21,7 +21,8 @@ export class HttpError extends Error {
   }
 }
 
-export type FetchText = (url: string) => Promise<string>;
+/** Fetches a page or feed as text. `timeoutMs` overrides the 30 second default for a feed that is slow to send. */
+export type FetchText = (url: string, opts?: { timeoutMs?: number }) => Promise<string>;
 
 interface FetchOptions {
   retries?: number;

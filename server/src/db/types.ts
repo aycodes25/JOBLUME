@@ -14,6 +14,8 @@ export interface JobRow {
   url: string;
   company_domain: string | null;
   dedupe_key: string;
+  /** When the source says the job was posted; null or absent when it does not. */
+  posted_at?: string | null;
   created_at: string;
 }
 
@@ -32,6 +34,7 @@ export interface ProfileRow {
   auto_threshold: number;
   daily_cap: number;
   auto_followup: boolean;
+  notify_new_matches: boolean;
   updated_at: string;
 }
 

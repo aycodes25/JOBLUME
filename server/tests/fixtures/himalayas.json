@@ -1,0 +1,81 @@
+{
+  "comments": "Search results come 20 to a page. Pass ?page=2, ?page=3 and so on for more; there is no",
+  "updatedAt": 1792516723,
+  "offset": 0,
+  "limit": 20,
+  "totalCount": 658,
+  "jobs": [
+    {
+      "title": "Software Engineer, AI Coding Tasks (Contract)",
+      "excerpt": "We're looking for experienced software engineers to build AI coding tasks from a codebase they know",
+      "companyName": "Askable",
+      "companySlug": "askable",
+      "companyLogo": "https://cdn-images.himalayas.app/y4eojs8toyo9ocht137iss4uee48",
+      "employmentType": "Contractor",
+      "minSalary": 100,
+      "maxSalary": 100,
+      "salaryPeriod": "hourly",
+      "seniority": [
+        "Mid-level"
+      ],
+      "currency": "USD",
+      "locationRestrictions": [],
+      "timezoneRestrictions": [
+        -11,
+        -10,
+        -9.5
+      ],
+      "categories": [
+        "Freelance-AI-Software-Engineer",
+        "Contract-Software-Engineer"
+      ],
+      "parentCategories": [
+        "Developer"
+      ],
+      "description": "We're looking for experienced software engineers to build AI coding tasks from a codebase they know well. US$1,000 per task, and you can do as many",
+      "pubDate": 1792198336,
+      "expiryDate": 1794790336,
+      "applicationLink": "https://himalayas.app/companies/askable/jobs/software-engineer-ai-coding-tasks-contract?utm_source=api",
+      "guid": "https://himalayas.app/companies/askable/jobs/software-engineer-ai-coding-tasks-contract"
+    },
+    {
+      "title": "Software Engineer",
+      "excerpt": "TrioComb Inc.  is a global talent agency dedicated to connecting top-tier international software",
+      "companyName": "TrioComb",
+      "companySlug": "triocomb",
+      "companyLogo": "https://cdn-images.himalayas.app/hk4fc6zmelqiy0p7k80tc3qgkco8",
+      "employmentType": "Contractor",
+      "minSalary": 50000,
+      "maxSalary": 80000,
+      "salaryPeriod": "annual",
+      "seniority": [
+        "Mid-level"
+      ],
+      "currency": "USD",
+      "locationRestrictions": [
+        "India",
+        "Nigeria",
+        "Philippines",
+        "Ukraine",
+        "United States"
+      ],
+      "timezoneRestrictions": [
+        -10,
+        -9,
+        -8
+      ],
+      "categories": [
+        "Software-Engineer",
+        "Full-Stack-Developer"
+      ],
+      "parentCategories": [
+        "Developer"
+      ],
+      "description": "TrioComb Inc. is a global talent agency dedicated to connecting top-tier international software engineers with communities in the US who need",
+      "pubDate": 1792455018,
+      "expiryDate": 1797639017,
+      "applicationLink": "https://himalayas.app/companies/triocomb/jobs/software-engineer-9339612818?utm_source=api",
+      "guid": "https://himalayas.app/companies/triocomb/jobs/software-engineer-9339612818"
+    }
+  ]
+}

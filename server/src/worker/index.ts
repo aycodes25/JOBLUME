@@ -6,10 +6,11 @@ import { createRedis } from '../lib/redis.js';
 import { createSupabaseAdmin } from '../lib/supabase.js';
 import {
   QUEUES, createQueues, enqueueFindEmail, enqueueFollowUpDraft, enqueueSend, enqueueTailor as enqueueTailorJob,
-  type FetchJobData, type FindEmailJobData, type FollowUpsJobData, type MatchJobData, type ScrapeJobData, type SendJobData, type TailorJobData,
+  type AlertsJobData, type FetchJobData, type FindEmailJobData, type FollowUpsJobData, type MatchJobData, type ScrapeJobData, type SendJobData, type TailorJobData,
 } from '../queues.js';
-import { SCRAPE_EVERY_MS, SCRAPE_LIMITS, SCRAPE_SOURCES, createScrapers } from '../scrapers/index.js';
+import { SCRAPE_LIMITS, SCRAPE_SOURCES, createScrapers, scrapeIntervalMs } from '../scrapers/index.js';
 import { createJSearchClient, JSearchError } from '../scrapers/jsearch-client.js';
+import { buildHimalayasQueries } from '../scrapers/himalayas.js';
 import { createJSearchScraper } from '../scrapers/jsearch.js';
 import { geminiProvider, openaiProvider } from '../services/ai/providers.js';
 import { QuotaExhaustedError } from '../services/ai/generate.js';
@@ -28,8 +29,15 @@ import { createFinder } from '../services/email/finder.js';
 import { createHunterClient } from '../services/email/hunter.js';
 import { createMonthlyQuota } from '../services/email/quota.js';
 import { renderCvPdf } from '../services/cv/pdf.js';
+import { runAlertDigest } from '../services/alerts/digest.js';
+import { createAlertRepo } from '../services/alerts/repo.js';
+import { createDigestThrottle } from '../services/alerts/throttle.js';
+import { buildRawMessage } from '../services/gmail/mime.js';
+import { sendGmailMessage } from '../services/gmail/send.js';
 import { findJobIdByUrl, findSeenUrls, insertJobs, saveJob } from '../services/jobs/repo.js';
 import { createJobFetchesRepo } from '../services/jobs/fetches-repo.js';
+import { createHeartbeat, HEARTBEAT_EVERY_MS } from '../services/scan/heartbeat.js';
+import { createScanRunsRepo } from '../services/scan/runs.js';
 import { uploadFile } from '../services/storage.js';
 import { matchJob, matchUser, matchUserJob } from './match.js';
 import { createPageFetcher, launchStealthChromium } from './browser.js';
@@ -38,7 +46,7 @@ import { runFindEmail } from './find-email.js';
 import { runFollowUpsJob } from './followups.js';
 import { runSendJob } from './send.js';
 import { createCompanyCache, createWorkerRepos } from './repos.js';
-import { runScrape } from './scrape.js';
+import { runRecordedScrape } from './scrape.js';
 import { runTailor } from './tailor.js';
 
 // Upstash free tier counts every Redis command. Poll idle queues rarely to stay inside the free allowance.
@@ -48,9 +56,11 @@ async function main() {
   const env = getEnv();
   const db = createSupabaseAdmin(env);
   const repos = createWorkerRepos(db);
+  const scanRuns = createScanRunsRepo(db);
   const queues = createQueues(createRedis(env.UPSTASH_REDIS_URL));
   const jsearchClient = env.JSEARCH_API_KEY ? createJSearchClient({ apiKey: env.JSEARCH_API_KEY }) : null;
   const scrapers = createScrapers(fetchText, {
+    loadHimalayasQueries: async () => buildHimalayasQueries(await repos.loadCandidates()),
     jsearch: createJSearchScraper({
       client: jsearchClient,
       quota: createMonthlyQuota(createRedis(env.UPSTASH_REDIS_URL), env.JSEARCH_MONTHLY_LIMIT, undefined, 'jsearch'),
@@ -97,7 +107,7 @@ async function main() {
     async (job) => {
       const { source } = job.data;
       try {
-        return await runScrape({
+        return await runRecordedScrape({
           scraper: scrapers[source],
           maxNew: SCRAPE_LIMITS[source],
           findSeenUrls: (urls) => findSeenUrls(db, urls),
@@ -105,6 +115,9 @@ async function main() {
           enqueueMatch: async (jobId) => {
             await queues.match.add('match', { kind: 'job', jobId }, { jobId: `match-job-${jobId}` });
           },
+          loadCandidates: repos.loadCandidates,
+          recordRun: (run) => scanRuns.record(run),
+          now: () => new Date(),
           sleep,
           log: logger,
         });
@@ -237,6 +250,25 @@ async function main() {
     { connection: createRedis(env.UPSTASH_REDIS_URL), concurrency: 1, limiter: { max: 1, duration: 10_000 }, maxStalledCount: 0, ...idleTuning },
   );
 
+  const alertRepo = createAlertRepo(db);
+  const digestThrottle = createDigestThrottle(lockRedis);
+  const alertsWorker = new Worker<AlertsJobData>(
+    QUEUES.alerts,
+    async () =>
+      runAlertDigest({
+        ...alertRepo,
+        isGmailConnected: (userId) => gmailTokens.isConnected(userId),
+        getAccessToken: (userId) => gmailTokens.getAccessToken(userId),
+        buildRaw: buildRawMessage,
+        sendMessage: ({ accessToken, raw }) => sendGmailMessage({ accessToken, raw }),
+        throttle: digestThrottle,
+        webOrigin: env.WEB_ORIGIN,
+        now: () => new Date(),
+        log: logger,
+      }),
+    { connection: createRedis(env.UPSTASH_REDIS_URL), concurrency: 1, ...idleTuning },
+  );
+
   const jobFetches = createJobFetchesRepo(db);
   const pageFetcher = createPageFetcher({ launch: launchStealthChromium, userAgent: () => pickUserAgent() });
   const fetchJobWorker = new Worker<FetchJobData>(
@@ -266,7 +298,7 @@ async function main() {
     { connection: createRedis(env.UPSTASH_REDIS_URL), concurrency: 1, ...idleTuning },
   );
 
-  for (const w of [scrapeWorker, matchWorker, tailorWorker, findEmailWorker, followUpsWorker, sendWorker, fetchJobWorker]) {
+  for (const w of [scrapeWorker, matchWorker, tailorWorker, findEmailWorker, followUpsWorker, sendWorker, fetchJobWorker, alertsWorker]) {
     w.on('failed', (job, err) => logger.error({ queue: w.name, jobId: job?.id, err }, 'job failed'));
     w.on('error', (err) => logger.error({ queue: w.name, err }, 'worker error'));
   }
@@ -278,15 +310,27 @@ async function main() {
       continue;
     }
     // upsertJobScheduler enqueues the first run immediately, so no separate boot job is needed
-    await queues.scrape.upsertJobScheduler(`scrape-${source}`, { every: SCRAPE_EVERY_MS[source] }, { name: 'scrape', data: { source } });
+    await queues.scrape.upsertJobScheduler(`scrape-${source}`, { every: scrapeIntervalMs(source, env.SCRAPE_EVERY_MINUTES) }, { name: 'scrape', data: { source } });
   }
+  // Look for new matches to email about every 15 minutes; each user still gets at most one email an hour.
+  await queues.alerts.upsertJobScheduler('alert-digest', { every: 15 * 60 * 1000 }, { name: 'alerts', data: { kind: 'digest' } });
   await queues.followups.upsertJobScheduler('followup-scan', { every: 60 * 60 * 1000 }, { name: 'followups', data: { kind: 'scan' } });
-  logger.info({ sources: SCRAPE_SOURCES, jsearch: jsearchClient !== null }, 'worker started; job boards every 6 hours, JSearch daily');
+  logger.info(
+    { sources: SCRAPE_SOURCES, jsearch: jsearchClient !== null, boardMinutes: env.SCRAPE_EVERY_MINUTES },
+    'worker started; job boards every SCRAPE_EVERY_MINUTES (Remotive every 6 hours), JSearch daily',
+  );
+
+  // Tell the API this worker is alive: once now, then every minute (a missed beat is only logged).
+  const heartbeat = createHeartbeat(createRedis(env.UPSTASH_REDIS_URL));
+  const beat = () => heartbeat.beat().catch((err) => logger.warn({ err }, 'worker heartbeat failed'));
+  void beat();
+  const heartbeatTimer = setInterval(() => void beat(), HEARTBEAT_EVERY_MS);
 
   const shutdown = async (signal: string) => {
     logger.info({ signal }, 'shutting down');
-    const closeAll = Promise.allSettled([scrapeWorker.close(), matchWorker.close(), tailorWorker.close(), findEmailWorker.close(), followUpsWorker.close(), sendWorker.close(), fetchJobWorker.close()]).then(() =>
-      Promise.allSettled([queues.scrape.close(), queues.match.close(), queues.tailor.close(), queues.findEmail.close(), queues.followups.close(), queues.send.close(), queues.fetchJob.close(), pageFetcher.close()]),
+    clearInterval(heartbeatTimer);
+    const closeAll = Promise.allSettled([scrapeWorker.close(), matchWorker.close(), tailorWorker.close(), findEmailWorker.close(), followUpsWorker.close(), sendWorker.close(), fetchJobWorker.close(), alertsWorker.close()]).then(() =>
+      Promise.allSettled([queues.scrape.close(), queues.match.close(), queues.tailor.close(), queues.findEmail.close(), queues.followups.close(), queues.send.close(), queues.fetchJob.close(), queues.alerts.close(), pageFetcher.close()]),
     );
     await Promise.race([closeAll, sleep(25_000)]);
     process.exit(0);

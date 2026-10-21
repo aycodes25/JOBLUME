@@ -18,6 +18,7 @@ export interface JSearchJob {
   job_state?: unknown;
   job_country?: unknown;
   job_is_remote?: unknown;
+  job_posted_at_datetime_utc?: unknown;
   apply_options?: unknown;
 }
 

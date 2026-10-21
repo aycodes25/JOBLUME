@@ -9,7 +9,7 @@ const ID = '3f2b8c1e-9a4d-4e7b-8c55-1a2b3c4d5e6f';
 const profile = {
   user_id: 'u1', base_cv_text: null, base_cv_url: null, skills: [], years_experience: null, desired_roles: [],
   location: null, salary_min: null, salary_max: null, apply_mode: 'manual', auto_threshold: 80, daily_cap: 20,
-  auto_followup: false, updated_at: '',
+  auto_followup: false, notify_new_matches: false, updated_at: '',
 };
 
 function makeDeps(over: Partial<AppDeps> = {}): AppDeps {

@@ -1,7 +1,8 @@
 import * as cheerio from 'cheerio';
-import type { JobStub } from '../domain/jobs.js';
+import { parsePostedAt, type JobStub } from '../domain/jobs.js';
 import { htmlToText } from '../lib/html.js';
 import type { FetchText } from '../lib/http.js';
+import { listPages } from './pages.js';
 import type { Scraper } from './types.js';
 
 const LIST_URL = 'https://www.jobberman.com/jobs';
@@ -28,32 +29,40 @@ export function parseJobbermanList(html: string): JobStub[] {
   return stubs;
 }
 
-export function parseJobbermanDetail(html: string): { description: string } {
+export function parseJobbermanDetail(html: string): { description: string; postedAt?: string } {
   const $ = cheerio.load(html);
   let description = '';
+  let postedAt: string | null = null;
   $('script[type="application/ld+json"]').each((_, el) => {
     if (description) return;
     try {
       const json = JSON.parse($(el).contents().text()) as { '@graph'?: unknown[] } | unknown[];
-      const nodes = (Array.isArray(json) ? json : (json['@graph'] ?? [json])) as Array<{ '@type'?: string; description?: string }>;
+      const nodes = (Array.isArray(json) ? json : (json['@graph'] ?? [json])) as Array<{ '@type'?: string; description?: string; datePosted?: string }>;
       const posting = nodes.find((n) => n['@type'] === 'JobPosting' && n.description);
-      if (posting?.description) description = htmlToText(posting.description);
+      if (posting?.description) {
+        description = htmlToText(posting.description);
+        postedAt = parsePostedAt(posting.datePosted);
+      }
     } catch {
       /* ignore malformed JSON-LD blocks */
     }
   });
-  return { description };
+  return { description, ...(postedAt ? { postedAt } : {}) };
 }
 
-export function createJobbermanScraper(fetchText: FetchText): Scraper {
+/** Listing pages read per scan: /jobs, then /jobs?page=2 and /jobs?page=3 (16 jobs each). */
+export const JOBBERMAN_PAGES = 3;
+const pageUrl = (page: number) => (page === 1 ? LIST_URL : `${LIST_URL}?page=${page}`);
+
+export function createJobbermanScraper(fetchText: FetchText, opts: { pages?: number; pause?: () => Promise<void> } = {}): Scraper {
   return {
     source: 'jobberman',
     detailDelayMs: [1000, 3000],
     async list() {
-      return parseJobbermanList(await fetchText(LIST_URL));
+      return listPages({ fetchText, pageUrl, parse: parseJobbermanList, pages: opts.pages ?? JOBBERMAN_PAGES, pause: opts.pause });
     },
     async detail(stub) {
-      const { description } = parseJobbermanDetail(await fetchText(stub.url));
+      const { description, postedAt } = parseJobbermanDetail(await fetchText(stub.url));
       return {
         title: stub.title,
         company: stub.company,
@@ -62,6 +71,7 @@ export function createJobbermanScraper(fetchText: FetchText): Scraper {
         source: 'jobberman',
         url: stub.url,
         companyDomain: null,
+        postedAt: postedAt ?? null,
       };
     },
   };

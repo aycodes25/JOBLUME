@@ -4,7 +4,7 @@ import type { AnalyticsRow } from '../services/analytics.js';
 export { createGmailTokenStore } from '../services/gmail/store.js';
 import type { ApplicationWithJob, ApplicationsRepo, ProfilePatch, ProfileRepo } from './deps.js';
 
-const APP_SELECT = '*, job:jobs(title, company, location, source, url, company_domain)';
+const APP_SELECT = '*, job:jobs(title, company, location, source, url, company_domain, posted_at)';
 
 export function createProfileRepo(db: Db): ProfileRepo {
   return {

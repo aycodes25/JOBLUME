@@ -1,3 +1,4 @@
+import type { ScanStatus } from '@joblume/shared';
 import { fireEvent, render, screen } from '@testing-library/react-native';
 import { app, followUp, ok, type Mocked } from '../fixtures';
 
@@ -11,6 +12,7 @@ jest.mock('@/hooks/api', () => ({
   useJobFetches: jest.fn(),
   useAddJobLink: jest.fn(),
   useRefreshJobs: jest.fn(),
+  useScanStatus: jest.fn(),
   useUpdateFollowUp: jest.fn(),
   useSendFollowUp: jest.fn(),
   useDismissFollowUp: jest.fn(),
@@ -26,7 +28,7 @@ const recent = new Date(Date.now() - 2 * 3_600_000).toISOString();
 const old = new Date(Date.now() - 20 * 86_400_000).toISOString();
 const job = (title: string, company: string) => ({ title, company, location: 'Lagos', source: 'remotive', url: 'https://example.com/j', company_domain: null });
 
-function setup() {
+function setup(scanStatus?: ScanStatus) {
   mockHooks.useApplications.mockReturnValue(
     ok([
       app({ id: 'hi', match_score: 96, created_at: old, job: job('Senior Product Designer', 'TechFlow') }),
@@ -36,6 +38,7 @@ function setup() {
   );
   mockHooks.useFollowUps.mockReturnValue(ok([followUp()]));
   mockHooks.useJobFetches.mockReturnValue(ok([]));
+  mockHooks.useScanStatus.mockReturnValue(ok(scanStatus));
   for (const k of ['useAddJobLink', 'useRefreshJobs', 'useUpdateFollowUp', 'useSendFollowUp', 'useDismissFollowUp'] as const) {
     mockHooks[k].mockReturnValue(mutation());
   }
@@ -84,6 +87,28 @@ describe('QueueScreen filters', () => {
     expect(screen.getByText('No matches for this filter')).toBeOnTheScreen();
   });
 
+  it('shows the Last scan card when the status has loaded, and not before', async () => {
+    await setup();
+    expect(screen.queryByText('Last scan')).toBeNull();
+  });
+
+  it('shows what the last scan found and whether the worker is running', async () => {
+    await setup({
+      worker_alive: true,
+      worker_last_seen: new Date().toISOString(),
+      runs: [
+        {
+          source: 'myjobmag', started_at: new Date().toISOString(), finished_at: new Date().toISOString(), status: 'ok', error: null,
+          listed: 35, new_count: 6, inserted: 6, rejected_title: 3, rejected_location: 1,
+        },
+      ],
+    });
+    expect(screen.getByText('Last scan')).toBeOnTheScreen();
+    expect(screen.getByText('Worker running')).toBeOnTheScreen();
+    expect(screen.getByText('MyJobMag')).toBeOnTheScreen();
+    expect(screen.getByText(/35 listed · 6 new · 6 added · skipped 4/)).toBeOnTheScreen();
+  });
+
   it('switches to the Ready segment and opens an application', async () => {
     await setup();
     await fireEvent.press(screen.getByRole('tab', { name: 'Ready (1)' }));
@@ -103,6 +128,7 @@ describe('QueueScreen filters', () => {
     mockHooks.useApplications.mockReturnValue({ data: undefined, isLoading: false, error: new Error('x'), refetch: jest.fn() });
     mockHooks.useFollowUps.mockReturnValue(ok([]));
     mockHooks.useJobFetches.mockReturnValue(ok([]));
+    mockHooks.useScanStatus.mockReturnValue(ok(undefined));
     for (const k of ['useAddJobLink', 'useRefreshJobs'] as const) mockHooks[k].mockReturnValue(mutation());
     await render(<QueueScreen />);
     expect(screen.getByRole('button', { name: 'Try again' })).toBeOnTheScreen();

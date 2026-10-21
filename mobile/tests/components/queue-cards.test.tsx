@@ -12,11 +12,18 @@ describe('ApplicationCard', () => {
     expect(screen.getByText('Acme')).toBeOnTheScreen();
     expect(screen.getByText('96% MATCH')).toBeOnTheScreen();
     expect(screen.getByText('Lagos')).toBeOnTheScreen();
-    expect(screen.getByText('2 hours ago')).toBeOnTheScreen();
+    expect(screen.getByText('Found 2 hours ago')).toBeOnTheScreen();
     expect(screen.getByText('MyJobMag')).toBeOnTheScreen();
     expect(screen.getByText('Figma')).toBeOnTheScreen();
     expect(screen.queryByText('Sketch')).toBeNull();
     expect(screen.getByText('+1')).toBeOnTheScreen();
+  });
+
+  it('shows when the source says the job was posted', async () => {
+    const job = { title: 'Data Analyst', company: 'Acme', location: 'Lagos', source: 'remoteok', url: 'https://example.com/j', company_domain: null, posted_at: '2026-10-18T09:00:00.000Z' };
+    await render(<ApplicationCard app={app({ job })} onOpen={jest.fn()} now={new Date('2026-10-18T12:00:00.000Z')} />);
+    expect(screen.getByText('Posted 3 hours ago')).toBeOnTheScreen();
+    expect(screen.getByText('RemoteOK')).toBeOnTheScreen();
   });
 
   it('opens the application from Details', async () => {

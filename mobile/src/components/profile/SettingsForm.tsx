@@ -68,6 +68,11 @@ export function SettingsForm({ initial, onSubmit }: SettingsFormProps) {
       <TextField label="Daily application cap" keyboardType="number-pad" value={values.dailyCap} onChangeText={(t) => set('dailyCap', t)} error={errors.dailyCap} />
       <Checkbox label="Auto follow-up" checked={values.autoFollowup} onChange={(v) => set('autoFollowup', v)} />
       <Text style={styles.hint}>With this on, follow-up drafts are sent automatically three days after you apply instead of waiting for you.</Text>
+      <Checkbox label="Email me about new matches" checked={values.notifyNewMatches} onChange={(v) => set('notifyNewMatches', v)} />
+      <Text style={styles.hint}>
+        With this on, JobLume emails you at your connected Gmail address when new matches at or above your threshold are waiting. It sends at most one
+        email an hour, lists job titles, companies and scores with a link to the app, and never includes your CV. Gmail must be connected.
+      </Text>
       {serverError ? <Message kind="error" text={serverError} /> : null}
       {saved ? <Message kind="success" text="Saved." /> : null}
       <Button label={pending ? 'Saving…' : 'Save settings'} onPress={() => void submit()} disabled={pending} />

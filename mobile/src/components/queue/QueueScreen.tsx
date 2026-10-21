@@ -8,19 +8,20 @@ import { Button } from '@/components/ui/Button';
 import { Chips } from '@/components/ui/Chips';
 import { Screen } from '@/components/ui/Screen';
 import { EmptyState, ErrorState, InlineError, Loading, Message } from '@/components/ui/States';
-import { useAddJobLink, useApplications, useFollowUps, useJobFetches, useRefreshJobs } from '@/hooks/api';
+import { useAddJobLink, useApplications, useFollowUps, useJobFetches, useRefreshJobs, useScanStatus } from '@/hooks/api';
 import { describeApiError } from '@/lib/api/errors';
 import { splitQueue, type QueueTab } from '@/lib/applications';
 import { filterQueue, isHighMatch, QUEUE_FILTERS, type QueueFilter } from '@/lib/queue-filters';
 import { useSession } from '@/lib/session';
 import { colors, font, radius, space } from '@/theme';
+import { LastScanCard } from './LastScanCard';
 
 type Segment = QueueTab | 'followups';
 
 const EMPTY: Record<QueueTab, { title: string; description: string }> = {
   pending: {
     title: 'No applications to review yet',
-    description: 'New jobs are checked every 6 hours. Make sure your CV and roles are set in Settings, then check for new jobs.',
+    description: 'New jobs are checked about every 2 hours. Make sure your CV and roles are set in Settings, then check for new jobs.',
   },
   ready: { title: 'Nothing is ready to apply', description: 'Approve an application from Pending and it will wait here until you send or mark it applied.' },
   skipped: { title: 'No skipped applications', description: 'Applications you skip appear here, and you can restore them.' },
@@ -33,6 +34,7 @@ export function QueueScreen() {
   const apps = useApplications({ poll: true });
   const followUps = useFollowUps('pending_review');
   const jobFetches = useJobFetches();
+  const scan = useScanStatus();
   const addLink = useAddJobLink();
   const refresh = useRefreshJobs();
   const [segment, setSegment] = useState<Segment>('pending');
@@ -56,6 +58,7 @@ export function QueueScreen() {
     void apps.refetch();
     void followUps.refetch();
     void jobFetches.refetch();
+    void scan.refetch();
   };
 
   return (
@@ -85,6 +88,8 @@ export function QueueScreen() {
           <Text style={styles.statValue}>{`${groups.pending.filter(isHighMatch).length} ≥ 90%`}</Text>
         </View>
       </View>
+
+      <LastScanCard status={scan.data} />
 
       <Button label={refresh.isPending ? 'Checking…' : 'Check for new jobs'} size="sm" variant="outline" disabled={refresh.isPending} onPress={() => refresh.mutate()} />
       {refresh.isSuccess ? <Message kind="info" text="Checking for new jobs. New matches appear here within a few minutes." /> : null}

@@ -8,10 +8,11 @@ import { ErrorState } from '@/components/common/ErrorState';
 import { PageSkeleton } from '@/components/common/PageSkeleton';
 import { FollowUpCard } from '@/components/followups/FollowUpCard';
 import { AddJobLink } from '@/components/jobs/AddJobLink';
+import { LastScanCard } from '@/components/jobs/LastScanCard';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
-  useAddJobLink, useApplications, useDismissFollowUp, useFollowUps, useJobFetches, useRefreshJobs, useSendFollowUp, useUpdateFollowUp,
+  useAddJobLink, useApplications, useDismissFollowUp, useFollowUps, useJobFetches, useRefreshJobs, useScanStatus, useSendFollowUp, useUpdateFollowUp,
 } from '@/hooks/api';
 import { describeApiError } from '@/lib/api/errors';
 import { formatScore } from '@/lib/format';
@@ -24,7 +25,7 @@ const TAB_LABELS: Record<QueueTab, string> = { pending: 'Pending', ready: 'Ready
 const EMPTY: Record<QueueTab, { title: string; description: string }> = {
   pending: {
     title: 'No applications to review yet',
-    description: 'New jobs are checked every 6 hours. Make sure your CV and roles are set in Settings, then check for new jobs.',
+    description: 'New jobs are checked about every 2 hours. Make sure your CV and roles are set in Settings, then check for new jobs.',
   },
   ready: { title: 'Nothing is ready to apply', description: 'Approve an application from the Pending tab and it will wait here until you send or mark it applied.' },
   skipped: { title: 'No skipped applications', description: 'Applications you skip appear here, and you can restore them.' },
@@ -52,6 +53,7 @@ export default function QueuePage() {
   const followUps = useFollowUps('pending_review');
   const refresh = useRefreshJobs();
   const jobFetches = useJobFetches();
+  const scan = useScanStatus();
   const addLink = useAddJobLink();
   const [tab, setTab] = useState<Tab>('pending');
   const [openId, setOpenId] = useState<string | null>(null);
@@ -79,6 +81,8 @@ export default function QueuePage() {
       </div>
       {refresh.isSuccess && <p role="status" className="text-sm text-muted-foreground">Checking for new jobs. New matches appear here within a few minutes.</p>}
       {refresh.error && <p role="alert" className="text-sm text-destructive">{describeApiError(refresh.error)}</p>}
+
+      <LastScanCard status={scan.data} />
 
       <AddJobLink
         fetches={jobFetches.data ?? []}

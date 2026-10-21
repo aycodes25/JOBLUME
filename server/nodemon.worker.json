@@ -1,0 +1,7 @@
+{
+  "watch": ["src", "../packages/shared/src", "../.env"],
+  "ext": "ts,json,env",
+  "ignore": ["**/*.test.ts", "tests/**"],
+  "delay": 500,
+  "exec": "tsx --env-file=../.env src/worker/index.ts"
+}

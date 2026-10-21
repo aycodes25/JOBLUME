@@ -10,6 +10,8 @@ export interface JobStub {
   url: string;
   source: JobSource;
   description?: string;
+  /** When the source says it was posted (ISO time); absent when the source does not say. */
+  postedAt?: string | null;
 }
 
 export interface NormalisedJob {
@@ -20,6 +22,7 @@ export interface NormalisedJob {
   source: JobSource;
   url: string;
   companyDomain: string | null;
+  postedAt?: string | null;
 }
 
 const COMPANY_SUFFIXES = new Set(['limited', 'ltd', 'nigeria', 'nig', 'ng', 'inc', 'llc', 'plc', 'co', 'company']);
@@ -69,6 +72,28 @@ const tidyText = (v: unknown, max: number) =>
         .slice(0, max)
     : '';
 
+const NAIVE_ISO_TIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?$/;
+const ONE_DAY_MS = 86_400_000;
+
+/**
+ * An ISO time from what a source sends as its posted time: epoch seconds or milliseconds, an ISO string
+ * (a string with no zone is read as UTC), or an RFC 822 date. Null for anything unreadable, before 2000,
+ * or more than a day in the future.
+ */
+export function parsePostedAt(value: unknown, now: Date = new Date()): string | null {
+  let ms: number;
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    ms = value < 1e11 ? value * 1000 : value;
+  } else if (typeof value === 'string' && value.trim() !== '') {
+    const text = value.trim();
+    ms = Date.parse(NAIVE_ISO_TIME.test(text) ? `${text}Z` : text);
+  } else {
+    return null;
+  }
+  if (!Number.isFinite(ms) || ms < Date.UTC(2000, 0, 1) || ms > now.getTime() + ONE_DAY_MS) return null;
+  return new Date(ms).toISOString();
+}
+
 /** Validates and tidies a job from an outside source. Returns null when the title, company, description or link is unusable. */
 export function normaliseJob(input: {
   title?: unknown;
@@ -78,13 +103,18 @@ export function normaliseJob(input: {
   source: JobSource;
   url: string;
   companyDomain?: string | null;
+  postedAt?: unknown;
 }): NormalisedJob | null {
   const title = oneLine(input.title, JOB_FIELD_LIMITS.title);
   const company = oneLine(input.company, JOB_FIELD_LIMITS.company);
   const location = oneLine(input.location, JOB_FIELD_LIMITS.location);
   const description = tidyText(input.description, JOB_FIELD_LIMITS.description);
   if (!title || !company || !description || !safeHttpUrl(input.url)) return null;
-  return { title, company, location, description, source: input.source, url: input.url, companyDomain: input.companyDomain ?? null };
+  const postedAt = parsePostedAt(input.postedAt);
+  return {
+    title, company, location, description, source: input.source, url: input.url, companyDomain: input.companyDomain ?? null,
+    ...(postedAt ? { postedAt } : {}),
+  };
 }
 
 const COUNTRY_NAMES: Record<string, string> = { NG: 'Nigeria' };

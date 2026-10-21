@@ -69,6 +69,7 @@ export function parseJSearchJob(raw: JSearchJob): NormalisedJob | null {
     source,
     url,
     companyDomain: domainFromWebsite(raw.employer_website),
+    postedAt: raw.job_posted_at_datetime_utc,
   });
 }
 
@@ -122,7 +123,7 @@ export function createJSearchScraper(d: JSearchScraperDeps): Scraper {
       }
       // Keep what earlier queries found; fail only when every attempted query failed.
       if (lastError !== undefined && succeeded === 0) throw lastError;
-      return [...found.values()].map(({ title, company, location, url, source, description }) => ({ title, company, location, url, source, description }));
+      return [...found.values()].map(({ title, company, location, url, source, description, postedAt }) => ({ title, company, location, url, source, description, postedAt }));
     },
     async detail(stub) {
       return (

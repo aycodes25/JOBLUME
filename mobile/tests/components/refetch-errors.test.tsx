@@ -13,6 +13,7 @@ jest.mock('@/hooks/api', () => ({
   useJobFetches: jest.fn(),
   useAddJobLink: jest.fn(),
   useRefreshJobs: jest.fn(),
+  useScanStatus: jest.fn(),
   useUpdateFollowUp: jest.fn(),
   useSendFollowUp: jest.fn(),
   useDismissFollowUp: jest.fn(),
@@ -42,6 +43,7 @@ beforeEach(() => {
   jest.clearAllMocks();
   mockHooks.useFollowUps.mockReturnValue(ok([followUp()]));
   mockHooks.useJobFetches.mockReturnValue(ok([]));
+  mockHooks.useScanStatus.mockReturnValue(ok(undefined));
   for (const k of ['useAddJobLink', 'useRefreshJobs', 'useUpdateFollowUp', 'useSendFollowUp', 'useDismissFollowUp', 'useSetStatus', 'useUploadCv', 'useUpdateProfile', 'useConnectGmail'] as const) {
     mockHooks[k].mockReturnValue(mutation());
   }

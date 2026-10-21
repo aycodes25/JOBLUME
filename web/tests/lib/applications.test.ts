@@ -1,7 +1,7 @@
 import type { Application } from '@joblume/shared';
 import { describe, expect, it } from 'vitest';
 import {
-  applyStatusLocal, buildTextPatch, groupByColumn, previewText, queueTab, resolveDrop, scoreTone, sortByScore, splitQueue,
+  applyStatusLocal, buildTextPatch, groupByColumn, postedKey, previewText, queueTab, resolveDrop, scoreTone, sortByScore, sortNewest, splitQueue,
 } from '@/lib/applications';
 
 const app = (over: Partial<Application> = {}): Application => ({
@@ -175,5 +175,45 @@ describe('averageScore', () => {
   it('is null with no scores', () => {
     expect(averageScore([])).toBeNull();
     expect(averageScore([{ match_score: null }])).toBeNull();
+  });
+});
+
+describe('sortNewest', () => {
+  const posted = (posted_at: string | null) => ({ title: 'T', company: 'C', location: '', source: 'x', url: 'https://x', company_domain: null, posted_at });
+
+  it('uses the posted time from the source when there is one, else the time the application was created', () => {
+    expect(postedKey(app({ created_at: '2026-10-05T00:00:00.000Z', job: posted('2026-10-01T00:00:00.000Z') }))).toBe('2026-10-01T00:00:00.000Z');
+    expect(postedKey(app({ created_at: '2026-10-05T00:00:00.000Z', job: posted(null) }))).toBe('2026-10-05T00:00:00.000Z');
+    expect(postedKey(app({ created_at: '2026-10-05T00:00:00.000Z', job: null }))).toBe('2026-10-05T00:00:00.000Z');
+  });
+
+  it('puts the newest posting first even when a better match is older, without changing the input', () => {
+    const input = [
+      app({ id: 'old-best', match_score: 99, created_at: '2026-10-10T00:00:00.000Z', job: posted('2026-10-01T00:00:00.000Z') }),
+      app({ id: 'fresh', match_score: 60, created_at: '2026-10-10T00:00:00.000Z', job: posted('2026-10-09T00:00:00.000Z') }),
+      app({ id: 'no-date', match_score: 70, created_at: '2026-10-08T00:00:00.000Z', job: null }),
+    ];
+    const copy = [...input];
+    expect(sortNewest(input).map((a) => a.id)).toEqual(['fresh', 'no-date', 'old-best']);
+    expect(input).toEqual(copy);
+  });
+
+  it('compares times, not text, so different ISO spellings of one instant tie', () => {
+    const items = [
+      app({ id: 'a', match_score: 50, created_at: '2026-10-10T00:00:00.000Z', job: posted('2026-10-09T10:00:00+00:00') }),
+      app({ id: 'b', match_score: 80, created_at: '2026-10-10T00:00:00.000Z', job: posted('2026-10-09T10:00:00.000Z') }),
+    ];
+    expect(sortNewest(items).map((a) => a.id)).toEqual(['b', 'a']);
+  });
+
+  it('splitQueue sorts each tab newest first', () => {
+    const groups = splitQueue([
+      app({ id: 'p-old', created_at: '2026-10-01T00:00:00.000Z', match_score: 95 }),
+      app({ id: 'p-new', created_at: '2026-10-09T00:00:00.000Z', match_score: 55 }),
+      app({ id: 'r-old', status: 'approved', created_at: '2026-10-02T00:00:00.000Z' }),
+      app({ id: 'r-new', status: 'approved', created_at: '2026-10-08T00:00:00.000Z' }),
+    ]);
+    expect(groups.pending.map((a) => a.id)).toEqual(['p-new', 'p-old']);
+    expect(groups.ready.map((a) => a.id)).toEqual(['r-new', 'r-old']);
   });
 });

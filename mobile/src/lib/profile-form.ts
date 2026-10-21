@@ -15,6 +15,7 @@ export interface SettingsValues {
   autoThreshold: string;
   dailyCap: string;
   autoFollowup: boolean;
+  notifyNewMatches: boolean;
 }
 export type SettingsField = keyof SettingsValues;
 
@@ -104,6 +105,7 @@ export function buildSettingsPatch(values: SettingsValues): BuildResult<Settings
     auto_threshold: threshold,
     daily_cap: cap,
     auto_followup: values.autoFollowup,
+    notify_new_matches: values.notifyNewMatches,
   });
   if (parsed.success) return { ok: true, patch: parsed.data };
   return { ok: false, errors: { autoThreshold: 'Check the settings and try again.' } };
@@ -126,5 +128,6 @@ export function profileToSettingsValues(profile: Profile): SettingsValues {
     autoThreshold: String(profile.auto_threshold),
     dailyCap: String(profile.daily_cap),
     autoFollowup: profile.auto_followup,
+    notifyNewMatches: profile.notify_new_matches,
   };
 }

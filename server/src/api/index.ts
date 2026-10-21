@@ -12,6 +12,9 @@ import { createFollowUpsService } from '../services/followups/service.js';
 import { createGmailService } from '../services/gmail/service.js';
 import { createGmailTokens } from '../services/gmail/tokens.js';
 import { createJobsService } from '../services/jobs/service.js';
+import { createHeartbeat } from '../services/scan/heartbeat.js';
+import { createScanRunsRepo } from '../services/scan/runs.js';
+import { createScanService } from '../services/scan/service.js';
 import { createJobFetchesRepo } from '../services/jobs/fetches-repo.js';
 import { createJobLinksService } from '../services/jobs/links.js';
 import { findJobIdByUrl } from '../services/jobs/repo.js';
@@ -54,6 +57,7 @@ const app = createApp({
     signUrl: (path) => createSignedUrl(db, path),
   }),
   jobs: createJobsService(queues),
+  scan: createScanService({ runs: createScanRunsRepo(db), heartbeat: createHeartbeat(redis) }),
   jobLinks: createJobLinksService({
     findJobIdByUrl: (url) => findJobIdByUrl(db, url),
     fetches: createJobFetchesRepo(db),

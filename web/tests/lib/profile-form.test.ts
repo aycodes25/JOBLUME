@@ -10,7 +10,7 @@ const values = (over: Partial<ProfileFormValues> = {}): ProfileFormValues => ({
   yearsExperience: '3', salaryMin: '200000', salaryMax: '400000', ...over,
 });
 const settings = (over: Partial<SettingsValues> = {}): SettingsValues => ({
-  applyMode: 'manual', autoThreshold: '80', dailyCap: '20', autoFollowup: false, ...over,
+  applyMode: 'manual', autoThreshold: '80', dailyCap: '20', autoFollowup: false, notifyNewMatches: false, ...over,
 });
 
 describe('parseList', () => {
@@ -64,9 +64,9 @@ describe('buildProfilePatch', () => {
 
 describe('buildSettingsPatch', () => {
   it('builds a patch from valid values', () => {
-    expect(buildSettingsPatch(settings({ applyMode: 'auto', autoThreshold: '85', dailyCap: '10', autoFollowup: true }))).toEqual({
+    expect(buildSettingsPatch(settings({ applyMode: 'auto', autoThreshold: '85', dailyCap: '10', autoFollowup: true, notifyNewMatches: true }))).toEqual({
       ok: true,
-      patch: { apply_mode: 'auto', auto_threshold: 85, daily_cap: 10, auto_followup: true },
+      patch: { apply_mode: 'auto', auto_threshold: 85, daily_cap: 10, auto_followup: true, notify_new_matches: true },
     });
   });
 
@@ -85,14 +85,14 @@ describe('profile to form values', () => {
   const profile = {
     user_id: 'u1', base_cv_text: null, base_cv_url: null, skills: ['SQL', 'Excel'], years_experience: 3,
     desired_roles: ['Data Analyst'], location: 'Abuja', salary_min: null, salary_max: 400000, apply_mode: 'auto',
-    auto_threshold: 90, daily_cap: 12, auto_followup: true, updated_at: '',
+    auto_threshold: 90, daily_cap: 12, auto_followup: true, notify_new_matches: true, updated_at: '',
   } as Profile;
 
   it('maps a profile to editable strings', () => {
     expect(profileToFormValues(profile)).toEqual({
       desiredRoles: 'Data Analyst', skills: 'SQL, Excel', location: 'Abuja', yearsExperience: '3', salaryMin: '', salaryMax: '400000',
     });
-    expect(profileToSettingsValues(profile)).toEqual({ applyMode: 'auto', autoThreshold: '90', dailyCap: '12', autoFollowup: true });
+    expect(profileToSettingsValues(profile)).toEqual({ applyMode: 'auto', autoThreshold: '90', dailyCap: '12', autoFollowup: true, notifyNewMatches: true });
   });
 
   it('maps a blank profile to empty strings', () => {
