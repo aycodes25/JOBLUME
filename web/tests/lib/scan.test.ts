@@ -24,6 +24,11 @@ describe('describeScanRun', () => {
     expect(failed('http_429')).toBe('12 min ago · failed: The site asked us to slow down (429)');
     expect(failed('timeout')).toBe('12 min ago · failed: The site took too long');
     expect(failed('network')).toBe('12 min ago · failed: Could not reach the site');
+    expect(failed('network_dns')).toBe("12 min ago · failed: Could not find the site's address (DNS). Check your internet or DNS settings.");
+    expect(failed('network_refused')).toBe('12 min ago · failed: The site refused the connection.');
+    expect(failed('network_reset')).toBe('12 min ago · failed: The connection was cut off.');
+    expect(failed('network_timeout')).toBe('12 min ago · failed: The connection timed out.');
+    expect(failed('network_tls')).toBe('12 min ago · failed: Secure connection failed (check antivirus or proxy).');
     expect(failed('parse')).toBe('12 min ago · failed: The site sent something unreadable');
     expect(failed('jsearch_auth')).toBe('12 min ago · failed: JSearch refused the API key');
     expect(failed('jsearch_rate_limited')).toBe('12 min ago · failed: JSearch rate limit reached');

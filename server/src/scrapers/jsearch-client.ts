@@ -1,3 +1,5 @@
+import type { Logger } from '../lib/logger.js';
+
 export const JSEARCH_HOST = 'jsearch.p.rapidapi.com';
 
 export interface JSearchQuery {
@@ -28,13 +30,61 @@ export class JSearchError extends Error {
     message?: string,
     /** True only when the request clearly never reached RapidAPI (a network error with no response), so it used no quota. */
     public readonly neverSent: boolean = false,
+    /** The system error code behind a network failure (ENOTFOUND, ECONNREFUSED, ...). Only a plain code word: never a URL, key or message. */
+    public readonly networkCode?: string,
   ) {
     super(message ?? kind);
     this.name = 'JSearchError';
   }
 }
 
-export function createJSearchClient(cfg: { apiKey: string; timeoutMs?: number }, fetchImpl: typeof fetch = fetch) {
+const CODE_WORD = /^[A-Za-z][A-Za-z0-9_]{1,63}$/;
+
+interface CauseLike {
+  name?: unknown;
+  code?: unknown;
+  syscall?: unknown;
+  hostname?: unknown;
+  errno?: unknown;
+  address?: unknown;
+  port?: unknown;
+  message?: unknown;
+  cause?: unknown;
+  errors?: unknown;
+}
+
+/** The first plain error code found on an error's cause chain (including an AggregateError's members), else undefined. */
+export function networkCodeOf(err: unknown, depth = 0): string | undefined {
+  if (depth > 4 || typeof err !== 'object' || err === null) return undefined;
+  const e = err as CauseLike;
+  if (depth > 0 && typeof e.code === 'string' && CODE_WORD.test(e.code)) return e.code;
+  const inner = [e.cause, ...(Array.isArray(e.errors) ? e.errors : [])];
+  for (const c of inner) {
+    const code = networkCodeOf(c, depth + 1);
+    if (code) return code;
+  }
+  return undefined;
+}
+
+/** A loggable description of the underlying cause, with the API key scrubbed from its text. No headers, no request. */
+function describeCause(err: unknown, apiKey: string): Record<string, unknown> {
+  const scrub = (v: unknown) => (typeof v === 'string' ? (apiKey ? v.split(apiKey).join('[key]') : v).slice(0, 300) : undefined);
+  const cause = (err as CauseLike | null)?.cause;
+  const e = (typeof cause === 'object' && cause !== null ? cause : err) as CauseLike;
+  const inner = Array.isArray(e.errors) ? (e.errors as unknown[]).slice(0, 4).map((x) => describeCause({ cause: x }, apiKey)) : undefined;
+  return {
+    name: scrub(e.name),
+    code: scrub(e.code),
+    syscall: scrub(e.syscall),
+    hostname: scrub(e.hostname),
+    address: scrub(e.address),
+    port: typeof e.port === 'number' ? e.port : undefined,
+    message: scrub(e.message),
+    ...(inner ? { errors: inner } : {}),
+  };
+}
+
+export function createJSearchClient(cfg: { apiKey: string; timeoutMs?: number; log?: Pick<Logger, 'warn'> }, fetchImpl: typeof fetch = fetch) {
   const timeoutMs = cfg.timeoutMs ?? 20_000;
   return {
     async search(q: JSearchQuery): Promise<JSearchJob[]> {
@@ -52,7 +102,9 @@ export function createJSearchClient(cfg: { apiKey: string; timeoutMs?: number },
       } catch (err) {
         const name = (err as { name?: unknown } | null)?.name;
         if (name === 'TimeoutError' || name === 'AbortError') throw new JSearchError('timeout', 'JSearch did not answer in time');
-        throw new JSearchError('failed', 'Could not reach JSearch', true);
+        const networkCode = networkCodeOf(err);
+        cfg.log?.warn({ source: 'jsearch', networkCode, cause: describeCause(err, cfg.apiKey) }, 'JSearch could not be reached');
+        throw new JSearchError('failed', 'Could not reach JSearch', true, networkCode);
       }
       if (res.status === 401 || res.status === 403) throw new JSearchError('auth', `JSearch refused the key (${res.status})`);
       if (res.status === 429) throw new JSearchError('rate_limited', 'JSearch rate limit reached');

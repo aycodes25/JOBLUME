@@ -1,5 +1,5 @@
 import { HttpError } from '../../lib/http.js';
-import { JSearchError } from '../../scrapers/jsearch-client.js';
+import { JSearchError, networkCodeOf } from '../../scrapers/jsearch-client.js';
 import { SCRAPE_SOURCES } from '../../scrapers/index.js';
 import type { ScanRun } from '@joblume/shared';
 import type { Db } from '../../lib/supabase.js';
@@ -58,13 +58,27 @@ export function createScanRunsRepo(db: Db, now: () => Date = () => new Date(), s
  * A fixed, safe reason for a failed scan. Every signed-in user can read scan_runs.error, and a raw error message can hold
  * another user's role (in a search URL) or database details, so only these reasons are stored; the full error goes to the log.
  */
+/** A fixed reason for a system network error code (the cause code of a failed fetch). */
+export function networkReason(code: string | undefined): string {
+  if (!code) return 'network';
+  if (code === 'ENOTFOUND' || code === 'EAI_AGAIN') return 'network_dns';
+  if (code === 'ECONNREFUSED') return 'network_refused';
+  if (code === 'ECONNRESET') return 'network_reset';
+  if (code === 'ETIMEDOUT' || /^UND_ERR_.*TIMEOUT$/.test(code)) return 'network_timeout';
+  if (code.startsWith('CERT') || code.startsWith('UNABLE_TO_') || code.startsWith('ERR_TLS')) return 'network_tls';
+  return 'network';
+}
+
 export function scanFailureReason(err: unknown): string {
   if (err instanceof HttpError) return `http_${err.status}`;
-  if (err instanceof JSearchError) return `jsearch_${err.kind}`;
+  if (err instanceof JSearchError) {
+    if (err.kind === 'failed' && err.networkCode) return networkReason(err.networkCode);
+    return `jsearch_${err.kind}`;
+  }
   if (err instanceof Error) {
     if (err.name === 'TimeoutError' || err.name === 'AbortError') return 'timeout';
     if (err instanceof SyntaxError) return 'parse';
-    if (err instanceof TypeError) return 'network';
+    if (err instanceof TypeError) return networkReason(networkCodeOf(err));
     return 'unknown';
   }
   // Supabase errors are plain objects with a Postgres code.

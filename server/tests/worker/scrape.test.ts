@@ -201,6 +201,40 @@ describe('runRecordedScrape', () => {
 describe('scanFailureReason', () => {
   const named = (name: string) => Object.assign(new Error('secret detail'), { name });
 
+  it.each([
+    ['ENOTFOUND', 'network_dns'],
+    ['EAI_AGAIN', 'network_dns'],
+    ['ECONNREFUSED', 'network_refused'],
+    ['ECONNRESET', 'network_reset'],
+    ['ETIMEDOUT', 'network_timeout'],
+    ['UND_ERR_CONNECT_TIMEOUT', 'network_timeout'],
+    ['UND_ERR_HEADERS_TIMEOUT', 'network_timeout'],
+    ['CERT_HAS_EXPIRED', 'network_tls'],
+    ['UNABLE_TO_VERIFY_LEAF_SIGNATURE', 'network_tls'],
+    ['UNABLE_TO_GET_ISSUER_CERT', 'network_tls'],
+    ['EPIPE', 'network'],
+  ])('maps a JSearch network code %s to %s', (code, reason) => {
+    expect(scanFailureReason(new JSearchError('failed', 'Could not reach JSearch', true, code))).toBe(reason);
+  });
+
+  it('keeps jsearch_failed for a JSearch failure with no network code, and for non-failed kinds even with one', () => {
+    expect(scanFailureReason(new JSearchError('failed', 'x'))).toBe('jsearch_failed');
+    expect(scanFailureReason(new JSearchError('failed', 'x', true))).toBe('jsearch_failed');
+    expect(scanFailureReason(new JSearchError('timeout', 'x', false, 'ENOTFOUND'))).toBe('jsearch_timeout');
+  });
+
+  it('stores only a fixed reason, never the url or key', () => {
+    const err = new JSearchError('failed', 'Could not reach https://jsearch.p.rapidapi.com/search?query=a SECRET-KEY', true, 'ENOTFOUND');
+    expect(scanFailureReason(err)).toBe('network_dns');
+  });
+
+  it('maps a plain fetch TypeError by its cause code, else network', () => {
+    const t = (code: string) => new TypeError('fetch failed', { cause: Object.assign(new Error('x'), { code }) });
+    expect(scanFailureReason(t('ENOTFOUND'))).toBe('network_dns');
+    expect(scanFailureReason(t('CERT_HAS_EXPIRED'))).toBe('network_tls');
+    expect(scanFailureReason(t('WHATEVER'))).toBe('network');
+  });
+
   it('maps errors to fixed reasons', () => {
     expect(scanFailureReason(new HttpError(403, 'https://x/?q=role'))).toBe('http_403');
     expect(scanFailureReason(named('TimeoutError'))).toBe('timeout');
