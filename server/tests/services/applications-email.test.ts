@@ -9,7 +9,7 @@ const app = (over: Partial<ApplicationWithJob> = {}): ApplicationWithJob => ({
     { email: 'a@acme.com', confidence: 90, source: 'hunter', label: 'x' },
     { email: 'careers@acme.com', confidence: 30, source: 'guess', label: 'y' },
   ],
-  apply_method: null, status: 'pending_review', applied_at: null, follow_up_at: null, created_at: '', job: null, ...over,
+  whatsapp_number: null, apply_method: null, status: 'pending_review', applied_at: null, follow_up_at: null, created_at: '', job: null, ...over,
 });
 
 function make(existing: ApplicationWithJob | null = app()) {

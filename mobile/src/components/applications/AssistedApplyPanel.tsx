@@ -26,12 +26,17 @@ export interface AssistedApplyPanelProps {
   pending?: boolean;
   lockedReason?: string;
   actions?: AssistedApplyActions;
+  /** True once the application has been marked applied: the panel then offers to move on instead of the steps. */
+  applied?: boolean;
+  /** Opens the next application in the queue. Only navigates. Omit when there is none. */
+  onOpenNext?(): void;
+  onDone?(): void;
 }
 
 type Feedback = { kind: 'error' | 'success'; text: string } | null;
 
 /** Apply on the employer's site. This path sends nothing: open the job, share the CV PDF, copy the letter, then mark it applied. */
-export function AssistedApplyPanel({ app, onMarkApplied, pending = false, lockedReason, actions = defaultActions }: AssistedApplyPanelProps) {
+export function AssistedApplyPanel({ app, onMarkApplied, pending = false, lockedReason, actions = defaultActions, applied = false, onOpenNext, onDone }: AssistedApplyPanelProps) {
   const [feedback, setFeedback] = useState<Feedback>(null);
   const [sharing, setSharing] = useState(false);
   const jobUrl = safeHttpUrl(app.job?.url);
@@ -58,6 +63,16 @@ export function AssistedApplyPanel({ app, onMarkApplied, pending = false, locked
     } catch {
       setFeedback({ kind: 'error', text: 'Could not copy. Select the text in the editor below and copy it yourself.' });
     }
+  }
+
+  if (applied) {
+    return (
+      <View accessibilityLabel="Apply" style={styles.panel}>
+        <Message kind="success" text="Marked as applied." />
+        {onOpenNext ? <Button label="Applied: open next job" size="sm" onPress={onOpenNext} /> : null}
+        {onDone ? <Button label="Done" variant="outline" size="sm" onPress={onDone} /> : null}
+      </View>
+    );
   }
 
   return (

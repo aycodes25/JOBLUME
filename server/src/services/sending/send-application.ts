@@ -1,3 +1,4 @@
+import type { EmailSource } from '@joblume/shared';
 import { z } from 'zod';
 import type { ApplicationWithJob } from '../../api/deps.js';
 import { ApiError } from '../../lib/errors.js';
@@ -53,7 +54,7 @@ const MAX_LOCK_AGE_MS = 25_000;
 const SENT_LOCK_TTL_SECONDS = 24 * 60 * 60;
 const emailSchema = z.string().trim().toLowerCase().email().max(254);
 
-type Recipient = { email: string; source: 'hunter' | 'guess' | 'manual'; confidence: number | null };
+type Recipient = { email: string; source: EmailSource; confidence: number | null };
 
 function parseEmail(raw: string): string | null {
   const parsed = emailSchema.safeParse(raw);

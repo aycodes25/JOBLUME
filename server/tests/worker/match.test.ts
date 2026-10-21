@@ -9,7 +9,8 @@ const job = (over: Partial<JobRow> = {}): JobRow => ({
 const profile = (over: Partial<ProfileRow> = {}): ProfileRow => ({
   user_id: 'u1', base_cv_text: 'cv', base_cv_url: 'p', base_cv_filename: null, skills: [], years_experience: 3, desired_roles: ['backend engineer'],
   location: 'Lagos', salary_min: null, salary_max: null, apply_mode: 'manual', auto_threshold: 80, daily_cap: 20,
-  auto_followup: false, updated_at: '', ...over,
+  auto_followup: false, notify_new_matches: false, updated_at: '',
+  full_name: null, phone: null, city: null, linkedin_url: null, github_url: null, portfolio_url: null, ...over,
 });
 
 function deps(over: Partial<MatchDeps> = {}): MatchDeps {

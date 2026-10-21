@@ -26,6 +26,7 @@ export async function insertJobs(db: Db, jobs: NormalisedJob[]): Promise<string[
     url: j.url,
     company_domain: j.companyDomain,
     dedupe_key: dedupeKey(j.company, j.title),
+    posted_at: j.postedAt ?? null,
   }));
   const { data, error } = await db
     .from('jobs')

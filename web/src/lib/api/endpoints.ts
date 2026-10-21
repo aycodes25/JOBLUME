@@ -4,6 +4,7 @@ import type {
   Application,
   ApplicationDetail,
   ApplicationStatus,
+  AutofillPayload,
   CvUploadResult,
   FollowUp,
   FollowUpWithJob,
@@ -11,6 +12,7 @@ import type {
   JobFetch,
   Profile,
   ProfilePatch,
+  ScanStatus,
 } from '@joblume/shared';
 import type { ApiClient } from './client';
 
@@ -26,6 +28,7 @@ export function createApi(request: ApiClient) {
     listApplications: (status?: ApplicationStatus) =>
       request<Application[]>(status ? `/applications?status=${encodeURIComponent(status)}` : '/applications'),
     getApplication: (id: string) => request<ApplicationDetail>(`/applications/${encodeURIComponent(id)}`),
+    getAutofill: (id: string) => request<AutofillPayload>(`/applications/${encodeURIComponent(id)}/autofill`),
     updateApplicationText: (id: string, patch: { tailored_cv_text?: string; cover_letter_text?: string }) =>
       request<Application>(`/applications/${encodeURIComponent(id)}`, { method: 'PATCH', json: patch }),
     setApplicationStatus: (id: string, status: ApplicationStatus) =>
@@ -34,6 +37,7 @@ export function createApi(request: ApiClient) {
     refreshJobs: () => request<{ queued: boolean }>('/jobs/refresh', { method: 'POST' }),
     addJobLink: (url: string) => request<AddJobLinkResult>('/jobs/from-url', { method: 'POST', json: { url } }),
     listJobFetches: () => request<JobFetch[]>('/jobs/fetches'),
+    getScanStatus: () => request<ScanStatus>('/scan/status'),
     getGmailStatus: () => request<GmailStatus>('/gmail/status'),
     startGmailConnect: () => request<{ url: string }>('/gmail/connect', { method: 'POST' }),
     disconnectGmail: () => request<{ connected: false }>('/gmail', { method: 'DELETE' }),

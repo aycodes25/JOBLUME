@@ -34,4 +34,18 @@ describe('loadEnv: JSearch', () => {
   it('rejects a limit that is not a positive integer', () => {
     expect(() => loadEnv({ ...valid, JSEARCH_MONTHLY_LIMIT: '0' })).toThrowError(/JSEARCH_MONTHLY_LIMIT/);
   });
+
+  it('defaults JSEARCH_PROVIDER to rapidapi and accepts openwebninja', () => {
+    expect(loadEnv(valid).JSEARCH_PROVIDER).toBe('rapidapi');
+    expect(loadEnv({ ...valid, JSEARCH_PROVIDER: '' }).JSEARCH_PROVIDER).toBe('rapidapi');
+    expect(loadEnv({ ...valid, JSEARCH_PROVIDER: 'openwebninja' }).JSEARCH_PROVIDER).toBe('openwebninja');
+    expect(() => loadEnv({ ...valid, JSEARCH_PROVIDER: 'other' })).toThrow();
+  });
+
+  it('defaults JSEARCH_SEARCH_PATH to /search-v2 and accepts /search', () => {
+    expect(loadEnv(valid).JSEARCH_SEARCH_PATH).toBe('/search-v2');
+    expect(loadEnv({ ...valid, JSEARCH_SEARCH_PATH: ' ' }).JSEARCH_SEARCH_PATH).toBe('/search-v2');
+    expect(loadEnv({ ...valid, JSEARCH_SEARCH_PATH: '/search' }).JSEARCH_SEARCH_PATH).toBe('/search');
+    expect(() => loadEnv({ ...valid, JSEARCH_SEARCH_PATH: '/other' })).toThrowError(/JSEARCH_SEARCH_PATH/);
+  });
 });

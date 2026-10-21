@@ -1,5 +1,5 @@
 import { profilePatchSchema, type ProfilePatch } from '@joblume/shared';
-import type { AddJobLinkResult, Analytics, FollowUp, FollowUpWithJob, GmailReturnTarget, GmailStatus, JobFetch, JobLink } from '@joblume/shared';
+import type { AddJobLinkResult, Analytics, AutofillPayload, FollowUp, FollowUpWithJob, GmailReturnTarget, GmailStatus, JobFetch, JobLink, ScanStatus } from '@joblume/shared';
 import type { ApplicationRow, ApplicationStatus, ProfileRow } from '../db/types.js';
 import type { AnalyticsRow } from '../services/analytics.js';
 import type { GetUser } from './auth.js';
@@ -13,7 +13,7 @@ export interface ProfileRepo {
 }
 
 export interface ApplicationWithJob extends ApplicationRow {
-  job: { title: string; company: string; location: string; source: string; url: string; company_domain: string | null } | null;
+  job: { title: string; company: string; location: string; source: string; url: string; company_domain: string | null; posted_at?: string | null } | null;
 }
 
 export interface ApplicationsRepo {
@@ -33,9 +33,19 @@ export interface ApplicationsService {
   setEmail(userId: string, id: string, email: string): Promise<ApplicationWithJob | null>;
 }
 
+/** Builds the exact data the browser extension may fill into an employer form. */
+export interface AutofillService {
+  /** null when the application does not exist for this user or its job has no link. */
+  get(user: { id: string; email: string | null }, applicationId: string): Promise<AutofillPayload | null>;
+}
+
 export interface JobsService {
   refresh(userId: string): Promise<void>;
   rematch(userId: string): Promise<void>;
+}
+
+export interface ScanService {
+  status(): Promise<ScanStatus>;
 }
 
 export interface JobLinksService {
@@ -69,7 +79,9 @@ export interface AppDeps {
   profiles: ProfileRepo;
   cv: { upload(userId: string, file: { buffer: Buffer; originalname?: string }): Promise<{ characters: number }> };
   applications: ApplicationsService;
+  autofill: AutofillService;
   jobs: JobsService;
+  scan: ScanService;
   jobLinks: JobLinksService;
   gmail: GmailService;
   sending: SendingService;

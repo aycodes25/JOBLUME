@@ -14,6 +14,7 @@ export const keys = {
   gmail: ['gmail'] as const,
   followUps: ['follow-ups'] as const,
   jobFetches: ['job-fetches'] as const,
+  scanStatus: ['scan-status'] as const,
 };
 
 export function useProfile() {
@@ -126,6 +127,14 @@ export function useAddJobLink() {
       void qc.invalidateQueries({ queryKey: keys.jobFetches });
       void qc.invalidateQueries({ queryKey: keys.applications });
     },
+  });
+}
+
+export function useScanStatus() {
+  return useQuery({
+    queryKey: keys.scanStatus,
+    queryFn: () => getApi().getScanStatus(),
+    refetchInterval: 60_000,
   });
 }
 

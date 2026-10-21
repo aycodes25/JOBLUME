@@ -28,7 +28,7 @@ const parseId = (raw: unknown): string => {
   return r.data;
 };
 
-export function applicationRoutes(d: Pick<AppDeps, 'applications' | 'sending'>) {
+export function applicationRoutes(d: Pick<AppDeps, 'applications' | 'sending' | 'autofill'>) {
   const router = Router();
 
   router.get('/', asyncHandler(async (req, res) => {
@@ -40,6 +40,14 @@ export function applicationRoutes(d: Pick<AppDeps, 'applications' | 'sending'>) 
     const app = await d.applications.get(req.user!.id, parseId(req.params.id));
     if (!app) throw new ApiError(404, 'application_not_found');
     res.json(app);
+  }));
+
+  // The payload carries a signed CV link, so it is never cached.
+  router.get('/:id/autofill', asyncHandler(async (req, res) => {
+    const payload = await d.autofill.get(req.user!, parseId(req.params.id));
+    if (!payload) throw new ApiError(404, 'application_not_found');
+    res.set('Cache-Control', 'no-store');
+    res.json(payload);
   }));
 
   router.patch('/:id', asyncHandler(async (req, res) => {

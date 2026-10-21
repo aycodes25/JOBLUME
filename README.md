@@ -35,7 +35,7 @@ API endpoints: `GET /profile`, `PUT /profile`, `POST /cv`, `GET /applications`, 
 ## LinkedIn and Indeed (Phase 4)
 
 - **Apply the database change:** run `supabase/migrations/0003_job_sources.sql` in the Supabase SQL editor (once). It adds the `job_fetches` table.
-- **JSearch (optional):** set `JSEARCH_API_KEY` (a RapidAPI key subscribed to JSearch) and optionally `JSEARCH_MONTHLY_LIMIT` (default 50 requests a month). The worker then asks JSearch once a day for your roles and places and keeps only LinkedIn and Indeed results. Without a key, JSearch is skipped.
+- **JSearch (optional):** set `JSEARCH_API_KEY` (a RapidAPI key subscribed to JSearch) and optionally `JSEARCH_MONTHLY_LIMIT` (default 50 requests a month). The worker then asks JSearch once a day for your roles and places and keeps LinkedIn and Indeed results plus results from other sites that carry a direct employer application link (shown as "Employer link (JSearch)"; aggregator links are dropped). Run `supabase/migrations/0008_jsearch_source.sql` before using this. Without a key, JSearch is skipped.
 - **Paste a job link:** on the Queue page, paste a LinkedIn or Indeed job link into **Add a job link**. The worker reads that one page and prepares an application for you. The list under the box shows each link's status, or why it could not be read (blocked, sign-in required, no longer available, or unreadable).
 - **Install the browser on the worker host (once):** `npm run browsers:install -w server`. On Linux use `npx -w server playwright install --with-deps chromium` to also install the system libraries. Only the worker uses it; the API never loads it, and the tests never need it.
 - **Terms of service and ban risk:** LinkedIn and Indeed restrict automated access in their terms. Reading a job page with a headless browser may breach those terms, and the site can block your worker host's IP address or, if you ever used the same network for your own account, flag it. JobLume limits this on purpose: it only fetches a link you paste yourself (one page per link, 10 links an hour per user), never signs in, never crawls search or listing pages, and never submits anything on the sites. JSearch is a licensed third-party API and does not touch those sites from your machine. You accept the remaining risk when you paste links; if a page is blocked, JobLume reports it and does not retry around the block.
@@ -45,15 +45,39 @@ API endpoints: `GET /profile`, `PUT /profile`, `POST /cv`, `GET /applications`, 
 
 ## Mobile app (Phase 5)
 
-An Android-first Expo app in `mobile/` (Expo SDK 58, Expo Router, React Native 0.88) with the same functions as the web dashboard: sign-in, the queue (search, All / 90%+ / Recent, Follow-ups, Add a job link, pull to refresh), job detail (approve, send by email, skip, assisted apply with PDF share), tracker, analytics, settings with Gmail, and onboarding with CV upload. It talks only to the Express API with your Supabase access token; Supabase JS is used only to sign in and refresh the session, which is kept in the phone's SecureStore. Nothing is sent without your tap, except under the existing Auto-mode rules on the server.
+An Android-first Expo app in `mobile/` (Expo SDK 57, Expo Router, React Native 0.86) with the same functions as the web dashboard: sign-in, the queue (search, All / 90%+ / Recent, Follow-ups, Add a job link, pull to refresh), job detail (approve, send by email, skip, assisted apply with PDF share), tracker, analytics, settings with Gmail, and onboarding with CV upload. It talks only to the Express API with your Supabase access token; Supabase JS is used only to sign in and refresh the session, which is kept in the phone's SecureStore. Nothing is sent without your tap, except under the existing Auto-mode rules on the server.
 
-- **Configure:** copy `mobile/.env.example` to `mobile/.env` and set `EXPO_PUBLIC_SUPABASE_URL`, `EXPO_PUBLIC_SUPABASE_ANON_KEY` and `EXPO_PUBLIC_API_URL=http://<your PC's Wi-Fi IP>:4000` (not `localhost`; the phone is another device). Only these three public values go into the app. Never commit `mobile/.env`.
-- **Run on your phone:** install Expo Go from the Play Store, put the phone on the same Wi-Fi as the PC, run `npm run dev:server` and `npm run dev:mobile`, then scan the QR code with Expo Go. Windows must allow inbound TCP 4000 (and 8081 for the Metro bundler) on your private network; see `docs/phase5-manual-checklist.md`.
+- **Configure:** copy `mobile/.env.example` to `mobile/.env` and set `EXPO_PUBLIC_SUPABASE_URL`, `EXPO_PUBLIC_SUPABASE_ANON_KEY` and `EXPO_PUBLIC_API_URL=http://<your PC's Wi-Fi IP>:4000` (not `localhost`; the phone is another device). Use the IPv4 address from `ipconfig` on the PC (the same address Expo prints after `Metro: exp://`). Only these three public values go into the app. Never commit `mobile/.env`.
+- **Run on your phone:** install Expo Go from the Play Store (the app targets Expo SDK 57, so it needs an Expo Go that supports SDK 57), put the phone on the same Wi-Fi as the PC, run `npm run dev:server` and `npm run dev:mobile`, then scan the QR code with Expo Go. Windows must allow inbound TCP 4000 (and 8081 for the Metro bundler) on your private network; see `docs/phase5-manual-checklist.md`.
 - **Gmail from the phone:** Settings, Connect Gmail opens Google in an in-app browser and the API sends you back to `joblume://gmail-return`. Google only accepts `http://localhost` or an https address as `GMAIL_REDIRECT_URI`, so while the API runs on your PC connect Gmail once from the web app on the PC; the phone then shows it connected (the connection belongs to your account, not the device).
 - **Standalone APK (later):** `mobile/eas.json` has a `preview` profile that builds an APK with EAS Build. It needs a deployed https API first (out of scope for this phase); the steps are in the checklist.
 - **Tests:** `npm test -w mobile` (Jest with jest-expo and React Native Testing Library, fakes only) and `npm run typecheck -w mobile`.
-- **React version:** the repo-root override pins React `19.3.1`; Expo SDK 58 lists `19.3.0`. `mobile/package.json` excludes `react` and `react-dom` from `expo install --check`, and React Native 0.88 accepts `^19.3.0`, so there is one React for all workspaces.
+- **React version:** the repo-root override pins React `19.3.1`; Expo SDK 57 lists `19.2.3`. `mobile/package.json` excludes `react`, `react-dom` and `@types/react` from `expo install --check`, and React Native 0.86 accepts `^19.2.3`, so there is one React for all workspaces.
 - **Test it:** work through `docs/phase5-manual-checklist.md` on a real phone.
+
+## Job discovery (Phase 6)
+
+- **Sources:** MyJobMag and Jobberman (pages 1 to 3), Remotive, RemoteOK, We Work Remotely, Himalayas, Arbeitnow, Working Nomads, plus LinkedIn, Indeed and direct employer links through JSearch. Nothing is sent for you unless you click, or you turn on Auto mode (which only emails eligible, non-guessed addresses and never LinkedIn, Indeed or JSearch jobs); otherwise you apply on the employer's site yourself.
+- **Attribution:** RemoteOK, Remotive, Himalayas, We Work Remotely, Arbeitnow and Working Nomads ask for a link back and naming the source. The stored job link is each board's own page and the source name is shown on every card; keep both visible if you change the UI. Do not republish these jobs to other job boards.
+- **Last scan:** the queue shows what each source's last scan found, added and skipped (by title or place) and whether the worker is running (`GET /scan/status`).
+- **New-match email:** Settings has "Email me about new matches" (off by default). It sends at most one email an hour to your own Gmail address, with job titles, companies, scores and a link, never your CV. Gmail must be connected.
+- **Database:** apply `supabase/migrations/0004_discovery.sql` before starting the new server and worker.
+- **Test it:** work through `docs/phase6-manual-checklist.md`.
+
+## Reaching the employer (Phase 7)
+
+- **Database:** apply `supabase/migrations/0005_contacts.sql` and `supabase/migrations/0006_workingnomads.sql` in the Supabase SQL editor BEFORE starting the server and worker. The worker reads `applications.whatsapp_number` (added by 0005); without 0006 every Working Nomads insert fails.
+- **Backfill:** `npm run backfill:contacts -w server -- --dry` shows what would change without writing anything. When the numbers look right, run `npm run backfill:contacts -w server` (no `--dry`) to apply it. It re-reads the saved job posting of each application waiting for review and stores any email address or WhatsApp number the employer printed there. It needs the full `.env` (Supabase URL and service-role key) and only fills applications that have no email yet or only a guessed one; it never overwrites a published, Hunter or manual address, and never touches applications you already sent.
+- **Test it:** work through `docs/phase7-manual-checklist.md`.
+
+## Autofill extension (Phase 8)
+
+- **What it does:** a Chrome (also Edge and Brave) extension that fills the standard fields of Greenhouse, Lever, Ashby and Workable application forms from your JobLume details and your tailored CV. It never submits, never answers custom or demographic questions and never overwrites text that is already there. You review everything and press Submit yourself.
+- **Database:** apply `supabase/migrations/0007_contact_profile.sql` and `supabase/migrations/0008_jsearch_source.sql` in the Supabase SQL editor BEFORE starting the new server (and 0005 and 0006 first if you have not applied them yet). Then fill in Settings, "Contact details for application forms" (web or phone app).
+- **Install:** `npm install`, `npm run build:extension`, then load `extension/dist` unpacked at `chrome://extensions` with Developer mode on. To use a deployed web address, set `EXTENSION_JOBLUME_ORIGINS` and `EXTENSION_STORAGE_HOST` before building. Full steps: `docs/extension-setup.md`.
+- **Use:** in an application's "apply on the employer's site" panel press "Fill the form with the JobLume extension", check every answer on the employer's form, submit it yourself, then press Mark as applied in JobLume.
+- **Limits:** form markup changes over time, so adapters need occasional updates; other systems (Workday, iCIMS, SmartRecruiters and so on) and custom forms are not covered; the extension is loaded unpacked, not from the Chrome Web Store; it has not been tested in a real browser by its author, so follow the checklist.
+- **Test it:** work through `docs/phase8-manual-checklist.md`.
 
 ## Getting a test token (API only, without the web app)
 
@@ -68,7 +92,7 @@ curl -s -X POST "$SUPABASE_URL/auth/v1/token?grant_type=password"   -H "apikey: 
 
 Users created BEFORE the migration ran have no profile row, because the signup trigger only fires for new users. Create those users after applying the migration, or insert their profile row by hand.
 
-After the first run, the worker's scheduler keeps running every 6 hours. Deleting the Redis keys resets it.
+After the first run, the worker's scheduler scans the job boards every `SCRAPE_EVERY_MINUTES` minutes (default 120), Remotive every 6 hours (its own limit is 4 requests a day) and JSearch daily. Deleting the Redis keys resets it.
 
 ## Deploying
 
@@ -82,8 +106,9 @@ Deploy `web/` to Vercel. Set the project's Root Directory to `web`, enable "Incl
 
 ## Notes
 
-- Nothing is sent or applied automatically; you apply on the employer's site.
+- Nothing is sent without your click unless you turn on Auto mode, and even then only to addresses it is allowed to use (see Settings; guessed addresses and LinkedIn or Indeed jobs are never sent). The optional new-match email only goes to your own address and never applies for you.
 - Through the API, users can only edit their tailored CV text and cover letter text. Applications are written by the server only; the database denies client writes.
-- Remotive jobs must keep their link back and source attribution when shown in the UI.
+- Remotive, RemoteOK, We Work Remotely, Himalayas, Arbeitnow and Working Nomads jobs must keep their link back and source attribution when shown in the UI.
 - Free-tier limits: Upstash counts Redis commands (the worker polls idle queues sparingly); Gemini free quota is lower than the `AI_DAILY_LIMIT` soft cap, so set the cap below your real quota.
+- Talent platforms to join once (not scannable listings): `docs/talent-platforms.md`.
 - Manual test checklist: `docs/phase2-manual-checklist.md`.

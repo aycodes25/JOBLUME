@@ -12,6 +12,7 @@ import {
   type JobFetch,
   type Profile,
   type ProfilePatch,
+  type ScanStatus,
 } from '@joblume/shared';
 import type { CvFile } from '../cv-file';
 import type { ApiClient } from './client';
@@ -40,6 +41,7 @@ export function createApi(request: ApiClient) {
     refreshJobs: () => request<{ queued: boolean }>('/jobs/refresh', { method: 'POST' }),
     addJobLink: (url: string) => request<AddJobLinkResult>('/jobs/from-url', { method: 'POST', json: { url } }),
     listJobFetches: () => request<JobFetch[]>('/jobs/fetches'),
+    getScanStatus: () => request<ScanStatus>('/scan/status'),
     getGmailStatus: () => request<GmailStatus>('/gmail/status'),
     /** The phone always asks the server to send Google's callback back to the app. */
     startGmailConnect: () => request<{ url: string }>('/gmail/connect', { method: 'POST', json: { return: MOBILE_GMAIL_RETURN } }),

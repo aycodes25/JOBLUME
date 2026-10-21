@@ -25,6 +25,11 @@ describe('profilePatchSchema', () => {
     expect(profilePatchSchema.safeParse(body).success).toBe(false);
   });
 
+  it('accepts the new-match email switch and rejects a non-boolean', () => {
+    expect(profilePatchSchema.parse({ notify_new_matches: true })).toEqual({ notify_new_matches: true });
+    expect(profilePatchSchema.safeParse({ notify_new_matches: 'yes' }).success).toBe(false);
+  });
+
   it('accepts equal salary bounds and null location', () => {
     expect(profilePatchSchema.safeParse({ salary_min: 100, salary_max: 100 }).success).toBe(true);
     expect(profilePatchSchema.safeParse({ location: null }).success).toBe(true);

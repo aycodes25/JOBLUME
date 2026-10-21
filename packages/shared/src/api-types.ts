@@ -16,6 +16,15 @@ export interface Profile {
   auto_threshold: number;
   daily_cap: number;
   auto_followup: boolean;
+  notify_new_matches: boolean;
+  /** users.full_name, joined in by the API. */
+  full_name: string | null;
+  /** Contact details the browser extension fills into employer forms. */
+  phone: string | null;
+  city: string | null;
+  linkedin_url: string | null;
+  github_url: string | null;
+  portfolio_url: string | null;
   updated_at: string;
 }
 
@@ -26,6 +35,8 @@ export interface JobSummary {
   source: string;
   url: string;
   company_domain: string | null;
+  /** When the source says the job was posted (ISO time). Missing or null: use the application's created_at. */
+  posted_at?: string | null;
 }
 
 export interface Application {
@@ -39,8 +50,10 @@ export interface Application {
   missing_keywords: string[];
   hiring_manager_email: string | null;
   email_confidence: number | null;
-  email_source: 'hunter' | 'guess' | 'manual' | null;
+  email_source: EmailSource | null;
   email_candidates: EmailCandidate[];
+  /** Digits only, with country code; published in the job post. Opens a WhatsApp chat, never sends. */
+  whatsapp_number?: string | null;
   apply_method: 'email' | 'assisted' | 'auto' | null;
   status: ApplicationStatus;
   applied_at: string | null;
@@ -66,10 +79,12 @@ export interface CvUploadResult {
   characters: number;
 }
 
+export type EmailSource = 'hunter' | 'guess' | 'manual' | 'posting';
+
 export interface EmailCandidate {
   email: string;
   confidence: number;
-  source: 'hunter' | 'guess';
+  source: 'hunter' | 'guess' | 'posting';
   label: string;
   name?: string;
   position?: string;
@@ -108,3 +123,44 @@ export interface JobFetch {
 
 /** POST /jobs/from-url: 202 { queued: true } for a new link, 200 { job_id } when the job is already stored. */
 export type AddJobLinkResult = { queued: true } | { job_id: string };
+
+/** One finished scan of one source, as listed by GET /scan/status. */
+export interface ScanRun {
+  /** A job board name ('myjobmag', 'remoteok', ...) or 'jsearch'. */
+  source: string;
+  started_at: string;
+  finished_at: string;
+  status: 'ok' | 'failed';
+  /** A short reason when status is 'failed'. */
+  error: string | null;
+  listed: number;
+  new_count: number;
+  inserted: number;
+  /** New jobs no user's roles matched on the title. */
+  rejected_title: number;
+  /** New jobs whose title matched somebody but whose place did not. */
+  rejected_location: number;
+}
+
+/** GET /scan/status: the latest run per source and whether the worker has reported in lately. */
+export interface ScanStatus {
+  worker_alive: boolean;
+  worker_last_seen: string | null;
+  runs: ScanRun[];
+}
+
+/** GET /applications/:id/autofill: exactly what the browser extension may fill into an employer form, nothing else. */
+export interface AutofillPayload {
+  job_url: string;
+  full_name: string | null;
+  first_name: string | null;
+  last_name: string | null;
+  email: string | null;
+  phone: string | null;
+  city: string | null;
+  linkedin_url: string | null;
+  github_url: string | null;
+  portfolio_url: string | null;
+  cover_letter: string | null;
+  cv: { url: string; filename: string } | null;
+}

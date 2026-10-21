@@ -23,7 +23,13 @@ const schema = z.object({
   HUNTER_API_KEY: optionalString,
   HUNTER_MONTHLY_LIMIT: z.preprocess(blankToUndefined, z.coerce.number().int().positive().default(25)),
   JSEARCH_API_KEY: optionalString,
+  /** Where the JSearch key was bought: RapidAPI (default) or directly from OpenWeb Ninja. */
+  JSEARCH_PROVIDER: z.preprocess(blankToUndefined, z.enum(['rapidapi', 'openwebninja']).default('rapidapi')),
+  /** The JSearch request path: the current /search-v2 (default) or the legacy /search. */
+  JSEARCH_SEARCH_PATH: z.preprocess(blankToUndefined, z.enum(['/search-v2', '/search']).default('/search-v2')),
   JSEARCH_MONTHLY_LIMIT: z.preprocess(blankToUndefined, z.coerce.number().int().positive().default(50)),
+  /** How often the job boards are scanned. At least 30, so the boards are never hit more than twice an hour. */
+  SCRAPE_EVERY_MINUTES: z.preprocess(blankToUndefined, z.coerce.number().int().min(30).default(120)),
 });
 
 export type Env = z.infer<typeof schema>;

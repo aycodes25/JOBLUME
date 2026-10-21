@@ -1,5 +1,6 @@
-import { canonicalJobUrl, type LinkSource } from '@joblume/shared';
+import { canonicalJobUrl, safeHttpUrl, type LinkSource } from '@joblume/shared';
 import { domainFromWebsite, normaliseJob, tidyLocation, type JobStub, type NormalisedJob } from '../domain/jobs.js';
+import type { JobSource } from '../domain/jobs.js';
 import type { Logger } from '../lib/logger.js';
 import { JSearchError, type JSearchClient, type JSearchJob, type JSearchQuery } from './jsearch-client.js';
 import type { Scraper } from './types.js';
@@ -56,10 +57,44 @@ function jobLinkFor(raw: JSearchJob, source: LinkSource): string | null {
   return null;
 }
 
+/** Job aggregators and search sites: their links are not the employer's own page. "name.*" matches that name with any ending (adzuna.co.uk, careerjet.com.ng). */
+export const AGGREGATOR_HOSTS = [
+  'jobleads.com', 'jobright.ai', 'glassdoor.com', 'ziprecruiter.com', 'jooble.org', 'adzuna.*', 'talent.com', 'careerjet.*', 'neuvoo.*', 'learn4good.com', 'bebee.com',
+] as const;
+
+export function isAggregatorHost(host: string): boolean {
+  const h = host.toLowerCase();
+  return AGGREGATOR_HOSTS.some((entry) => {
+    if (entry.endsWith('.*')) return h.split('.').includes(entry.slice(0, -2));
+    return h === entry || h.endsWith(`.${entry}`);
+  });
+}
+
+const isPortalHost = (host: string): boolean => host.split('.').some((label) => label === 'linkedin' || label === 'indeed');
+
+/** The employer's own https application link: a direct apply option, else the apply link when flagged direct. Never an aggregator or a LinkedIn/Indeed link. */
+function directLinkFor(raw: JSearchJob): string | null {
+  const candidates: unknown[] = [];
+  if (Array.isArray(raw.apply_options)) {
+    for (const o of raw.apply_options as unknown[]) {
+      if (typeof o === 'object' && o !== null && (o as { is_direct?: unknown }).is_direct === true) candidates.push((o as { apply_link?: unknown }).apply_link);
+    }
+  }
+  if (raw.job_apply_is_direct === true) candidates.push(raw.job_apply_link);
+  for (const candidate of candidates) {
+    const link = safeHttpUrl(candidate);
+    if (!link) continue;
+    const parsed = new URL(link);
+    if (parsed.protocol !== 'https:' || isPortalHost(parsed.hostname) || isAggregatorHost(parsed.hostname)) continue;
+    return link;
+  }
+  return null;
+}
+
 export function parseJSearchJob(raw: JSearchJob): NormalisedJob | null {
-  const source = publisherSource(raw.job_publisher);
-  if (!source) return null;
-  const url = jobLinkFor(raw, source);
+  const portal = publisherSource(raw.job_publisher);
+  const source: JobSource | null = portal ?? 'jsearch';
+  const url = portal ? jobLinkFor(raw, portal) : directLinkFor(raw);
   if (!url) return null;
   return normaliseJob({
     title: raw.job_title,
@@ -69,6 +104,7 @@ export function parseJSearchJob(raw: JSearchJob): NormalisedJob | null {
     source,
     url,
     companyDomain: domainFromWebsite(raw.employer_website),
+    postedAt: raw.job_posted_at_datetime_utc,
   });
 }
 
@@ -101,8 +137,8 @@ export function createJSearchScraper(d: JSearchScraperDeps): Scraper {
         try {
           results = await d.client.search(q);
         } catch (err) {
-          // Only a request that never reached RapidAPI used no budget; anything that was sent counts.
-          if (err instanceof JSearchError && err.neverSent) {
+          // A request that never reached RapidAPI, or that hit an endpoint that no longer exists, used no budget; anything else that was sent counts.
+          if (err instanceof JSearchError && (err.neverSent || err.endpointMissing)) {
             try {
               await d.quota.refund();
             } catch (refundErr) {
@@ -122,7 +158,7 @@ export function createJSearchScraper(d: JSearchScraperDeps): Scraper {
       }
       // Keep what earlier queries found; fail only when every attempted query failed.
       if (lastError !== undefined && succeeded === 0) throw lastError;
-      return [...found.values()].map(({ title, company, location, url, source, description }) => ({ title, company, location, url, source, description }));
+      return [...found.values()].map(({ title, company, location, url, source, description, postedAt }) => ({ title, company, location, url, source, description, postedAt }));
     },
     async detail(stub) {
       return (

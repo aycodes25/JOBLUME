@@ -8,14 +8,16 @@ import { ErrorState } from '@/components/common/ErrorState';
 import { PageSkeleton } from '@/components/common/PageSkeleton';
 import { FollowUpCard } from '@/components/followups/FollowUpCard';
 import { AddJobLink } from '@/components/jobs/AddJobLink';
+import { LastScanCard } from '@/components/jobs/LastScanCard';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
-  useAddJobLink, useApplications, useDismissFollowUp, useFollowUps, useJobFetches, useRefreshJobs, useSendFollowUp, useUpdateFollowUp,
+  useAddJobLink, useApplications, useDismissFollowUp, useFollowUps, useJobFetches, useRefreshJobs, useScanStatus, useSendFollowUp, useUpdateFollowUp,
 } from '@/hooks/api';
 import { describeApiError } from '@/lib/api/errors';
 import { formatScore } from '@/lib/format';
-import { averageScore, splitQueue, type QueueTab } from '@/lib/applications';
+import { cn } from '@/lib/utils';
+import { averageScore, splitQueue, withEmail, type QueueTab } from '@/lib/applications';
 import type { FollowUpWithJob } from '@joblume/shared';
 
 type Tab = QueueTab | 'followups';
@@ -24,7 +26,7 @@ const TAB_LABELS: Record<QueueTab, string> = { pending: 'Pending', ready: 'Ready
 const EMPTY: Record<QueueTab, { title: string; description: string }> = {
   pending: {
     title: 'No applications to review yet',
-    description: 'New jobs are checked every 6 hours. Make sure your CV and roles are set in Settings, then check for new jobs.',
+    description: 'New jobs are checked about every 2 hours. Make sure your CV and roles are set in Settings, then check for new jobs.',
   },
   ready: { title: 'Nothing is ready to apply', description: 'Approve an application from the Pending tab and it will wait here until you send or mark it applied.' },
   skipped: { title: 'No skipped applications', description: 'Applications you skip appear here, and you can restore them.' },
@@ -52,10 +54,18 @@ export default function QueuePage() {
   const followUps = useFollowUps('pending_review');
   const refresh = useRefreshJobs();
   const jobFetches = useJobFetches();
+  const scan = useScanStatus();
   const addLink = useAddJobLink();
   const [tab, setTab] = useState<Tab>('pending');
   const [openId, setOpenId] = useState<string | null>(null);
+  const [hasEmail, setHasEmail] = useState(false);
   const groups = useMemo(() => splitQueue(apps.data ?? []), [apps.data]);
+  const shown = useMemo(
+    () => (hasEmail ? Object.fromEntries(TABS.map((t) => [t, withEmail(groups[t])])) as typeof groups : groups),
+    [groups, hasEmail],
+  );
+  // The list the open application came from, in the order shown, so "open next job" follows the same segment and ordering.
+  const openQueue = openId ? TABS.map((t) => shown[t]).find((list) => list.some((a) => a.id === openId)) : undefined;
   const avg = useMemo(() => averageScore(apps.data ?? []), [apps.data]);
 
   if (apps.isLoading) return <PageSkeleton />;
@@ -79,6 +89,8 @@ export default function QueuePage() {
       </div>
       {refresh.isSuccess && <p role="status" className="text-sm text-muted-foreground">Checking for new jobs. New matches appear here within a few minutes.</p>}
       {refresh.error && <p role="alert" className="text-sm text-destructive">{describeApiError(refresh.error)}</p>}
+
+      <LastScanCard status={scan.data} />
 
       <AddJobLink
         fetches={jobFetches.data ?? []}
@@ -111,13 +123,28 @@ export default function QueuePage() {
           ))}
           <TabsTrigger value="followups">Follow-ups ({drafts.length})</TabsTrigger>
         </TabsList>
+        <div className="mt-3 flex flex-wrap gap-2" aria-label="Filters">
+          <button
+            type="button"
+            aria-pressed={hasEmail}
+            onClick={() => setHasEmail((v) => !v)}
+            className={cn(
+              'rounded-full border px-3 py-1 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+              hasEmail ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-white text-muted-foreground hover:bg-secondary',
+            )}
+          >
+            Has email
+          </button>
+        </div>
         {TABS.map((t) => (
           <TabsContent key={t} value={t}>
-            {groups[t].length === 0 ? (
+            {shown[t].length === 0 && groups[t].length > 0 ? (
+              <EmptyState title="No matches for this filter" description="Turn off Has email to see every application in this tab." />
+            ) : groups[t].length === 0 ? (
               <EmptyState title={EMPTY[t].title} description={EMPTY[t].description} />
             ) : (
               <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-                {groups[t].map((a) => (
+                {shown[t].map((a) => (
                   <ApplicationCard key={a.id} app={a} onOpen={setOpenId} />
                 ))}
               </div>
@@ -142,7 +169,7 @@ export default function QueuePage() {
         </TabsContent>
       </Tabs>
 
-      <ApplicationDetail id={openId} onClose={() => setOpenId(null)} />
+      <ApplicationDetail id={openId} onClose={() => setOpenId(null)} queue={openQueue} onOpen={setOpenId} />
     </div>
   );
 }

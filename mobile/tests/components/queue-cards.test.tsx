@@ -12,11 +12,18 @@ describe('ApplicationCard', () => {
     expect(screen.getByText('Acme')).toBeOnTheScreen();
     expect(screen.getByText('96% MATCH')).toBeOnTheScreen();
     expect(screen.getByText('Lagos')).toBeOnTheScreen();
-    expect(screen.getByText('2 hours ago')).toBeOnTheScreen();
+    expect(screen.getByText('Found 2 hours ago')).toBeOnTheScreen();
     expect(screen.getByText('MyJobMag')).toBeOnTheScreen();
     expect(screen.getByText('Figma')).toBeOnTheScreen();
     expect(screen.queryByText('Sketch')).toBeNull();
     expect(screen.getByText('+1')).toBeOnTheScreen();
+  });
+
+  it('shows when the source says the job was posted', async () => {
+    const job = { title: 'Data Analyst', company: 'Acme', location: 'Lagos', source: 'remoteok', url: 'https://example.com/j', company_domain: null, posted_at: '2026-10-18T09:00:00.000Z' };
+    await render(<ApplicationCard app={app({ job })} onOpen={jest.fn()} now={new Date('2026-10-18T12:00:00.000Z')} />);
+    expect(screen.getByText('Posted 3 hours ago')).toBeOnTheScreen();
+    expect(screen.getByText('RemoteOK')).toBeOnTheScreen();
   });
 
   it('opens the application from Details', async () => {
@@ -95,5 +102,16 @@ describe('FollowUpCard', () => {
     expect(screen.getByRole('button', { name: 'Save changes' })).toBeDisabled();
     await fireEvent.press(screen.getByRole('button', { name: 'Dismiss' }));
     expect(h.onDismiss).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('ApplicationCard apply-method badge', () => {
+  it('shows Email, WhatsApp or Employer site', async () => {
+    const view = await render(<ApplicationCard app={app()} onOpen={jest.fn()} />);
+    expect(screen.getByText('Email')).toBeOnTheScreen();
+    await view.rerender(<ApplicationCard app={app({ hiring_manager_email: null, whatsapp_number: '2348031234567' })} onOpen={jest.fn()} />);
+    expect(screen.getByText('WhatsApp')).toBeOnTheScreen();
+    await view.rerender(<ApplicationCard app={app({ hiring_manager_email: null })} onOpen={jest.fn()} />);
+    expect(screen.getByText('Employer site')).toBeOnTheScreen();
   });
 });

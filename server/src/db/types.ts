@@ -1,4 +1,4 @@
-import type { ApplicationStatus, EmailCandidate, JobSource } from '@joblume/shared';
+import type { ApplicationStatus, EmailCandidate, EmailSource, JobSource } from '@joblume/shared';
 export type { ApplicationStatus };
 
 export type JobSourceName = JobSource;
@@ -14,6 +14,8 @@ export interface JobRow {
   url: string;
   company_domain: string | null;
   dedupe_key: string;
+  /** When the source says the job was posted; null or absent when it does not. */
+  posted_at?: string | null;
   created_at: string;
 }
 
@@ -32,6 +34,14 @@ export interface ProfileRow {
   auto_threshold: number;
   daily_cap: number;
   auto_followup: boolean;
+  notify_new_matches: boolean;
+  /** users.full_name, joined in by the profile repo (not a profiles column). */
+  full_name: string | null;
+  phone: string | null;
+  city: string | null;
+  linkedin_url: string | null;
+  github_url: string | null;
+  portfolio_url: string | null;
   updated_at: string;
 }
 
@@ -46,8 +56,9 @@ export interface ApplicationRow {
   missing_keywords: string[];
   hiring_manager_email: string | null;
   email_confidence: number | null;
-  email_source: 'hunter' | 'guess' | 'manual' | null;
+  email_source: EmailSource | null;
   email_candidates: EmailCandidate[];
+  whatsapp_number: string | null;
   apply_method: 'email' | 'assisted' | 'auto' | null;
   status: ApplicationStatus;
   applied_at: string | null;

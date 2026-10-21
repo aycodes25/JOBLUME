@@ -1,4 +1,4 @@
-export const JOB_SOURCES = ['linkedin', 'indeed', 'jobberman', 'myjobmag', 'remotive'] as const;
+export const JOB_SOURCES = ['linkedin', 'indeed', 'jobberman', 'myjobmag', 'remotive', 'remoteok', 'weworkremotely', 'himalayas', 'arbeitnow', 'workingnomads', 'jsearch'] as const;
 export type JobSource = (typeof JOB_SOURCES)[number];
 
 /** Sources whose jobs only arrive through JSearch or a pasted link. Applying to them is always manual. */

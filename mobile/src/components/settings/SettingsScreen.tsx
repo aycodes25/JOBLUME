@@ -2,6 +2,7 @@ import { useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { StyleSheet, Text } from 'react-native';
 import { CvUpload } from '@/components/cv/CvUpload';
+import { ContactForm } from '@/components/profile/ContactForm';
 import { ProfileForm } from '@/components/profile/ProfileForm';
 import { SettingsForm } from '@/components/profile/SettingsForm';
 import { Button } from '@/components/ui/Button';
@@ -12,7 +13,7 @@ import { useProfile, useUpdateProfile, useUploadCv } from '@/hooks/api';
 import { describeApiError } from '@/lib/api/errors';
 import { displayCvName } from '@/lib/cv-name';
 import { parseGmailReturn } from '@/lib/gmail-return';
-import { profileToFormValues, profileToSettingsValues } from '@/lib/profile-form';
+import { profileToContactValues, profileToFormValues, profileToSettingsValues } from '@/lib/profile-form';
 import { useSession } from '@/lib/session';
 import { colors, font } from '@/theme';
 import { GmailCard } from './GmailCard';
@@ -64,6 +65,15 @@ export function SettingsScreen({ onSignOut }: SettingsScreenProps) {
         <ProfileForm
           initial={profileToFormValues(data)}
           submitLabel="Save preferences"
+          onSubmit={async (patch) => {
+            await updateProfile.mutateAsync(patch);
+          }}
+        />
+      </Section>
+
+      <Section title="Contact details for application forms" description="Used by the JobLume browser extension to fill the standard fields of employer forms. Nothing is submitted for you.">
+        <ContactForm
+          initial={profileToContactValues(data)}
           onSubmit={async (patch) => {
             await updateProfile.mutateAsync(patch);
           }}

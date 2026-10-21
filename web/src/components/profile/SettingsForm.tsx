@@ -82,6 +82,12 @@ export function SettingsForm({ initial, onSubmit }: SettingsFormProps) {
       </label>
       <p className="text-xs text-muted-foreground">With this on, follow-up drafts are sent automatically three days after you apply instead of waiting for you.</p>
 
+      <label className="flex items-center gap-2 text-sm">
+        <input type="checkbox" checked={values.notifyNewMatches} onChange={(e) => set('notifyNewMatches', e.target.checked)} />
+        Email me about new matches
+      </label>
+      <p className="text-xs text-muted-foreground">With this on, JobLume emails you at your connected Gmail address when new matches at or above your threshold are waiting. It sends at most one email an hour, lists job titles, companies and scores with a link to the app, and never includes your CV. Gmail must be connected.</p>
+
       {serverError && (
         <p role="alert" className="text-sm text-destructive">
           {serverError}

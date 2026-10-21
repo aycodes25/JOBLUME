@@ -14,6 +14,24 @@ export function sortByScore<T extends { match_score: number | null; created_at: 
   );
 }
 
+/** When the source says the job was posted, else when the application was created. */
+export const postedKey = (a: { created_at: string; job?: { posted_at?: string | null } | null }): string => a.job?.posted_at ?? a.created_at;
+
+const timeOf = (iso: string): number => {
+  const t = Date.parse(iso);
+  return Number.isNaN(t) ? 0 : t;
+};
+
+/** Newest posting first; a tie goes to the better match, then the newer application. Does not change the input. */
+export function sortNewest<T extends { match_score: number | null; created_at: string; job?: { posted_at?: string | null } | null }>(items: T[]): T[] {
+  return [...items].sort(
+    (a, b) =>
+      timeOf(postedKey(b)) - timeOf(postedKey(a)) ||
+      (b.match_score ?? -1) - (a.match_score ?? -1) ||
+      timeOf(b.created_at) - timeOf(a.created_at),
+  );
+}
+
 export function queueTab(status: ApplicationStatus): QueueTab | null {
   if (status === 'pending_review') return 'pending';
   if (status === 'approved') return 'ready';
@@ -23,11 +41,24 @@ export function queueTab(status: ApplicationStatus): QueueTab | null {
 
 export function splitQueue(apps: Application[]): Record<QueueTab, Application[]> {
   const out: Record<QueueTab, Application[]> = { pending: [], ready: [], skipped: [] };
-  for (const app of sortByScore(apps)) {
+  for (const app of sortNewest(apps)) {
     const tab = queueTab(app.status);
     if (tab) out[tab].push(app);
   }
+  // Pending is the long list to work through: ones with an email or WhatsApp number to reach come first (the newest-first order is the tiebreaker).
+  out.pending = sortContactFirst(out.pending);
   return out;
+}
+
+/** The application after `currentId` in `list` that is still open (waiting for review or ready to apply), or null. Only reads: it never changes anything. */
+export function nextInQueue<T extends { id: string; status: ApplicationStatus }>(list: T[], currentId: string): T | null {
+  const at = list.findIndex((a) => a.id === currentId);
+  if (at < 0) return null;
+  for (let i = at + 1; i < list.length; i++) {
+    const item = list[i]!;
+    if (item.status === 'pending_review' || item.status === 'approved') return item;
+  }
+  return null;
 }
 
 export function groupByColumn(apps: Application[]): Record<KanbanColumn, Application[]> {
@@ -112,4 +143,38 @@ export function averageScore(apps: { match_score: number | null }[]): number | n
   const scores = apps.map((a) => a.match_score).filter((s): s is number => s !== null);
   if (scores.length === 0) return null;
   return Math.round((scores.reduce((sum, s) => sum + s, 0) / scores.length) * 10) / 10;
+}
+
+export type ApplyMethod = 'email' | 'whatsapp' | 'site';
+
+export const APPLY_METHOD_LABELS: Record<ApplyMethod, string> = { email: 'Email', whatsapp: 'WhatsApp', site: 'Employer site' };
+
+/** How the user can reach this employer: an email wins over WhatsApp, and with neither it is the employer's site. */
+export function applyMethod(app: {
+  email_candidates?: unknown[] | null;
+  hiring_manager_email?: string | null;
+  whatsapp_number?: string | null;
+}): ApplyMethod {
+  if ((app.email_candidates?.length ?? 0) > 0 || (app.hiring_manager_email ?? '').trim() !== '') return 'email';
+  if ((app.whatsapp_number ?? '').trim() !== '') return 'whatsapp';
+  return 'site';
+}
+
+const WHATSAPP_MESSAGE_CHARS = 300;
+
+/** A wa.me chat link with the start of the cover letter as the message, or null unless the number is 7 to 15 digits only. Never sends anything. */
+export function whatsappLink(number: string | null | undefined, coverLetter: string | null | undefined): string | null {
+  if (!number || !/^\d{7,15}$/.test(number)) return null;
+  // Cut by code points, so an emoji is never split; a lone surrogate would make encodeURIComponent throw.
+  const text = Array.from((coverLetter ?? '').replace(/\s+/g, ' ').trim()).slice(0, WHATSAPP_MESSAGE_CHARS).join('');
+  try {
+    return `https://wa.me/${number}?text=${encodeURIComponent(text)}`;
+  } catch {
+    return `https://wa.me/${number}`;
+  }
+}
+
+/** Moves applications that have an email or WhatsApp number ahead of the rest. Stable: each group keeps its incoming order. Does not change the input. */
+export function sortContactFirst<T extends Parameters<typeof applyMethod>[0]>(items: T[]): T[] {
+  return [...items.filter((a) => applyMethod(a) !== 'site'), ...items.filter((a) => applyMethod(a) === 'site')];
 }

@@ -2,8 +2,8 @@ import type { Application } from '@joblume/shared';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Badge } from '@/components/ui/Badge';
 import { Card } from '@/components/ui/Card';
-import { scoreTone } from '@/lib/applications';
-import { formatRelative, sourceLabel, STATUS_LABELS } from '@/lib/format';
+import { APPLY_METHOD_LABELS, applyMethod, scoreTone } from '@/lib/applications';
+import { postedLabel, sourceLabel, STATUS_LABELS } from '@/lib/format';
 import { colors, font, radius, space } from '@/theme';
 
 const MAX_KEYWORDS = 2;
@@ -15,7 +15,7 @@ export function ApplicationCard({ app, onOpen, now }: { app: Application; onOpen
   const company = app.job?.company ?? 'Unknown company';
   const keywords = app.missing_keywords.slice(0, MAX_KEYWORDS);
   const extra = app.missing_keywords.length - keywords.length;
-  const posted = formatRelative(app.created_at, now);
+  const posted = postedLabel(app.created_at, app.job?.posted_at, now);
 
   return (
     <Card>
@@ -34,6 +34,7 @@ export function ApplicationCard({ app, onOpen, now }: { app: Application; onOpen
         {app.job?.location ? <Text style={styles.metaText}>{app.job.location}</Text> : null}
         {posted ? <Text style={styles.metaText}>{posted}</Text> : null}
         {app.job ? <Badge label={sourceLabel(app.job.source)} tone="outline" /> : null}
+        <Badge label={APPLY_METHOD_LABELS[applyMethod(app)]} tone="outline" />
         {app.status !== 'pending_review' ? <Badge label={STATUS_LABELS[app.status]} tone={app.status === 'approved' ? 'primary' : 'secondary'} /> : null}
       </View>
 

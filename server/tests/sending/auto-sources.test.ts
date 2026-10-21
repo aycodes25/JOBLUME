@@ -20,6 +20,11 @@ describe('Auto mode never sends LinkedIn or Indeed jobs', () => {
     expect(checkAutoApply(ctx(source))).toEqual({ ok: false, reason: 'source_not_allowed' });
   });
 
+  it('does not list jsearch as an auto source and refuses a jsearch job', () => {
+    expect(AUTO_SOURCES as readonly string[]).not.toContain('jsearch');
+    expect(checkAutoApply(ctx('jsearch'))).toEqual({ ok: false, reason: 'source_not_allowed' });
+  });
+
   it('still allows a board source with the same context', () => {
     expect(checkAutoApply(ctx('myjobmag'))).toEqual({ ok: true });
   });

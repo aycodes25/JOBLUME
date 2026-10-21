@@ -1,4 +1,4 @@
-import { COLUMN_LABELS, formatShortDate, sourceLabel } from '@/lib/format';
+import { COLUMN_LABELS, formatShortDate, postedLabel, sourceLabel } from '@/lib/format';
 
 describe('sourceLabel', () => {
   it('names the known sources and falls back to the raw value', () => {
@@ -7,6 +7,12 @@ describe('sourceLabel', () => {
     expect(sourceLabel('jobberman')).toBe('Jobberman');
     expect(sourceLabel('linkedin')).toBe('LinkedIn');
     expect(sourceLabel('indeed')).toBe('Indeed');
+    expect(sourceLabel('remoteok')).toBe('RemoteOK');
+    expect(sourceLabel('weworkremotely')).toBe('We Work Remotely');
+    expect(sourceLabel('himalayas')).toBe('Himalayas');
+    expect(sourceLabel('arbeitnow')).toBe('Arbeitnow');
+    expect(sourceLabel('workingnomads')).toBe('Working Nomads');
+    expect(sourceLabel('jsearch')).toBe('Employer link (JSearch)');
     expect(sourceLabel('somewhere')).toBe('somewhere');
   });
 });
@@ -44,5 +50,23 @@ describe('formatRelative', () => {
   it('returns an empty string for missing or invalid input', () => {
     expect(formatRelative(null, now)).toBe('');
     expect(formatRelative('nope', now)).toBe('');
+  });
+});
+
+describe('postedLabel', () => {
+  const now = new Date('2026-10-20T12:00:00.000Z');
+
+  it('says "Posted" with the posted time from the source when there is one', () => {
+    expect(postedLabel('2026-10-20T11:00:00.000Z', '2026-10-19T12:00:00.000Z', now)).toBe('Posted 1 day ago');
+  });
+
+  it('falls back to "Found" with when the application was created', () => {
+    expect(postedLabel('2026-10-20T10:00:00.000Z', null, now)).toBe('Found 2 hours ago');
+    expect(postedLabel('2026-10-20T10:00:00.000Z', undefined, now)).toBe('Found 2 hours ago');
+    expect(postedLabel('2026-10-20T10:00:00.000Z', 'not a date', now)).toBe('Found 2 hours ago');
+  });
+
+  it('is empty when neither time can be read', () => {
+    expect(postedLabel('garbage', null, now)).toBe('');
   });
 });

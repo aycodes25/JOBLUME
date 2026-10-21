@@ -4,7 +4,7 @@ import { Queue } from 'bullmq';
 import type { Redis } from 'ioredis';
 import type { ScrapeSource } from './scrapers/index.js';
 
-export const QUEUES = { scrape: 'scrape', match: 'match', tailor: 'tailor', findEmail: 'find-email', followups: 'followups', send: 'send', fetchJob: 'fetch-job' } as const;
+export const QUEUES = { scrape: 'scrape', match: 'match', tailor: 'tailor', findEmail: 'find-email', followups: 'followups', send: 'send', fetchJob: 'fetch-job', alerts: 'alerts' } as const;
 
 export type ScrapeJobData = { source: ScrapeSource };
 export type MatchJobData =
@@ -16,6 +16,8 @@ export type FetchJobData = { userId: string; url: string; source: LinkSource };
 export type TailorJobData = { userId: string; jobId: string };
 export type FindEmailJobData = { applicationId: string };
 export type FollowUpsJobData = { kind: 'scan' } | { kind: 'draft'; applicationId: string };
+/** The new-match email digest: one repeating job that looks at every user who opted in. */
+export type AlertsJobData = { kind: 'digest' };
 export type SendJobData =
   | { kind: 'application'; userId: string; applicationId: string }
   | { kind: 'followup'; userId: string; followUpId: string };
@@ -69,6 +71,8 @@ export function createQueues(connection: Redis) {
     followups: new Queue<FollowUpsJobData>(QUEUES.followups, { connection, defaultJobOptions: TAILOR_JOB_OPTIONS }),
     send: new Queue<SendJobData>(QUEUES.send, { connection, defaultJobOptions: { ...BASE_JOB_OPTIONS, attempts: 1 } }),
     fetchJob: new Queue<FetchJobData>(QUEUES.fetchJob, { connection, defaultJobOptions: FETCH_JOB_OPTIONS }),
+    // One attempt: a failed digest is simply tried again by the next scheduled run.
+    alerts: new Queue<AlertsJobData>(QUEUES.alerts, { connection, defaultJobOptions: { ...BASE_JOB_OPTIONS, attempts: 1 } }),
   };
 }
 

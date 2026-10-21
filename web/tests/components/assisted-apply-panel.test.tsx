@@ -55,6 +55,14 @@ describe('AssistedApplyPanel', () => {
     expect(await screen.findByText(/could not copy/i)).toBeInTheDocument();
   });
 
+  it('shows an optional autofill action above the manual steps, and nothing when it is omitted', () => {
+    const { rerender } = render(<AssistedApplyPanel app={detail()} onMarkApplied={() => {}} />);
+    expect(screen.queryByText('Fill it for me')).toBeNull();
+    rerender(<AssistedApplyPanel app={detail()} onMarkApplied={() => {}} fillAction={<button type="button">Fill it for me</button>} />);
+    expect(screen.getByRole('button', { name: 'Fill it for me' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Open job link' })).toBeInTheDocument();
+  });
+
   it('marks the application as applied', async () => {
     const onMarkApplied = vi.fn();
     render(<AssistedApplyPanel app={detail()} onMarkApplied={onMarkApplied} />);
@@ -73,5 +81,29 @@ describe('AssistedApplyPanel', () => {
   it('disables Mark as applied while a change is pending', () => {
     render(<AssistedApplyPanel app={detail()} onMarkApplied={() => {}} pending />);
     expect(screen.getByRole('button', { name: 'Mark as applied' })).toBeDisabled();
+  });
+
+  it('after marking applied, offers "Applied: open next job" that only navigates', async () => {
+    const onOpenNext = vi.fn();
+    const onMarkApplied = vi.fn();
+    render(<AssistedApplyPanel app={detail({ status: 'applied' })} onMarkApplied={onMarkApplied} applied onOpenNext={onOpenNext} />);
+    expect(screen.getByRole('status')).toHaveTextContent('Marked as applied.');
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Applied: open next job' }));
+    expect(onOpenNext).toHaveBeenCalledTimes(1);
+    expect(onMarkApplied).not.toHaveBeenCalled();
+    expect(screen.queryByRole('button', { name: 'Mark as applied' })).toBeNull();
+  });
+
+  it('shows no next button when there is no next job, and Done closes', async () => {
+    const onDone = vi.fn();
+    render(<AssistedApplyPanel app={detail({ status: 'applied' })} onMarkApplied={() => {}} applied onDone={onDone} />);
+    expect(screen.queryByRole('button', { name: 'Applied: open next job' })).toBeNull();
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Done' }));
+    expect(onDone).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not show the next button before the application is marked applied', () => {
+    render(<AssistedApplyPanel app={detail()} onMarkApplied={() => {}} onOpenNext={() => {}} />);
+    expect(screen.queryByRole('button', { name: 'Applied: open next job' })).toBeNull();
   });
 });

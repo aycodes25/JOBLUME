@@ -4,8 +4,8 @@ import { SafeLink } from '@/components/common/SafeLink';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { previewText, scoreTone } from '@/lib/applications';
-import { formatRelative, sourceLabel, STATUS_LABELS } from '@/lib/format';
+import { APPLY_METHOD_LABELS, applyMethod, previewText, scoreTone } from '@/lib/applications';
+import { postedLabel, sourceLabel, STATUS_LABELS } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { ScoreRing } from './ScoreRing';
 
@@ -23,7 +23,7 @@ export function ApplicationCard({ app, onOpen }: { app: Application; onOpen(id: 
   const company = app.job?.company ?? 'Unknown company';
   const keywords = app.missing_keywords.slice(0, MAX_KEYWORDS);
   const extra = app.missing_keywords.length - keywords.length;
-  const posted = formatRelative(app.created_at);
+  const posted = postedLabel(app.created_at, app.job?.posted_at);
 
   return (
     <Card className="flex h-full flex-col transition-shadow hover:shadow-md">
@@ -72,6 +72,7 @@ export function ApplicationCard({ app, onOpen }: { app: Application; onOpen(id: 
             </span>
           )}
           {app.job && <Badge variant="outline">{sourceLabel(app.job.source)}</Badge>}
+          <Badge variant="outline">{APPLY_METHOD_LABELS[applyMethod(app)]}</Badge>
         </div>
 
         {keywords.length > 0 && (

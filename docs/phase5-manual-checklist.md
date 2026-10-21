@@ -8,7 +8,7 @@ The automated tests use fakes only. This checklist runs the app on a real Androi
 - A **standalone APK** needs a deployed https API: an APK on your phone cannot reach `http://<PC IP>:4000` reliably, and the Gmail return flow needs https. See the last section.
 
 ## Setup on the PC
-- [ ] Find the PC's Wi-Fi address: open PowerShell and run `ipconfig`. Under "Wireless LAN adapter Wi-Fi" read "IPv4 Address", for example `192.168.1.20`. (Not the `vEthernet`/WSL adapter, and not `127.0.0.1`.) The address can change when the router restarts; check it again if the phone stops connecting.
+- [ ] Find the PC's Wi-Fi address: open PowerShell and run `ipconfig`. Under "Wireless LAN adapter Wi-Fi" read "IPv4 Address". That is the address you use below as `http://<your-pc-wifi-ip>:4000` (it is also the address Expo prints after `Metro: exp://`). (Not the `vEthernet`/WSL adapter, and not `127.0.0.1`.) The address can change when the router restarts; check it again if the phone stops connecting.
 - [ ] Allow the phone to reach the PC. In an **administrator** PowerShell run:
   `New-NetFirewallRule -DisplayName "JobLume API 4000" -Direction Inbound -Protocol TCP -LocalPort 4000 -Action Allow -Profile Private`
   and `New-NetFirewallRule -DisplayName "Expo Metro 8081" -Direction Inbound -Protocol TCP -LocalPort 8081 -Action Allow -Profile Private`.
@@ -18,7 +18,7 @@ The automated tests use fakes only. This checklist runs the app on a real Androi
 - [ ] On the phone's browser open `http://<IPv4 Address>:4000/health` and see `{"ok":true}`. If it does not load, fix the firewall or Wi-Fi before going on.
 
 ## Expo Go
-- [ ] Install **Expo Go** from the Google Play Store. The phone and the PC must be on the same Wi-Fi (not a guest network that isolates devices).
+- [ ] Install **Expo Go** from the Google Play Store. This app targets **Expo SDK 57**, so use an Expo Go that supports SDK 57 (Expo Go 57.x). The phone and the PC must be on the same Wi-Fi (not a guest network that isolates devices).
 - [ ] In a second terminal run `npm run dev:mobile`. A QR code appears. In Expo Go tap "Scan QR code" and scan it. The first bundle takes a minute.
 - [ ] If Expo Go cannot connect, stop the command and run `cd mobile && npx expo start --lan` (or `--tunnel` as a last resort; the API address in `mobile/.env` must still be reachable from the phone).
 - [ ] After changing `mobile/.env`, stop `dev:mobile` and start it again with `cd mobile && npx expo start --clear` so the new values are built in.

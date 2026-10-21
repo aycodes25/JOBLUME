@@ -3,7 +3,7 @@ import { JOB_FETCH_REASONS, JOB_FETCH_STATUSES, JOB_SOURCES, LINK_SOURCES } from
 
 describe('job sources', () => {
   it('lists every source the jobs table accepts', () => {
-    expect(JOB_SOURCES).toEqual(['linkedin', 'indeed', 'jobberman', 'myjobmag', 'remotive']);
+    expect(JOB_SOURCES).toEqual(['linkedin', 'indeed', 'jobberman', 'myjobmag', 'remotive', 'remoteok', 'weworkremotely', 'himalayas', 'arbeitnow', 'workingnomads', 'jsearch']);
   });
 
   it('marks LinkedIn and Indeed as the link sources', () => {
